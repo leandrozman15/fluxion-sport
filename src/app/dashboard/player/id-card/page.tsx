@@ -8,7 +8,8 @@ import {
   QrCode, 
   Download,
   Share2,
-  UserCircle
+  UserCircle,
+  Trophy
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
@@ -21,6 +22,7 @@ export default function PlayerIdCardPage() {
   const { firestore, user } = useFirebase();
   const [playerInfo, setPlayerInfo] = useState<any>(null);
   const [clubInfo, setClubInfo] = useState<any>(null);
+  const [teamInfo, setTeamInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,8 +36,26 @@ export default function PlayerIdCardPage() {
             where("email", "==", user.email || "")
           ));
           if (!pSnap.empty) {
-            setPlayerInfo({ ...pSnap.docs[0].data(), clubId: clubDoc.id });
+            const pData = pSnap.docs[0].data();
+            setPlayerInfo({ ...pData, clubId: clubDoc.id });
             setClubInfo(clubDoc.data());
+
+            // Buscar equipo
+            const divSnap = await getDocs(collection(firestore, "clubs", clubDoc.id, "divisions"));
+            for (const divDoc of divSnap.docs) {
+              const teamsSnap = await getDocs(collection(firestore, "clubs", clubDoc.id, "divisions", divDoc.id, "teams"));
+              for (const tDoc of teamsSnap.docs) {
+                const rosterSnap = await getDocs(query(
+                  collection(firestore, "clubs", clubDoc.id, "divisions", divDoc.id, "teams", tDoc.id, "assignments"),
+                  where("playerId", "==", pData.id)
+                ));
+                if (!rosterSnap.empty) {
+                  setTeamInfo({ ...tDoc.data(), divName: divDoc.data().name });
+                  break;
+                }
+              }
+              if (teamInfo) break;
+            }
             break;
           }
         }
@@ -62,7 +82,7 @@ export default function PlayerIdCardPage() {
     <div className="flex flex-col items-center justify-center space-y-8 animate-in fade-in duration-500 max-w-md mx-auto">
       <header className="text-center">
         <h1 className="text-3xl font-bold font-headline text-foreground">Mi Carnet Digital</h1>
-        <p className="text-muted-foreground">Identificación oficial del club.</p>
+        <p className="text-muted-foreground">Identificación oficial del deportista.</p>
       </header>
 
       <Card className="w-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground overflow-hidden shadow-2xl rounded-2xl border-none">
@@ -70,15 +90,15 @@ export default function PlayerIdCardPage() {
           <div className="p-6 flex justify-between items-start">
             <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <ShieldCheck className="h-6 w-6 text-white" />
+                <Trophy className="h-6 w-6 text-white" />
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest opacity-80">Socio Oficial</p>
-                <p className="text-lg font-bold font-headline">{clubInfo?.name || "SportsManager"}</p>
+                <p className="text-lg font-bold font-headline truncate max-w-[180px]">{clubInfo?.name || "SportsManager"}</p>
               </div>
             </div>
             <Badge variant="outline" className="text-white border-white/30 bg-white/10 backdrop-blur-sm">
-              2024-2025
+              {teamInfo?.season || "2024-2025"}
             </Badge>
           </div>
 
@@ -90,10 +110,15 @@ export default function PlayerIdCardPage() {
             
             <div className="text-center">
               <h2 className="text-2xl font-bold font-headline uppercase">{playerInfo.firstName} {playerInfo.lastName}</h2>
-              <p className="text-primary font-bold flex items-center justify-center gap-2 mt-1">
-                <Badge>#{playerInfo.jerseyNumber}</Badge>
-                {playerInfo.position}
-              </p>
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <Badge variant="secondary" className="font-bold">#{playerInfo.jerseyNumber}</Badge>
+                <span className="text-primary font-bold">{playerInfo.position}</span>
+              </div>
+              {teamInfo && (
+                <p className="text-xs text-muted-foreground mt-2 font-medium">
+                  {teamInfo.name} • {teamInfo.divName}
+                </p>
+              )}
             </div>
 
             <div className="w-full h-px bg-border my-2" />
@@ -101,19 +126,19 @@ export default function PlayerIdCardPage() {
             <div className="bg-muted/30 p-4 rounded-lg flex items-center justify-center w-40 h-40 border-2 border-dashed border-muted">
               <QrCode className="h-32 w-32 text-muted-foreground" />
             </div>
-            <p className="text-[10px] text-muted-foreground font-mono uppercase">ID: {playerInfo.id.substring(0, 12)}</p>
+            <p className="text-[10px] text-muted-foreground font-mono uppercase">REF: {playerInfo.id.substring(0, 16)}</p>
           </div>
           
           <div className="px-6 py-4 bg-black/10 flex justify-between items-center">
-             <p className="text-xs font-medium">ESTADO: ACTIVO</p>
+             <p className="text-xs font-bold tracking-widest">ESTADO: ACTIVO</p>
              <ShieldCheck className="h-5 w-5 opacity-50" />
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 w-full">
+      <div className="grid grid-cols-2 gap-4 w-full pb-10">
         <Button variant="outline" className="flex items-center gap-2">
-          <Download className="h-4 w-4" /> Guardar
+          <Download className="h-4 w-4" /> Descargar
         </Button>
         <Button variant="outline" className="flex items-center gap-2">
           <Share2 className="h-4 w-4" /> Compartir

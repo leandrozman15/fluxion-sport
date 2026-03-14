@@ -21,7 +21,7 @@ service cloud.firestore {
         allow create, update, delete: if isClubOwner(clubId);
 
         match /payments/{paymentId} {
-          allow list, get: if isSignedIn(); // Permitir al jugador ver sus propios o al admin
+          allow list, get: if isSignedIn();
           allow create, update, delete: if isClubOwner(clubId);
         }
       }
@@ -46,6 +46,12 @@ service cloud.firestore {
             match /attendance/{attendanceId} {
               allow get, list: if true;
               allow create, update, delete: if isSignedIn();
+            }
+
+            match /callups/{callupId} {
+              allow get, list: if true;
+              allow create, delete: if isClubOwner(clubId);
+              allow update: if isSignedIn(); // Permitir al jugador confirmar
             }
           }
         }

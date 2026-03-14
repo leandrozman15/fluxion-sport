@@ -111,6 +111,20 @@
       },
       "required": ["id", "eventId", "playerId", "status", "updatedAt"]
     },
+    "MatchCallup": {
+      "title": "Convocatoria",
+      "description": "Lista de jugadores seleccionados para un partido específico.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "status": { "type": "string", "enum": ["called", "confirmed", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "eventId", "playerId", "status", "createdAt"]
+    },
     "Payment": {
       "title": "Pago / Mensualidad",
       "description": "Registro de pago de mensualidad de un jugador.",
@@ -118,7 +132,7 @@
       "properties": {
         "id": { "type": "string" },
         "playerId": { "type": "string" },
-        "month": { "type": "number", "description": "Mes del 1 al 12" },
+        "month": { "type": "number" },
         "year": { "type": "number" },
         "amount": { "type": "number" },
         "status": { "type": "string", "enum": ["paid", "pending", "overdue"] },
@@ -178,6 +192,10 @@
     "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/attendance/{attendanceId}": {
       "schema": "#/backend/entities/Attendance",
       "description": "Asistencia a eventos."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/callups/{callupId}": {
+      "schema": "#/backend/entities/MatchCallup",
+      "description": "Convocatorias para partidos."
     },
     "/notifications/{notificationId}": {
       "schema": "#/backend/entities/Notification",
