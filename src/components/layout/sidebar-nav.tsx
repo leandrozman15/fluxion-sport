@@ -5,11 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
-  Wallet, 
-  Calendar, 
-  BarChart3, 
   Settings,
-  Briefcase
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -26,10 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Finance", url: "/finance", icon: Wallet },
-  { title: "Calendar", url: "/calendar", icon: Calendar },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
 ];
 
 export function SidebarNav() {
@@ -39,13 +33,13 @@ export function SidebarNav() {
     <Sidebar>
       <SidebarHeader className="p-4 flex flex-row items-center gap-2">
         <div className="bg-primary p-2 rounded-lg">
-          <Briefcase className="text-primary-foreground h-5 w-5" />
+          <Sparkles className="text-primary-foreground h-5 w-5" />
         </div>
-        <span className="font-headline font-bold text-xl tracking-tight">VantageBiz</span>
+        <span className="font-headline font-bold text-xl tracking-tight">Nueva App</span>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -67,7 +61,7 @@ export function SidebarNav() {
           <SidebarMenuItem>
             <SidebarMenuButton>
               <Settings className="h-4 w-4" />
-              <span>Settings</span>
+              <span>Configuración</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
