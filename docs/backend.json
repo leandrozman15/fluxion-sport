@@ -1,198 +1,66 @@
+
 {
   "entities": {
     "Club": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Club",
+      "description": "Entidad raíz que representa al club deportivo.",
       "type": "object",
-      "description": "Represents a sports club, acting as the root container for all sports-related data within the system.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Club entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The official name of the club."
-        },
-        "address": {
-          "type": "string",
-          "description": "The physical address of the club's main premises."
-        },
-        "phone": {
-          "type": "string",
-          "description": "The primary contact phone number for the club."
-        },
-        "logoUrl": {
-          "type": "string",
-          "description": "A URL pointing to the club's official logo image.",
-          "format": "uri"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the club record was created.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "address",
-        "phone",
-        "createdAt"
-      ]
+      "required": ["id", "name", "ownerId", "createdAt"]
     },
     "Division": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Division",
+      "title": "División",
+      "description": "Categorías organizadas por edad dentro de un club (ej. Sub 9).",
       "type": "object",
-      "description": "Represents a division or category within a club, typically organized by age groups (e.g., Sub 7, Sub 9).",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Division entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the division (e.g., 'Sub 7', 'Sub 11')."
-        },
-        "ageMin": {
-          "type": "number",
-          "description": "The minimum age for players in this division."
-        },
-        "ageMax": {
-          "type": "number",
-          "description": "The maximum age for players in this division."
-        },
-        "clubId": {
-          "type": "string",
-          "description": "Reference to the Club this division belongs to. (Relationship: Club 1:N Division)"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the division record was created.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ageMin": { "type": "number" },
+        "ageMax": { "type": "number" },
+        "clubId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "ageMin",
-        "ageMax",
-        "clubId",
-        "createdAt"
-      ]
+      "required": ["id", "name", "clubId", "createdAt"]
     },
     "Team": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Team",
+      "title": "Equipo",
+      "description": "Equipos específicos dentro de una división (ej. Sub 11 A).",
       "type": "object",
-      "description": "Represents a specific team within a division (e.g., 'Sub11 A').",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Team entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the team (e.g., 'Sub11 A', 'Juniors B')."
-        },
-        "divisionId": {
-          "type": "string",
-          "description": "Reference to the Division this team belongs to. (Relationship: Division 1:N Team)"
-        },
-        "coachName": {
-          "type": "string",
-          "description": "The name of the primary coach for this team."
-        },
-        "season": {
-          "type": "string",
-          "description": "The sports season to which this team record applies (e.g., '2023-2024')."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the team record was created.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "divisionId": { "type": "string" },
+        "clubId": { "type": "string" },
+        "coachName": { "type": "string" },
+        "season": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "divisionId",
-        "coachName",
-        "season",
-        "createdAt"
-      ]
+      "required": ["id", "name", "divisionId", "clubId", "createdAt"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["anonymous", "password"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/clubs/{clubId}",
-        "definition": {
-          "entityName": "Club",
-          "schema": {
-            "$ref": "#/backend/entities/Club"
-          },
-          "description": "Root collection for all sports clubs. Each document represents a single club. Access typically requires global admin roles or specific club ownership/membership permissions (which would be added to the document or a related roles collection).",
-          "params": [
-            {
-              "name": "clubId",
-              "description": "Unique identifier for a specific Club."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/clubs/{clubId}/divisions/{divisionId}",
-        "definition": {
-          "entityName": "Division",
-          "schema": {
-            "$ref": "#/backend/entities/Division"
-          },
-          "description": "Subcollection for divisions belonging to a specific club. Includes denormalized 'clubId' for authorization independence, allowing rules to directly check parent club context.",
-          "params": [
-            {
-              "name": "clubId",
-              "description": "Unique identifier of the parent Club."
-            },
-            {
-              "name": "divisionId",
-              "description": "Unique identifier for a specific Division within the Club."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}",
-        "definition": {
-          "entityName": "Team",
-          "schema": {
-            "$ref": "#/backend/entities/Team"
-          },
-          "description": "Subcollection for teams belonging to a specific division and club. Includes denormalized 'clubId' (which should be added to the Team entity schema) and 'divisionId' for robust authorization independence, enabling direct context checks within security rules.",
-          "params": [
-            {
-              "name": "clubId",
-              "description": "Unique identifier of the grandparent Club."
-            },
-            {
-              "name": "divisionId",
-              "description": "Unique identifier of the parent Division."
-            },
-            {
-              "name": "teamId",
-              "description": "Unique identifier for a specific Team within the Division."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The proposed Firestore structure adheres strictly to the core design principles, prioritizing Authorization Independence, Clarity of Intent, DBAC, QAPs, and Invariants. The primary design strategy is based on **hierarchical path-based ownership** coupled with **strategic denormalization** of authorization context.\n\n**Authorization Independence (CRITICAL):**\nThis is achieved by embedding parent identifiers directly within child documents. For `Division` documents, the `clubId` is present in the document itself (as specified in the schema), which matches the `{clubId}` wildcard in its path `/clubs/{clubId}/divisions/{divisionId}`. This allows security rules for divisions to evaluate authorization based on `resource.data.clubId` without needing to perform a `get()` operation on the parent club document.\nCrucially, for `Team` documents, while the user's initial schema included `divisionId`, for true Authorization Independence, the `clubId` must also be present directly within the `Team` document. This allows rules to check `resource.data.clubId` directly for team-level access, eliminating the need for `get()` calls to the parent `Division` document to retrieve its `clubId`. This ensures atomic operations (transactions, batches) involving teams and their related club authorizations are robust and debuggable. The path `clubs/{clubId}/divisions/{divisionId}/teams/{teamId}` further reinforces this, making the parent `clubId` and `divisionId` available as path variables. The `description` for the `Team` path explicitly mentions this denormalization.\n\n**QAPs (Rules are not Filters):**\nThe structural segregation is key to enabling secure `list` operations (Query Against Paths). By organizing data into `clubs/{clubId}/divisions` and `clubs/{clubId}/divisions/{divisionId}/teams`, we ensure that all documents within a given subcollection share a homogeneous security posture. For instance, to retrieve all divisions for a specific club, an authenticated user only needs to query `/clubs/{clubId}/divisions`. The security rules can then easily verify if `request.auth.uid` has access to `clubId` (e.g., if `request.auth.uid` is an administrator or member of `clubId` as determined by a `members` map or `ownerId` on the club document itself). This prevents over-fetching data and applying client-side filtering, making queries efficient and secure. The denormalized `clubId` in `Division` and `Team` documents facilitates these checks directly within the document, rather than relying on parent references that would prevent `list` queries from being efficiently secured."
+    "/clubs/{clubId}": {
+      "schema": "#/backend/entities/Club",
+      "description": "Colección de clubes."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}": {
+      "schema": "#/backend/entities/Division",
+      "description": "Divisiones por club."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}": {
+      "schema": "#/backend/entities/Team",
+      "description": "Equipos por división."
+    }
   }
 }

@@ -6,7 +6,9 @@ import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
   Settings,
-  Sparkles
+  Trophy,
+  Users,
+  ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -23,7 +25,8 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Inicio", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Panel Control", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Mis Clubes", url: "/dashboard/clubs", icon: ShieldCheck },
 ];
 
 export function SidebarNav() {
@@ -33,13 +36,13 @@ export function SidebarNav() {
     <Sidebar>
       <SidebarHeader className="p-4 flex flex-row items-center gap-2">
         <div className="bg-primary p-2 rounded-lg">
-          <Sparkles className="text-primary-foreground h-5 w-5" />
+          <Trophy className="text-primary-foreground h-5 w-5" />
         </div>
-        <span className="font-headline font-bold text-xl tracking-tight">Nueva App</span>
+        <span className="font-headline font-bold text-xl tracking-tight">SportsManager</span>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
+          <SidebarGroupLabel>Administración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
