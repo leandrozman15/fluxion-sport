@@ -145,6 +145,24 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "eventId", "playerId", "status", "createdAt"]
+    },
+    "Standing": {
+      "title": "Posición en Tabla",
+      "description": "Registro de un equipo en la tabla de posiciones de la división.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teamName": { "type": "string" },
+        "played": { "type": "number" },
+        "won": { "type": "number" },
+        "drawn": { "type": "number" },
+        "lost": { "type": "number" },
+        "goalsFor": { "type": "number" },
+        "goalsAgainst": { "type": "number" },
+        "points": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "teamName", "played", "won", "drawn", "lost", "points"]
     }
   },
   "auth": {
@@ -158,6 +176,10 @@
     "/clubs/{clubId}/divisions/{divisionId}": {
       "schema": "#/backend/entities/Division",
       "description": "Divisiones por club."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}/standings/{standingId}": {
+      "schema": "#/backend/entities/Standing",
+      "description": "Tabla de posiciones de la división."
     },
     "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}": {
       "schema": "#/backend/entities/Team",

@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   UserRound,
   ArrowRight,
-  Pencil
+  Pencil,
+  Table as TableIcon
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, updateDoc } from "firebase/firestore";
@@ -74,44 +75,51 @@ export default function TeamsPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-4">
         <Link href={`/dashboard/clubs/${clubId}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit">
-          <ChevronLeft className="h-4 w-4" /> Volver a {division?.clubId || 'Club'}
+          <ChevronLeft className="h-4 w-4" /> Volver al Club
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold font-headline text-foreground">Equipos: {division?.name}</h1>
             <p className="text-muted-foreground">Listado de plantillas y entrenadores.</p>
           </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Nuevo Equipo
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Crear Equipo</DialogTitle>
-                <DialogDescription>Añade un equipo específico a esta categoría.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Nombre del Equipo</Label>
-                  <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Sub 11 A" />
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/standings`}>
+                <TableIcon className="h-4 w-4 mr-2" /> Tabla Posiciones
+              </Link>
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" /> Nuevo Equipo
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Crear Equipo</DialogTitle>
+                  <DialogDescription>Añade un equipo específico a esta categoría.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Nombre del Equipo</Label>
+                    <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Sub 11 A" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nombre del Entrenador</Label>
+                    <Input value={newTeam.coachName} onChange={e => setNewTeam({...newTeam, coachName: e.target.value})} placeholder="Ej. Juan Pérez" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Temporada</Label>
+                    <Input value={newTeam.season} onChange={e => setNewTeam({...newTeam, season: e.target.value})} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Nombre del Entrenador</Label>
-                  <Input value={newTeam.coachName} onChange={e => setNewTeam({...newTeam, coachName: e.target.value})} placeholder="Ej. Juan Pérez" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Temporada</Label>
-                  <Input value={newTeam.season} onChange={e => setNewTeam({...newTeam, season: e.target.value})} />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreateTeam} disabled={!newTeam.name}>Crear Equipo</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleCreateTeam} disabled={!newTeam.name}>Crear Equipo</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 

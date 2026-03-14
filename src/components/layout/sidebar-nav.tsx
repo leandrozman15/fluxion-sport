@@ -13,7 +13,8 @@ import {
   CreditCard,
   Contact2,
   UserCircle,
-  Activity
+  Activity,
+  Table as TableIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -36,6 +37,7 @@ const adminItems = [
 
 const playerItems = [
   { title: "Mi Equipo", url: "/dashboard/player", icon: Trophy },
+  { title: "Posiciones", url: "/dashboard/player/standings", icon: TableIcon },
   { title: "Mis Estadísticas", url: "/dashboard/player/stats", icon: Activity },
   { title: "Mi Carnet", url: "/dashboard/player/id-card", icon: Contact2 },
   { title: "Mis Mensualidades", url: "/dashboard/player/payments", icon: CreditCard },
