@@ -14,6 +14,32 @@
       },
       "required": ["id", "name", "email", "role"]
     },
+    "ClubDivision": {
+      "title": "División de Club",
+      "description": "Agrupación general de categorías (ej. Inferiores, Femenino).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clubId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "clubId", "name"]
+    },
+    "Subcategory": {
+      "title": "Subcategoría",
+      "description": "Categoría específica por edad dentro de una división (ej. 9na, Sub 15).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "divisionId": { "type": "string" },
+        "name": { "type": "string" },
+        "ageRange": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "divisionId", "name"]
+    },
     "Tournament": {
       "title": "Torneo",
       "description": "Competición organizada por una federación o asociación.",
@@ -96,6 +122,10 @@
     "/federations/{fedId}": {
       "schema": "#/backend/entities/Federation",
       "description": "Federaciones deportivas."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}/subcategories/{subcatId}": {
+      "schema": "#/backend/entities/Subcategory",
+      "description": "Subcategorías específicas dentro de una división de club."
     }
   }
 }
