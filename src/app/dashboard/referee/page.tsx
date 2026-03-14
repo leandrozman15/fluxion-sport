@@ -12,7 +12,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import Link from "next/link";
-import { collectionGroup, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,17 +27,16 @@ export default function RefereeDashboard() {
     async function fetchMatches() {
       if (!firestore || !user) return;
       try {
-        // En Firestore, collectionGroup permite buscar en todas las subcolecciones 'events'
-        // Esto requiere un índice que se genera automáticamente o se pide en la consola.
+        // Buscamos tanto en la colección global de torneos como en los eventos de equipo
         const matchesQuery = query(
-          collectionGroup(firestore, "events"), 
+          collection(firestore, "tournament_matches"), 
           where("refereeId", "==", user.uid)
         );
         const snapshot = await getDocs(matchesQuery);
         const matches = snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
-          // Extraemos el clubId, divisionId y teamId del path para poder navegar
+          type: 'tournament',
           path: doc.ref.path
         }));
         setAssignedMatches(matches);
@@ -62,9 +61,6 @@ export default function RefereeDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {assignedMatches.length > 0 ? (
           assignedMatches.map((match) => {
-            // Reconstruimos la URL de navegación basada en el path del documento
-            // Path: clubs/[clubId]/divisions/[divId]/teams/[teamId]/events/[eventId]
-            const parts = match.path.split('/');
             const navUrl = `/dashboard/referee/matches/${match.id}?path=${encodeURIComponent(match.path)}`;
 
             return (
@@ -78,9 +74,9 @@ export default function RefereeDashboard() {
                       <CalendarIcon className="h-3 w-3" /> {new Date(match.date).toLocaleDateString()}
                     </div>
                   </div>
-                  <CardTitle className="text-xl mt-2">{match.title}</CardTitle>
+                  <CardTitle className="text-xl mt-2">{match.homeTeamName || 'Local'} vs {match.awayTeamName || 'Visita'}</CardTitle>
                   <CardDescription className="flex items-center gap-1 font-bold text-primary">
-                    <Trophy className="h-4 w-4" /> vs {match.opponent}
+                    <Trophy className="h-4 w-4" /> Torneo Oficial
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -106,7 +102,7 @@ export default function RefereeDashboard() {
         ) : (
           <div className="col-span-full text-center py-20 border-2 border-dashed rounded-xl">
             <Flag className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-            <p className="text-muted-foreground">No tienes partidos asignados actualmente.</p>
+            <p className="text-muted-foreground">No tienes partidos de torneo asignados actualmente.</p>
           </div>
         )}
       </div>

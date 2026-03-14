@@ -14,176 +14,88 @@
       },
       "required": ["id", "name", "email", "role"]
     },
-    "MatchEvent": {
-      "title": "Evento de Partido",
-      "description": "Registro de un suceso específico (gol, tarjeta) en un minuto determinado.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "matchId": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string" },
-        "teamId": { "type": "string" },
-        "eventType": { "type": "string", "enum": ["goal", "yellow_card", "red_card"] },
-        "minute": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "matchId", "playerId", "teamId", "eventType", "minute"]
-    },
-    "Federation": {
-      "title": "Federación",
-      "description": "Entidad de máximo nivel que agrupa asociaciones por deporte y país.",
+    "Tournament": {
+      "title": "Torneo",
+      "description": "Competición organizada por una federación o asociación.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
+        "organizerId": { "type": "string" },
+        "organizerType": { "type": "string", "enum": ["federation", "association"] },
+        "season": { "type": "string" },
         "sport": { "type": "string" },
-        "country": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
         "logoUrl": { "type": "string", "format": "uri" },
-        "description": { "type": "string" },
-        "ownerId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "name", "sport", "country", "ownerId", "createdAt"]
+      "required": ["id", "name", "organizerId", "season"]
     },
-    "Association": {
-      "title": "Asociación o Liga",
-      "description": "Entidad regional que pertenece a una federación y agrupa clubes.",
+    "TournamentCategory": {
+      "title": "Categoría de Torneo",
+      "description": "Divisiones por edad o nivel dentro de un torneo.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "tournamentId": { "type": "string" },
         "name": { "type": "string" },
-        "region": { "type": "string" },
-        "federationId": { "type": "string" },
-        "logoUrl": { "type": "string", "format": "uri" },
-        "description": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "name", "region", "federationId", "createdAt"]
+      "required": ["id", "tournamentId", "name"]
     },
-    "Club": {
-      "title": "Club",
-      "description": "Entidad raíz que representa al club deportivo.",
+    "TournamentTeam": {
+      "title": "Equipo Inscrito",
+      "description": "Relación de un equipo de club con una categoría de torneo.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "name": { "type": "string" },
-        "address": { "type": "string" },
-        "phone": { "type": "string" },
-        "logoUrl": { "type": "string", "format": "uri" },
-        "ownerId": { "type": "string" },
-        "associationId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "ownerId", "createdAt"]
-    },
-    "Division": {
-      "title": "División",
-      "description": "Categorías organizadas por edad dentro de un club.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "ageMin": { "type": "number" },
-        "ageMax": { "type": "number" },
-        "clubId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "clubId", "createdAt"]
-    },
-    "Team": {
-      "title": "Equipo",
-      "description": "Equipos específicos dentro de una división.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "divisionId": { "type": "string" },
-        "clubId": { "type": "string" },
-        "coachName": { "type": "string" },
-        "season": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "divisionId", "clubId", "createdAt"]
-    },
-    "Player": {
-      "title": "Jugador",
-      "description": "Datos personales y deportivos de un jugador.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "firstName": { "type": "string" },
-        "lastName": { "type": "string" },
-        "birthDate": { "type": "string", "format": "date" },
-        "phone": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "photoUrl": { "type": "string", "format": "uri" },
-        "position": { "type": "string" },
-        "jerseyNumber": { "type": "number" },
-        "clubId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "firstName", "lastName", "clubId", "createdAt"]
-    },
-    "TeamPlayer": {
-      "title": "Asignación de Jugador",
-      "description": "Relación entre un jugador y un equipo.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string" },
-        "playerPhoto": { "type": "string" },
+        "tournamentCategoryId": { "type": "string" },
         "teamId": { "type": "string" },
-        "season": { "type": "string" },
+        "clubId": { "type": "string" },
+        "teamName": { "type": "string" },
+        "clubName": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "playerId", "teamId", "season"]
+      "required": ["id", "tournamentCategoryId", "teamId", "clubId"]
     },
-    "Event": {
-      "title": "Evento",
-      "description": "Entrenamiento, partido o evento social del equipo.",
+    "TournamentMatch": {
+      "title": "Partido de Torneo",
+      "description": "Encuentro oficial programado en el fixture.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "title": { "type": "string" },
-        "type": { "type": "string", "enum": ["training", "match", "event"] },
-        "teamId": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "homeTeamId": { "type": "string" },
+        "homeTeamName": { "type": "string" },
+        "awayTeamId": { "type": "string" },
+        "awayTeamName": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "location": { "type": "string" },
-        "address": { "type": "string" },
-        "opponent": { "type": "string" },
-        "description": { "type": "string" },
-        "homeScore": { "type": "number" },
-        "awayScore": { "type": "number" },
-        "matchFinished": { "type": "boolean" },
         "refereeId": { "type": "string" },
-        "assistantRefereeId": { "type": "string" },
         "status": { "type": "string", "enum": ["scheduled", "played", "cancelled"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "homeScore": { "type": "number" },
+        "awayScore": { "type": "number" }
       },
-      "required": ["id", "title", "type", "teamId", "date", "createdAt"]
+      "required": ["id", "tournamentId", "categoryId", "homeTeamId", "awayTeamId", "date"]
     }
   },
   "auth": {
     "providers": ["anonymous", "password"]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": "#/backend/entities/UserProfile",
-      "description": "Perfiles de usuario y roles."
+    "/tournaments/{tournamentId}": {
+      "schema": "#/backend/entities/Tournament",
+      "description": "Colección central de torneos."
     },
-    "/match_events/{eventId}": {
-      "schema": "#/backend/entities/MatchEvent",
-      "description": "Registro minuto a minuto de goles y tarjetas."
+    "/tournament_matches/{matchId}": {
+      "schema": "#/backend/entities/TournamentMatch",
+      "description": "Calendario centralizado de partidos de todos los torneos."
     },
     "/federations/{fedId}": {
       "schema": "#/backend/entities/Federation",
-      "description": "Colección de federaciones."
-    },
-    "/clubs/{clubId}": {
-      "schema": "#/backend/entities/Club",
-      "description": "Colección de clubes."
+      "description": "Federaciones deportivas."
     }
   }
 }

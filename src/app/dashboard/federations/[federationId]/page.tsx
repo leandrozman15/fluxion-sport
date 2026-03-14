@@ -11,7 +11,9 @@ import {
   Pencil, 
   ArrowRight,
   ChevronLeft,
-  MapPin
+  MapPin,
+  Trophy,
+  LayoutGrid
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -85,41 +87,48 @@ export default function FederationDetailPage() {
               <p className="text-muted-foreground">{federation?.sport} • {federation?.country}</p>
             </div>
           </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Nueva Asociación
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Nueva Asociación Regional</DialogTitle>
-                <DialogDescription>Crea una liga o asociación local dentro de esta federación.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Nombre</Label>
-                  <Input value={newAssoc.name} onChange={e => setNewAssoc({...newAssoc, name: e.target.value})} placeholder="Ej. Asociación de Fútbol de Madrid" />
+          <div className="flex gap-2">
+            <Button variant="outline" asChild className="gap-2">
+              <Link href={`/dashboard/federations/${federationId}/tournaments`}>
+                <Trophy className="h-4 w-4" /> Gestionar Torneos
+              </Link>
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" /> Nueva Asociación
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Nueva Asociación Regional</DialogTitle>
+                  <DialogDescription>Crea una liga o asociación local dentro de esta federación.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Nombre</Label>
+                    <Input value={newAssoc.name} onChange={e => setNewAssoc({...newAssoc, name: e.target.value})} placeholder="Ej. Asociación de Fútbol de Madrid" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Región / Ciudad</Label>
+                    <Input value={newAssoc.region} onChange={e => setNewAssoc({...newAssoc, region: e.target.value})} placeholder="Ej. Comunidad de Madrid" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>URL Logo</Label>
+                    <Input value={newAssoc.logoUrl} onChange={e => setNewAssoc({...newAssoc, logoUrl: e.target.value})} placeholder="https://..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Descripción</Label>
+                    <Textarea value={newAssoc.description} onChange={e => setNewAssoc({...newAssoc, description: e.target.value})} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Región / Ciudad</Label>
-                  <Input value={newAssoc.region} onChange={e => setNewAssoc({...newAssoc, region: e.target.value})} placeholder="Ej. Comunidad de Madrid" />
-                </div>
-                <div className="space-y-2">
-                  <Label>URL Logo</Label>
-                  <Input value={newAssoc.logoUrl} onChange={e => setNewAssoc({...newAssoc, logoUrl: e.target.value})} placeholder="https://..." />
-                </div>
-                <div className="space-y-2">
-                  <Label>Descripción</Label>
-                  <Textarea value={newAssoc.description} onChange={e => setNewAssoc({...newAssoc, description: e.target.value})} />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreateAssoc} disabled={!newAssoc.name || !newAssoc.region}>Registrar Asociación</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleCreateAssoc} disabled={!newAssoc.name || !newAssoc.region}>Registrar Asociación</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
