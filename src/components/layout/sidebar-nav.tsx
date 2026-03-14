@@ -10,6 +10,7 @@ import {
   Users,
   ShieldCheck,
   Calendar,
+  CreditCard,
   UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ const adminItems = [
 
 const playerItems = [
   { title: "Mi Equipo", url: "/dashboard/player", icon: Trophy },
+  { title: "Mis Mensualidades", url: "/dashboard/player/payments", icon: CreditCard },
 ];
 
 export function SidebarNav() {

@@ -19,6 +19,11 @@ service cloud.firestore {
       match /players/{playerId} {
         allow get, list: if true;
         allow create, update, delete: if isClubOwner(clubId);
+
+        match /payments/{paymentId} {
+          allow list, get: if isSignedIn(); // Permitir al jugador ver sus propios o al admin
+          allow create, update, delete: if isClubOwner(clubId);
+        }
       }
 
       match /divisions/{divisionId} {

@@ -51,7 +51,6 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "userId": { "type": "string", "description": "ID de usuario de Firebase Auth para vincular la cuenta." },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "birthDate": { "type": "string", "format": "date" },
@@ -112,6 +111,23 @@
       },
       "required": ["id", "eventId", "playerId", "status", "updatedAt"]
     },
+    "Payment": {
+      "title": "Pago / Mensualidad",
+      "description": "Registro de pago de mensualidad de un jugador.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "playerId": { "type": "string" },
+        "month": { "type": "number", "description": "Mes del 1 al 12" },
+        "year": { "type": "number" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["paid", "pending", "overdue"] },
+        "paymentMethod": { "type": "string" },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "playerId", "month", "year", "amount", "status", "createdAt"]
+    },
     "Notification": {
       "title": "Notificación",
       "description": "Aviso para el jugador sobre eventos o cambios.",
@@ -146,6 +162,10 @@
     "/clubs/{clubId}/players/{playerId}": {
       "schema": "#/backend/entities/Player",
       "description": "Jugadores del club."
+    },
+    "/clubs/{clubId}/players/{playerId}/payments/{paymentId}": {
+      "schema": "#/backend/entities/Payment",
+      "description": "Historial de pagos del jugador."
     },
     "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/assignments/{assignmentId}": {
       "schema": "#/backend/entities/TeamPlayer",

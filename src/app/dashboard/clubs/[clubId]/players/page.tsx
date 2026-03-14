@@ -12,7 +12,8 @@ import {
   Mail,
   Phone,
   Calendar,
-  Contact2
+  Contact2,
+  CreditCard
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -142,7 +143,7 @@ export default function PlayersPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {players?.map((player: any) => (
-            <Card key={player.id}>
+            <Card key={player.id} className="hover:border-primary/50 transition-colors">
               <CardHeader className="flex flex-row items-center gap-4">
                 <Avatar className="h-14 w-14 border-2 border-primary/20">
                   <AvatarImage src={player.photoUrl} />
@@ -164,7 +165,13 @@ export default function PlayersPage() {
                 <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeletePlayer(player.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm">Ver Perfil</Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>
+                      <CreditCard className="h-4 w-4 mr-1" /> Pagos
+                    </Link>
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}
