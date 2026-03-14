@@ -9,7 +9,8 @@ import {
   Phone, 
   ArrowRight,
   Loader2,
-  Trash2
+  Trash2,
+  Pencil
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -20,12 +21,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 
 export default function ClubsPage() {
   const { firestore, auth, user, isUserLoading } = useFirebase();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingClub, setEditingClub] = useState<any>(null);
   const [newClub, setNewClub] = useState({ name: "", address: "", phone: "", logoUrl: "" });
 
   const clubsQuery = useMemoFirebase(() => {
@@ -52,6 +55,18 @@ export default function ClubsPage() {
     
     setNewClub({ name: "", address: "", phone: "", logoUrl: "" });
     setIsDialogOpen(false);
+  };
+
+  const handleUpdateClub = () => {
+    if (!firestore || !editingClub) return;
+    const clubDoc = doc(firestore, "clubs", editingClub.id);
+    updateDocumentNonBlocking(clubDoc, {
+      name: editingClub.name,
+      address: editingClub.address,
+      phone: editingClub.phone,
+      logoUrl: editingClub.logoUrl
+    });
+    setIsEditOpen(false);
   };
 
   const handleDeleteClub = (id: string) => {
@@ -142,9 +157,14 @@ export default function ClubsPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-4">
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteClub(club.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteClub(club.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingClub(club); setIsEditOpen(true); }}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
                 <Button asChild size="sm">
                   <Link href={`/dashboard/clubs/${club.id}`} className="flex items-center gap-2">
                     Gestionar <ArrowRight className="h-4 w-4" />
@@ -160,6 +180,36 @@ export default function ClubsPage() {
           )}
         </div>
       )}
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Club</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nombre</Label>
+              <Input value={editingClub?.name || ""} onChange={e => setEditingClub({...editingClub, name: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Dirección</Label>
+              <Input value={editingClub?.address || ""} onChange={e => setEditingClub({...editingClub, address: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Teléfono</Label>
+              <Input value={editingClub?.phone || ""} onChange={e => setEditingClub({...editingClub, phone: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Logo URL</Label>
+              <Input value={editingClub?.logoUrl || ""} onChange={e => setEditingClub({...editingClub, logoUrl: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateClub}>Guardar Cambios</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

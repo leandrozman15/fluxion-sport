@@ -13,7 +13,8 @@ import {
   Phone,
   Calendar,
   Contact2,
-  CreditCard
+  CreditCard,
+  Pencil
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -24,13 +25,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Badge } from "@/components/ui/badge";
 
 export default function PlayersPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<any>(null);
   const [newPlayer, setNewPlayer] = useState({ 
     firstName: "", 
     lastName: "", 
@@ -67,6 +70,22 @@ export default function PlayersPage() {
       jerseyNumber: 1 
     });
     setIsDialogOpen(false);
+  };
+
+  const handleUpdatePlayer = () => {
+    if (!editingPlayer) return;
+    const playerDoc = doc(db, "clubs", clubId, "players", editingPlayer.id);
+    updateDocumentNonBlocking(playerDoc, {
+      firstName: editingPlayer.firstName,
+      lastName: editingPlayer.lastName,
+      birthDate: editingPlayer.birthDate,
+      phone: editingPlayer.phone,
+      email: editingPlayer.email,
+      photoUrl: editingPlayer.photoUrl,
+      position: editingPlayer.position,
+      jerseyNumber: editingPlayer.jerseyNumber
+    });
+    setIsEditOpen(false);
   };
 
   const handleDeletePlayer = (id: string) => {
@@ -162,9 +181,14 @@ export default function PlayersPage() {
                 <div className="flex items-center gap-2"><Calendar className="h-4 w-4" /> {player.birthDate}</div>
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-4">
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeletePlayer(player.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeletePlayer(player.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>
@@ -183,6 +207,52 @@ export default function PlayersPage() {
           )}
         </div>
       )}
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Jugador</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Nombre</Label>
+              <Input value={editingPlayer?.firstName || ""} onChange={e => setEditingPlayer({...editingPlayer, firstName: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Apellido</Label>
+              <Input value={editingPlayer?.lastName || ""} onChange={e => setEditingPlayer({...editingPlayer, lastName: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Fecha de Nacimiento</Label>
+              <Input type="date" value={editingPlayer?.birthDate || ""} onChange={e => setEditingPlayer({...editingPlayer, birthDate: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Posición</Label>
+              <Input value={editingPlayer?.position || ""} onChange={e => setEditingPlayer({...editingPlayer, position: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Teléfono</Label>
+              <Input value={editingPlayer?.phone || ""} onChange={e => setEditingPlayer({...editingPlayer, phone: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Dorsal</Label>
+              <Input type="number" value={editingPlayer?.jerseyNumber || 1} onChange={e => setEditingPlayer({...editingPlayer, jerseyNumber: parseInt(e.target.value)})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Foto URL</Label>
+              <Input value={editingPlayer?.photoUrl || ""} onChange={e => setEditingPlayer({...editingPlayer, photoUrl: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdatePlayer}>Guardar Cambios</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
