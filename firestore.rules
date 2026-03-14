@@ -7,20 +7,35 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(docData) {
-      return isSignedIn() && docData != null && docData.ownerId == request.auth.uid;
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isRole(role) {
+      return isSignedIn() && getUserData().role == role;
+    }
+
+    // Reglas para Perfiles de Usuario
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Reglas para Eventos de Partido (Goles, etc)
+    match /match_events/{eventId} {
+      allow read: if true;
+      allow create, update, delete: if isSignedIn() && (isRole('referee') || isRole('admin'));
     }
 
     // Reglas para Federaciones y sus subcolecciones
     match /federations/{fedId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data);
+      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.ownerId || isRole('admin'));
 
       match /associations/{assocId} {
         allow read: if true;
-        allow create: if isSignedIn();
-        allow update, delete: if isSignedIn();
+        allow create, update, delete: if isSignedIn();
       }
     }
 
@@ -28,7 +43,7 @@ service cloud.firestore {
     match /clubs/{clubId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data);
+      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.ownerId || isRole('admin'));
 
       match /players/{playerId} {
         allow read: if true;
@@ -44,11 +59,6 @@ service cloud.firestore {
         allow read: if true;
         allow create, update, delete: if isSignedIn();
 
-        match /standings/{standingId} {
-          allow read: if true;
-          allow create, update, delete: if isSignedIn();
-        }
-
         match /teams/{teamId} {
           allow read: if true;
           allow create, update, delete: if isSignedIn();
@@ -61,16 +71,13 @@ service cloud.firestore {
           match /events/{eventId} {
             allow read: if true;
             allow create, update, delete: if isSignedIn();
-
-            match /attendance/{attendanceId} {
-              allow read: if true;
-              allow create, update, delete: if isSignedIn();
-            }
-
-            match /callups/{callupId} {
-              allow read: if true;
-              allow create, update, delete: if isSignedIn();
-            }
+            // Permitir que el árbitro actualice el resultado
+            allow update: if isSignedIn() && (
+              request.auth.uid == resource.data.refereeId || 
+              request.auth.uid == resource.data.assistantRefereeId ||
+              isRole('coach') ||
+              isRole('admin')
+            );
 
             match /stats/{statId} {
               allow read: if true;
@@ -82,4 +89,3 @@ service cloud.firestore {
     }
   }
 }
-// Despliegue de reglas actualizado para corregir permisos de federaciones y subcolecciones.

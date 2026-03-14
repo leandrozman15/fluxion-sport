@@ -16,7 +16,9 @@ import {
   Activity,
   Table as TableIcon,
   Globe,
-  Milestone
+  Milestone,
+  Flag,
+  UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,11 +33,19 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useFirebase } from "@/firebase";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
 
 const adminItems = [
   { title: "Panel Control", url: "/dashboard", icon: LayoutDashboard },
   { title: "Federaciones", url: "/dashboard/federations", icon: Globe },
   { title: "Mis Clubes", url: "/dashboard/clubs", icon: ShieldCheck },
+  { title: "Staff / Árbitros", url: "/dashboard/staff", icon: UserCog },
+];
+
+const refereeItems = [
+  { title: "Mis Partidos", url: "/dashboard/referee", icon: Flag },
 ];
 
 const playerItems = [
@@ -48,6 +58,19 @@ const playerItems = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const { user, firestore } = useFirebase();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchRole() {
+      if (!user || !firestore) return;
+      const userDoc = await getDoc(doc(firestore, "users", user.uid));
+      if (userDoc.exists()) {
+        setUserRole(userDoc.data().role);
+      }
+    }
+    fetchRole();
+  }, [user, firestore]);
 
   return (
     <Sidebar>
@@ -59,7 +82,7 @@ export function SidebarNav() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Estructura Global</SidebarGroupLabel>
+          <SidebarGroupLabel>Administración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {adminItems.map((item) => (
@@ -75,6 +98,26 @@ export function SidebarNav() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {(userRole === 'referee' || userRole === 'admin') && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Árbitro</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {refereeItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + "/")}>
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup>
           <SidebarGroupLabel>Jugador</SidebarGroupLabel>
@@ -95,14 +138,25 @@ export function SidebarNav() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton>
-              <Settings className="h-4 w-4" />
-              <span>Configuración</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="flex flex-col gap-2">
+          {user && (
+            <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 rounded-lg">
+              <UserCircle className="h-4 w-4" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold truncate max-w-[120px]">{user.email}</span>
+                <span className="text-[8px] uppercase text-primary font-black">{userRole || 'Usuario'}</span>
+              </div>
+            </div>
+          )}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Settings className="h-4 w-4" />
+                <span>Configuración</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

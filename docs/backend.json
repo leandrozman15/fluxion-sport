@@ -1,6 +1,35 @@
 
 {
   "entities": {
+    "UserProfile": {
+      "title": "Perfil de Usuario",
+      "description": "Información extendida del usuario con roles específicos.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "coach", "player", "referee"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "MatchEvent": {
+      "title": "Evento de Partido",
+      "description": "Registro de un suceso específico (gol, tarjeta) en un minuto determinado.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "matchId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "teamId": { "type": "string" },
+        "eventType": { "type": "string", "enum": ["goal", "yellow_card", "red_card"] },
+        "minute": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "matchId", "playerId", "teamId", "eventType", "minute"]
+    },
     "Federation": {
       "title": "Federación",
       "description": "Entidad de máximo nivel que agrupa asociaciones por deporte y país.",
@@ -128,48 +157,33 @@
         "homeScore": { "type": "number" },
         "awayScore": { "type": "number" },
         "matchFinished": { "type": "boolean" },
+        "refereeId": { "type": "string" },
+        "assistantRefereeId": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "played", "cancelled"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "title", "type", "teamId", "date", "createdAt"]
-    },
-    "MatchStat": {
-      "title": "Estadística de Partido",
-      "description": "Registro de desempeño de un jugador en un partido.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "eventId": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string" },
-        "goals": { "type": "number" },
-        "assists": { "type": "number" },
-        "yellowCards": { "type": "number" },
-        "redCards": { "type": "number" },
-        "minutesPlayed": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "eventId", "playerId", "goals", "assists", "yellowCards", "redCards", "minutesPlayed"]
     }
   },
   "auth": {
     "providers": ["anonymous", "password"]
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "Perfiles de usuario y roles."
+    },
+    "/match_events/{eventId}": {
+      "schema": "#/backend/entities/MatchEvent",
+      "description": "Registro minuto a minuto de goles y tarjetas."
+    },
     "/federations/{fedId}": {
       "schema": "#/backend/entities/Federation",
       "description": "Colección de federaciones."
     },
-    "/federations/{fedId}/associations/{assocId}": {
-      "schema": "#/backend/entities/Association",
-      "description": "Asociaciones por federación."
-    },
     "/clubs/{clubId}": {
       "schema": "#/backend/entities/Club",
-      "description": "Colección de clubes vinculados opcionalmente a asociaciones."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}": {
-      "schema": "#/backend/entities/Division",
-      "description": "Divisiones por club."
+      "description": "Colección de clubes."
     }
   }
 }

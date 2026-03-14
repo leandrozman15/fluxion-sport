@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { 
   Plus, 
@@ -13,10 +14,11 @@ import {
   Trophy,
   Activity,
   User,
-  ExternalLink
+  ExternalLink,
+  Flag
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -33,6 +35,7 @@ export default function TeamEventsPage() {
   const { clubId, divisionId, teamId } = useParams() as { clubId: string, divisionId: string, teamId: string };
   const db = useFirestore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [referees, setReferees] = useState<any[]>([]);
   const [newEvent, setNewEvent] = useState({ 
     title: "", 
     type: "training", 
@@ -40,11 +43,24 @@ export default function TeamEventsPage() {
     location: "", 
     address: "", 
     opponent: "", 
-    description: "" 
+    description: "",
+    refereeId: "",
+    assistantRefereeId: "",
+    status: "scheduled"
   });
 
   const eventsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events"), [db, clubId, divisionId, teamId]);
   const { data: events, isLoading } = useCollection(eventsQuery);
+
+  useEffect(() => {
+    async function fetchStaff() {
+      if (!db) return;
+      const snap = await getDocs(collection(db, "users"));
+      const staff = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      setReferees(staff.filter(u => u.role === 'referee' || u.role === 'admin'));
+    }
+    if (isDialogOpen) fetchStaff();
+  }, [db, isDialogOpen]);
 
   const handleCreateEvent = () => {
     const eventId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events")).id;
@@ -57,7 +73,7 @@ export default function TeamEventsPage() {
       createdAt: new Date().toISOString()
     });
     
-    setNewEvent({ title: "", type: "training", date: "", location: "", address: "", opponent: "", description: "" });
+    setNewEvent({ title: "", type: "training", date: "", location: "", address: "", opponent: "", description: "", refereeId: "", assistantRefereeId: "", status: "scheduled" });
     setIsDialogOpen(false);
   };
 
@@ -95,7 +111,7 @@ export default function TeamEventsPage() {
                 <DialogTitle>Programar Evento</DialogTitle>
                 <DialogDescription>Añade una actividad para el equipo.</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
+              <div className="space-y-4 py-4 overflow-y-auto max-h-[70vh]">
                 <div className="space-y-2">
                   <Label>Título</Label>
                   <Input value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} placeholder="Ej. Entrenamiento Táctico" />
@@ -120,10 +136,30 @@ export default function TeamEventsPage() {
                   </div>
                 </div>
                 {newEvent.type === 'match' && (
-                  <div className="space-y-2">
-                    <Label>Rival</Label>
-                    <Input value={newEvent.opponent} onChange={e => setNewEvent({...newEvent, opponent: e.target.value})} placeholder="Ej. C.D. Los Leones" />
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label>Rival</Label>
+                      <Input value={newEvent.opponent} onChange={e => setNewEvent({...newEvent, opponent: e.target.value})} placeholder="Ej. C.D. Los Leones" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1"><Flag className="h-3 w-3" /> Árbitro Principal</Label>
+                      <Select value={newEvent.refereeId} onValueChange={v => setNewEvent({...newEvent, refereeId: v})}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>
+                          {referees.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1 text-muted-foreground"><Flag className="h-3 w-3" /> Asistente (Opcional)</Label>
+                      <Select value={newEvent.assistantRefereeId} onValueChange={v => setNewEvent({...newEvent, assistantRefereeId: v})}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>
+                          {referees.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
                 )}
                 <div className="space-y-2">
                   <Label>Lugar (Sede/Estadio)</Label>
@@ -183,26 +219,21 @@ export default function TeamEventsPage() {
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-primary" /> {ev.location}
                 </div>
-                {ev.description && <p className="italic text-xs pt-2 border-t mt-2">{ev.description}</p>}
+                {ev.refereeId && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-primary italic">
+                    <Flag className="h-3 w-3" /> Árbitro asignado
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="bg-muted/10 py-3 border-t">
                 <Button variant="link" size="sm" asChild className="p-0 h-auto">
                   <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/events/${ev.id}`} className="flex items-center gap-1">
-                    Ver Asistencia <ArrowRight className="h-3 w-3 ml-1" />
+                    Gestionar Evento <ExternalLink className="h-3 w-3 ml-1" />
                   </Link>
                 </Button>
               </CardFooter>
             </Card>
           ))
-        )}
-        {events?.length === 0 && !isLoading && (
-          <div className="col-span-full text-center py-24 border-2 border-dashed rounded-xl bg-muted/5">
-            <CalendarIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-10" />
-            <p className="text-muted-foreground font-medium">No hay eventos programados todavía.</p>
-            <Button variant="outline" className="mt-4" onClick={() => setIsDialogOpen(true)}>
-              Crear el primero
-            </Button>
-          </div>
         )}
       </div>
     </div>
