@@ -16,10 +16,13 @@ import {
   MapPin,
   ShieldCheck,
   LayoutGrid,
-  History
+  History,
+  CheckCircle2,
+  XCircle,
+  UserPlus
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, query, where, deleteDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -30,6 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function TournamentDetailPage() {
   const { federationId, tournamentId } = useParams() as any;
@@ -39,11 +43,13 @@ export default function TournamentDetailPage() {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isTeamOpen, setIsTeamOpen] = useState(false);
   const [isMatchOpen, setIsMatchOpen] = useState(false);
+  const [isCallupOpen, setIsCallupOpen] = useState(false);
   
   const [newCatName, setNewCatName] = useState("");
   const [selectedCatId, setSelectedCatId] = useState("");
   const [selectedClubId, setSelectedClubId] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedMatch, setSelectedMatch] = useState<any>(null);
   
   const [newMatch, setNewMatch] = useState({
     homeTeamId: "",
@@ -62,7 +68,6 @@ export default function TournamentDetailPage() {
   const matchesQuery = useMemoFirebase(() => query(collection(db, "tournament_matches"), where("tournamentId", "==", tournamentId)), [db, tournamentId]);
   const { data: matches, isLoading: matchesLoading } = useCollection(matchesQuery);
 
-  // Para inscribir equipos
   const clubsQuery = useMemoFirebase(() => collection(db, "clubs"), [db]);
   const { data: clubs } = useCollection(clubsQuery);
   const [availableTeams, setAvailableTeams] = useState<any[]>([]);
@@ -70,12 +75,14 @@ export default function TournamentDetailPage() {
   useEffect(() => {
     async function fetchTeams() {
       if (!selectedClubId || !db) return;
-      // Esto es simplificado para el MVP, buscando equipos en todas las divisiones del club
       const divsSnap = await getDocs(collection(db, "clubs", selectedClubId, "divisions"));
       let teams: any[] = [];
       for (const d of divsSnap.docs) {
-        const ts = await getDocs(collection(db, "clubs", selectedClubId, "divisions", d.id, "teams"));
-        ts.forEach(t => teams.push({ ...t.data(), id: t.id }));
+        const subsSnap = await getDocs(collection(db, "clubs", selectedClubId, "divisions", d.id, "subcategories"));
+        for (const s of subsSnap.docs) {
+          const ts = await getDocs(collection(db, "clubs", selectedClubId, "divisions", d.id, "subcategories", s.id, "teams"));
+          ts.forEach(t => teams.push({ ...t.data(), id: t.id, subcatName: s.data().name }));
+        }
       }
       setAvailableTeams(teams);
     }
@@ -111,7 +118,7 @@ export default function TournamentDetailPage() {
 
   const handleCreateMatch = () => {
     const matchId = doc(collection(db, "tournament_matches")).id;
-    const home = clubs?.find(c => c.id === newMatch.homeTeamId); // Simplificado: usando clubId como proxy en este MVP
+    const home = clubs?.find(c => c.id === newMatch.homeTeamId);
     const away = clubs?.find(c => c.id === newMatch.awayTeamId);
 
     setDoc(doc(db, "tournament_matches", matchId), {
@@ -119,6 +126,8 @@ export default function TournamentDetailPage() {
       id: matchId,
       tournamentId,
       categoryId: selectedCatId,
+      homeTeamName: home?.name || "Local",
+      awayTeamName: away?.name || "Visitante",
       status: "scheduled",
       createdAt: new Date().toISOString()
     });
@@ -143,23 +152,21 @@ export default function TournamentDetailPage() {
               <p className="text-muted-foreground">{tournament?.season} • {tournament?.sport}</p>
             </div>
           </div>
-          <div className="flex gap-2">
-             <Dialog open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2"><Plus className="h-4 w-4" /> Nueva Categoría</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Categoría del Torneo</DialogTitle></DialogHeader>
-                  <div className="py-4 space-y-4">
-                    <div className="space-y-2">
-                      <Label>Nombre (Ej. Sub 15, Primera)</Label>
-                      <Input value={newCatName} onChange={e => setNewCatName(e.target.value)} />
-                    </div>
-                  </div>
-                  <DialogFooter><Button onClick={handleCreateCategory}>Crear</Button></DialogFooter>
-                </DialogContent>
-             </Dialog>
-          </div>
+          <Dialog open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2"><Plus className="h-4 w-4" /> Nueva Categoría</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Categoría del Torneo</DialogTitle></DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                  <Label>Nombre (Ej. Sub 15, Primera)</Label>
+                  <Input value={newCatName} onChange={e => setNewCatName(e.target.value)} />
+                </div>
+              </div>
+              <DialogFooter><Button onClick={handleCreateCategory}>Crear</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </header>
 
@@ -241,7 +248,7 @@ export default function TournamentDetailPage() {
 
           <div className="space-y-4">
             {matches?.map((m: any) => (
-              <Card key={m.id} className="overflow-hidden">
+              <Card key={m.id} className="overflow-hidden group hover:border-primary/50 transition-all">
                 <div className="flex flex-col md:flex-row items-center p-4 gap-6">
                   <div className="flex-1 text-right font-bold text-lg">{m.homeTeamName || 'Local'}</div>
                   <div className="flex flex-col items-center px-6 py-2 bg-muted rounded-lg border">
@@ -250,9 +257,11 @@ export default function TournamentDetailPage() {
                     <span className="text-xs font-bold">{new Date(m.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                   </div>
                   <div className="flex-1 font-bold text-lg">{m.awayTeamName || 'Visita'}</div>
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-2">
                     <Badge variant={m.status === 'played' ? 'secondary' : 'default'}>{m.status.toUpperCase()}</Badge>
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {m.location}</span>
+                    <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => { setSelectedMatch(m); setIsCallupOpen(true); }}>
+                      <UserPlus className="h-3 w-3" /> Citación
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -286,12 +295,23 @@ export default function TournamentDetailPage() {
               <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar Equipo..." /></SelectTrigger>
                 <SelectContent>
-                  {availableTeams.map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.season})</SelectItem>)}
+                  {availableTeams.map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.subcatName})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter><Button onClick={handleRegisterTeam} disabled={!selectedTeamId}>Confirmar Inscripción</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogo para Citación/Convocatoria */}
+      <Dialog open={isCallupOpen} onOpenChange={setIsCallupOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Citación: {selectedMatch?.homeTeamName} vs {selectedMatch?.awayTeamName}</DialogTitle>
+            <DialogDescription>Selecciona los jugadores para este encuentro.</DialogDescription>
+          </DialogHeader>
+          {selectedMatch && <MatchCallupManager match={selectedMatch} />}
         </DialogContent>
       </Dialog>
     </div>
@@ -336,5 +356,112 @@ function CategoryCard({ category, onAddTeam }: { category: any, onAddTeam: () =>
         </Button>
       </CardFooter>
     </Card>
+  );
+}
+
+function MatchCallupManager({ match }: { match: any }) {
+  const db = useFirestore();
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [role, setRole] = useState<any>("starter");
+  
+  // En un MVP, asumimos que el administrador elige jugadores de los clubes participantes
+  // Consultamos todos los jugadores de los clubes locales/visitantes para simplificar
+  const [roster, setRoster] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchRoster() {
+      if (!db) return;
+      try {
+        // En una app real, buscaríamos solo del teamId específico asignado al torneo
+        const playersSnap = await getDocs(collection(db, "clubs", match.homeTeamId, "players"));
+        setRoster(playersSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+      } catch (e) { console.error(e); }
+      finally { setLoading(false); }
+    }
+    fetchRoster();
+  }, [db, match]);
+
+  const callupsQuery = useMemoFirebase(() => query(collection(db, "match_callups"), where("matchId", "==", match.id)), [db, match.id]);
+  const { data: currentCallups } = useCollection(callupsQuery);
+
+  const handleAddCallup = () => {
+    if (!selectedPlayerId) return;
+    const player = roster.find(p => p.id === selectedPlayerId);
+    const id = doc(collection(db, "match_callups")).id;
+    
+    setDoc(doc(db, "match_callups", id), {
+      id,
+      matchId: match.id,
+      playerId: selectedPlayerId,
+      playerName: `${player.firstName} ${player.lastName}`,
+      role,
+      status: "pending",
+      createdAt: new Date().toISOString()
+    });
+    setSelectedPlayerId("");
+  };
+
+  const handleRemoveCallup = (id: string) => {
+    deleteDoc(doc(db, "match_callups", id));
+  };
+
+  return (
+    <div className="space-y-6 py-4">
+      <div className="flex gap-4 items-end bg-muted/30 p-4 rounded-lg">
+        <div className="flex-1 space-y-2">
+          <Label>Jugador</Label>
+          <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
+            <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+            <SelectContent>
+              {roster.map(p => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-32 space-y-2">
+          <Label>Rol</Label>
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="starter">Titular</SelectItem>
+              <SelectItem value="substitute">Suplente</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={handleAddCallup} disabled={!selectedPlayerId}><Plus className="h-4 w-4" /></Button>
+      </div>
+
+      <div className="border rounded-xl overflow-hidden">
+        <div className="bg-muted p-2 text-xs font-bold grid grid-cols-12 gap-2">
+          <div className="col-span-5">JUGADOR</div>
+          <div className="col-span-3">ROL</div>
+          <div className="col-span-3">ESTADO</div>
+          <div className="col-span-1"></div>
+        </div>
+        <div className="divide-y max-h-[300px] overflow-y-auto">
+          {currentCallups?.map((c: any) => (
+            <div key={c.id} className="p-2 text-sm grid grid-cols-12 gap-2 items-center">
+              <div className="col-span-5 font-medium">{c.playerName}</div>
+              <div className="col-span-3">
+                <Badge variant="outline" className="text-[10px]">{c.role === 'starter' ? 'TITULAR' : 'SUPLENTE'}</Badge>
+              </div>
+              <div className="col-span-3">
+                {c.status === 'confirmed' ? <Badge className="bg-green-100 text-green-700 h-5 text-[10px]">CONFIRMADO</Badge> : 
+                 c.status === 'unavailable' ? <Badge variant="destructive" className="h-5 text-[10px]">AUSENTE</Badge> :
+                 <Badge variant="secondary" className="h-5 text-[10px]">PENDIENTE</Badge>}
+              </div>
+              <div className="col-span-1 text-right">
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleRemoveCallup(c.id)}>
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          ))}
+          {(!currentCallups || currentCallups.length === 0) && (
+            <div className="p-8 text-center text-muted-foreground text-xs italic">No hay jugadores citados.</div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

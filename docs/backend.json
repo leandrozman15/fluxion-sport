@@ -58,33 +58,6 @@
       },
       "required": ["id", "name", "organizerId", "season"]
     },
-    "TournamentCategory": {
-      "title": "Categoría de Torneo",
-      "description": "Divisiones por edad o nivel dentro de un torneo.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "tournamentId": { "type": "string" },
-        "name": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "tournamentId", "name"]
-    },
-    "TournamentTeam": {
-      "title": "Equipo Inscrito",
-      "description": "Relación de un equipo de club con una categoría de torneo.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "tournamentCategoryId": { "type": "string" },
-        "teamId": { "type": "string" },
-        "clubId": { "type": "string" },
-        "teamName": { "type": "string" },
-        "clubName": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "tournamentCategoryId", "teamId", "clubId"]
-    },
     "TournamentMatch": {
       "title": "Partido de Torneo",
       "description": "Encuentro oficial programado en el fixture.",
@@ -105,6 +78,22 @@
         "awayScore": { "type": "number" }
       },
       "required": ["id", "tournamentId", "categoryId", "homeTeamId", "awayTeamId", "date"]
+    },
+    "MatchCallup": {
+      "title": "Convocatoria de Partido",
+      "description": "Citación de un jugador para un partido específico.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "matchId": { "type": "string" },
+        "teamId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "role": { "type": "string", "enum": ["starter", "substitute"] },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "unavailable"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "matchId", "playerId", "status"]
     }
   },
   "auth": {
@@ -119,13 +108,9 @@
       "schema": "#/backend/entities/TournamentMatch",
       "description": "Calendario centralizado de partidos de todos los torneos."
     },
-    "/federations/{fedId}": {
-      "schema": "#/backend/entities/Federation",
-      "description": "Federaciones deportivas."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}/subcategories/{subcatId}": {
-      "schema": "#/backend/entities/Subcategory",
-      "description": "Subcategorías específicas dentro de una división de club."
+    "/match_callups/{callupId}": {
+      "schema": "#/backend/entities/MatchCallup",
+      "description": "Citaciones oficiales a partidos."
     }
   }
 }
