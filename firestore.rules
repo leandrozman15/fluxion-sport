@@ -37,9 +37,19 @@ service cloud.firestore {
           match /events/{eventId} {
             allow get, list: if true;
             allow create, update, delete: if isClubOwner(clubId);
+
+            match /attendance/{attendanceId} {
+              allow get, list: if true;
+              allow create, update, delete: if isSignedIn();
+            }
           }
         }
       }
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn();
     }
   }
 }

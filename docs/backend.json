@@ -18,7 +18,7 @@
     },
     "Division": {
       "title": "División",
-      "description": "Categorías organizadas por edad dentro de un club (ej. Sub 9).",
+      "description": "Categorías organizadas por edad dentro de un club.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -32,7 +32,7 @@
     },
     "Team": {
       "title": "Equipo",
-      "description": "Equipos específicos dentro de una división (ej. Sub 11 A).",
+      "description": "Equipos específicos dentro de una división.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -51,6 +51,7 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "userId": { "type": "string", "description": "ID de usuario de Firebase Auth para vincular la cuenta." },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "birthDate": { "type": "string", "format": "date" },
@@ -66,11 +67,13 @@
     },
     "TeamPlayer": {
       "title": "Asignación de Jugador",
-      "description": "Relación entre un jugador y un equipo para una temporada.",
+      "description": "Relación entre un jugador y un equipo.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "playerId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "playerPhoto": { "type": "string" },
         "teamId": { "type": "string" },
         "season": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
@@ -94,6 +97,34 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "title", "type", "teamId", "date", "createdAt"]
+    },
+    "Attendance": {
+      "title": "Asistencia",
+      "description": "Confirmación de asistencia de un jugador a un evento.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "status": { "type": "string", "enum": ["going", "not_going", "pending"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "eventId", "playerId", "status", "updatedAt"]
+    },
+    "Notification": {
+      "title": "Notificación",
+      "description": "Aviso para el jugador sobre eventos o cambios.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "type": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -123,6 +154,14 @@
     "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}": {
       "schema": "#/backend/entities/Event",
       "description": "Eventos del equipo."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/attendance/{attendanceId}": {
+      "schema": "#/backend/entities/Attendance",
+      "description": "Asistencia a eventos."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "#/backend/entities/Notification",
+      "description": "Notificaciones de usuario."
     }
   }
 }

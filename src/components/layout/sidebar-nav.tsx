@@ -9,7 +9,8 @@ import {
   Trophy,
   Users,
   ShieldCheck,
-  UserPlus
+  Calendar,
+  UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -25,9 +26,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-const items = [
+const adminItems = [
   { title: "Panel Control", url: "/dashboard", icon: LayoutDashboard },
   { title: "Mis Clubes", url: "/dashboard/clubs", icon: ShieldCheck },
+];
+
+const playerItems = [
+  { title: "Mi Equipo", url: "/dashboard/player", icon: Trophy },
 ];
 
 export function SidebarNav() {
@@ -46,7 +51,25 @@ export function SidebarNav() {
           <SidebarGroupLabel>Administración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {adminItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={pathname === item.url}>
+                    <Link href={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Jugador</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {playerItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url}>
                     <Link href={item.url}>
