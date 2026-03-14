@@ -1,125 +1,43 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * CORE PHILOSOPHY
-     * This ruleset implements a hierarchical ownership model for sports clubs. 
-     * Authorization is rooted at the Club level: a user who creates a Club 
-     * becomes its owner and gains full administrative rights over all nested 
-     * Divisions and Teams. 
-     *
-     * DATA STRUCTURE
-     * - /clubs/{clubId}: Root entities representing sports organizations.
-     * - /clubs/{clubId}/divisions/{divisionId}: Categories (e.g., Sub-11) nested under a club.
-     * - /clubs/{clubId}/divisions/{divisionId}/teams/{teamId}: Specific teams within a division.
-     *
-     * KEY SECURITY DECISIONS
-     * 1. Public Read: Club information, divisions, and team lists are publicly 
-     *    readable to allow fans and parents to browse the structure.
-     * 2. Protected Writes: All write operations (create, update, delete) 
-     *    require authentication and ownership verification of the parent Club.
-     * 3. Relational Integrity: Rules strictly enforce that denormalized 
-     *    fields (like clubId or divisionId) match the physical document path.
-     *
-     * DENORMALIZATION FOR AUTHORIZATION
-     * Parent identifiers (clubId, divisionId) are required within child documents 
-     * to ensure authorization logic can be validated against the path context 
-     * without complex recursive lookups.
-     */
-
-    // --- Global Helper Functions ---
-
-    /** @description Checks if the user is authenticated. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the user is the specific owner based on UID. */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /** @description Checks if the current user is the owner of the specified Club. */
     function isClubOwner(clubId) {
       return isSignedIn() && get(/databases/$(database)/documents/clubs/$(clubId)).data.ownerId == request.auth.uid;
     }
 
-    /** @description Ensures a document exists and the user is the club owner. */
-    function isExistingClubOwner(clubId) {
-      return resource != null && isClubOwner(clubId);
-    }
-
-    // --- Collection Rules ---
-
-    /**
-     * @description Rules for the root Club collection.
-     * @path /clubs/{clubId}
-     * @allow (get) Any user can view club details.
-     * @allow (create) Any signed-in user can register a new club as the owner.
-     * @deny (update) Users who do not own the club cannot modify its details.
-     * @principle Ownership-based write access with public read-only discovery.
-     */
     match /clubs/{clubId} {
       allow get, list: if true;
-      
-      // CRITICAL: The 'Club' entity in the IR is missing an 'ownerId' field.
-      // Prototyping Mode: We enforce 'ownerId' and 'id' consistency for security.
-      allow create: if isSignedIn() 
-                    && request.resource.data.ownerId == request.auth.uid 
-                    && request.resource.data.id == clubId;
-      
-      allow update: if resource != null 
-                    && resource.data.ownerId == request.auth.uid 
-                    && request.resource.data.ownerId == resource.data.ownerId
-                    && request.resource.data.id == resource.data.id;
-      
-      allow delete: if resource != null 
-                    && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
 
-      /**
-       * @description Rules for Divisions within a Club.
-       * @path /clubs/{clubId}/divisions/{divisionId}
-       * @allow (list) Publicly list divisions for a club.
-       * @allow (create) Club owner adds a new division (e.g., 'Sub-9').
-       * @deny (create) Mismatched clubId in data versus the URL path.
-       * @principle Path-based relational integrity and parent-owner authorization.
-       */
+      match /players/{playerId} {
+        allow get, list: if true;
+        allow create, update, delete: if isClubOwner(clubId);
+      }
+
       match /divisions/{divisionId} {
         allow get, list: if true;
-        
-        allow create: if isClubOwner(clubId) 
-                      && request.resource.data.clubId == clubId
-                      && request.resource.data.id == divisionId;
-        
-        allow update: if isExistingClubOwner(clubId)
-                      && request.resource.data.clubId == resource.data.clubId
-                      && request.resource.data.id == resource.data.id;
-        
-        allow delete: if isExistingClubOwner(clubId);
+        allow create, update, delete: if isClubOwner(clubId);
 
-        /**
-         * @description Rules for Teams within a Division.
-         * @path /clubs/{clubId}/divisions/{divisionId}/teams/{teamId}
-         * @allow (get) View specific team details (Coach, Season).
-         * @allow (update) Club owner updates team coaching staff.
-         * @deny (delete) Non-club-owners attempting to remove teams.
-         * @principle Multi-level path validation ensuring teams belong to the correct hierarchy.
-         */
         match /teams/{teamId} {
           allow get, list: if true;
-          
-          allow create: if isClubOwner(clubId)
-                        && request.resource.data.clubId == clubId
-                        && request.resource.data.divisionId == divisionId
-                        && request.resource.data.id == teamId;
-          
-          allow update: if isExistingClubOwner(clubId)
-                        && request.resource.data.clubId == resource.data.clubId
-                        && request.resource.data.divisionId == resource.data.divisionId
-                        && request.resource.data.id == resource.data.id;
-          
-          allow delete: if isExistingClubOwner(clubId);
+          allow create, update, delete: if isClubOwner(clubId);
+
+          match /assignments/{assignmentId} {
+            allow get, list: if true;
+            allow create, update, delete: if isClubOwner(clubId);
+          }
+
+          match /events/{eventId} {
+            allow get, list: if true;
+            allow create, update, delete: if isClubOwner(clubId);
+          }
         }
       }
     }

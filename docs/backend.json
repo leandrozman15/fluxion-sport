@@ -44,6 +44,56 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "divisionId", "clubId", "createdAt"]
+    },
+    "Player": {
+      "title": "Jugador",
+      "description": "Datos personales y deportivos de un jugador.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "birthDate": { "type": "string", "format": "date" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoUrl": { "type": "string", "format": "uri" },
+        "position": { "type": "string" },
+        "jerseyNumber": { "type": "number" },
+        "clubId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "firstName", "lastName", "clubId", "createdAt"]
+    },
+    "TeamPlayer": {
+      "title": "Asignación de Jugador",
+      "description": "Relación entre un jugador y un equipo para una temporada.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "playerId": { "type": "string" },
+        "teamId": { "type": "string" },
+        "season": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "playerId", "teamId", "season"]
+    },
+    "Event": {
+      "title": "Evento",
+      "description": "Entrenamiento, partido o evento social del equipo.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["training", "match", "event"] },
+        "teamId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "address": { "type": "string" },
+        "opponent": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "type", "teamId", "date", "createdAt"]
     }
   },
   "auth": {
@@ -61,6 +111,18 @@
     "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}": {
       "schema": "#/backend/entities/Team",
       "description": "Equipos por división."
+    },
+    "/clubs/{clubId}/players/{playerId}": {
+      "schema": "#/backend/entities/Player",
+      "description": "Jugadores del club."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/assignments/{assignmentId}": {
+      "schema": "#/backend/entities/TeamPlayer",
+      "description": "Plantel del equipo."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}": {
+      "schema": "#/backend/entities/Event",
+      "description": "Eventos del equipo."
     }
   }
 }

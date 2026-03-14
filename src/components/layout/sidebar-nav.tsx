@@ -8,7 +8,8 @@ import {
   Settings,
   Trophy,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  UserPlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {

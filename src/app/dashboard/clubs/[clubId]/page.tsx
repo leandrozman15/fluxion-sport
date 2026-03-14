@@ -11,7 +11,8 @@ import {
   ArrowRight,
   Loader2,
   Trash2,
-  ChevronLeft
+  ChevronLeft,
+  UserPlus
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -68,39 +69,46 @@ export default function ClubDetailPage() {
             <h1 className="text-3xl font-bold font-headline text-foreground">{club?.name}</h1>
             <p className="text-muted-foreground">Gestión de categorías y divisiones deportivas.</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Nueva División
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Añadir Categoría</DialogTitle>
-                <DialogDescription>Define una nueva división por rango de edad (ej. Sub 9).</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Nombre de la División</Label>
-                  <Input value={newDivision.name} onChange={e => setNewDivision({...newDivision, name: e.target.value})} placeholder="Ej. Sub 11" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/clubs/${clubId}/players`} className="flex items-center gap-2">
+                <Users className="h-4 w-4" /> Jugadores
+              </Link>
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" /> Nueva División
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Añadir Categoría</DialogTitle>
+                  <DialogDescription>Define una nueva división por rango de edad (ej. Sub 9).</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label>Edad Mínima</Label>
-                    <Input type="number" value={newDivision.ageMin} onChange={e => setNewDivision({...newDivision, ageMin: parseInt(e.target.value)})} />
+                    <Label>Nombre de la División</Label>
+                    <Input value={newDivision.name} onChange={e => setNewDivision({...newDivision, name: e.target.value})} placeholder="Ej. Sub 11" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Edad Máxima</Label>
-                    <Input type="number" value={newDivision.ageMax} onChange={e => setNewDivision({...newDivision, ageMax: parseInt(e.target.value)})} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Edad Mínima</Label>
+                      <Input type="number" value={newDivision.ageMin} onChange={e => setNewDivision({...newDivision, ageMin: parseInt(e.target.value)})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Edad Máxima</Label>
+                      <Input type="number" value={newDivision.ageMax} onChange={e => setNewDivision({...newDivision, ageMax: parseInt(e.target.value)})} />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreateDivision} disabled={!newDivision.name}>Guardar Categoría</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleCreateDivision} disabled={!newDivision.name}>Guardar Categoría</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 

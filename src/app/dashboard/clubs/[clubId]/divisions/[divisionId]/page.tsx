@@ -10,7 +10,8 @@ import {
   Trash2,
   ChevronLeft,
   UserRound,
-  Trophy
+  Trophy,
+  ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -61,7 +62,7 @@ export default function TeamsPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-4">
         <Link href={`/dashboard/clubs/${clubId}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit">
-          <ChevronLeft className="h-4 w-4" /> Volver a {division?.name}
+          <ChevronLeft className="h-4 w-4" /> Volver a {clubId}
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -121,8 +122,10 @@ export default function TeamsPage() {
                 <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteTeam(team.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
-                <Button size="sm" variant="outline" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" /> Jugadores
+                <Button asChild size="sm" variant="outline" className="flex items-center gap-2">
+                  <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${team.id}`}>
+                    Gestionar <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </Button>
               </CardFooter>
             </Card>
