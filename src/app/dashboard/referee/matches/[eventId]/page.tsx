@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { 
   ChevronLeft, 
   Loader2, 
@@ -12,10 +12,12 @@ import {
   Clock, 
   Plus, 
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle,
+  Lock
 } from "lucide-react";
 import Link from "next/link";
-import { doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, addDoc, query, where } from "firebase/firestore";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RefereeMatchManagement() {
   const { eventId } = useParams() as { eventId: string };
@@ -59,7 +62,7 @@ export default function RefereeMatchManagement() {
     fetchData();
   }, [db, matchPath]);
 
-  // Obtenemos los convocados CONFIRMADOS para el acta
+  // El árbitro solo ve jugadores si la planilla fue presentada por el coach
   const callupsQuery = useMemoFirebase(() => {
     if (!db || !eventId) return null;
     return query(collection(db, "match_callups"), where("matchId", "==", eventId), where("status", "==", "confirmed"));
@@ -118,6 +121,8 @@ export default function RefereeMatchManagement() {
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
 
+  const isPresented = match?.lineupSubmitted;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-4xl mx-auto">
       <header className="flex flex-col gap-4">
@@ -136,6 +141,31 @@ export default function RefereeMatchManagement() {
           </Badge>
         </div>
       </header>
+
+      {!isPresented && (
+        <Alert variant="destructive" className="border-2 border-destructive">
+          <AlertCircle className="h-5 w-5" />
+          <AlertTitle className="font-bold">Planilla no presentada</AlertTitle>
+          <AlertDescription>
+            El entrenador aún no ha confirmado la alineación oficial. Debes esperar a que la planilla sea enviada (30 min antes) para registrar incidencias de jugadores.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isPresented && (
+        <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary/10 p-2 rounded-lg">
+              <Lock className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-primary uppercase tracking-widest">Planilla Oficial Recibida</p>
+              <p className="text-xs text-muted-foreground">Presentada a las {new Date(match.lineupSubmittedAt).toLocaleTimeString()}</p>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-primary border-primary/30">Validada</Badge>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="shadow-lg border-2 border-primary/20">
@@ -170,12 +200,14 @@ export default function RefereeMatchManagement() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={!isPresented ? "opacity-50 pointer-events-none" : ""}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Plus className="h-5 w-5 text-primary" /> Registrar Gol
             </CardTitle>
-            <CardDescription>Solo jugadores confirmados por el coach.</CardDescription>
+            <CardDescription>
+              {isPresented ? "Jugadores de la planilla oficial." : "Bloqueado hasta recibir planilla."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -207,7 +239,7 @@ export default function RefereeMatchManagement() {
               <Label>Minuto</Label>
               <div className="flex gap-2">
                 <Input type="number" value={newGoal.minute} onChange={e => setNewGoal({...newGoal, minute: parseInt(e.target.value)})} className="font-bold" />
-                <Button onClick={handleAddGoal} disabled={newGoal.team === 'home' && !newGoal.playerId}>Registrar</Button>
+                <Button onClick={handleAddGoal} disabled={!isPresented || (newGoal.team === 'home' && !newGoal.playerId)}>Registrar</Button>
               </div>
             </div>
           </CardContent>
