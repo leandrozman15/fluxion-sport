@@ -93,13 +93,16 @@
         "address": { "type": "string" },
         "opponent": { "type": "string" },
         "description": { "type": "string" },
+        "homeScore": { "type": "number" },
+        "awayScore": { "type": "number" },
+        "matchFinished": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "title", "type", "teamId", "date", "createdAt"]
     },
     "MatchStat": {
       "title": "Estadística de Partido",
-      "description": "Registro de goles y asistencias de un jugador en un partido.",
+      "description": "Registro de desempeño de un jugador en un partido.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -108,9 +111,12 @@
         "playerName": { "type": "string" },
         "goals": { "type": "number" },
         "assists": { "type": "number" },
+        "yellowCards": { "type": "number" },
+        "redCards": { "type": "number" },
+        "minutesPlayed": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "eventId", "playerId", "goals", "assists"]
+      "required": ["id", "eventId", "playerId", "goals", "assists", "yellowCards", "redCards", "minutesPlayed"]
     },
     "Attendance": {
       "title": "Asistencia",
