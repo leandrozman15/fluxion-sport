@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-dashboard",
+      "description": "Professional business dashboard overview",
+      "imageUrl": "https://picsum.photos/seed/vantage1/1200/600",
+      "imageHint": "business analytics"
+    },
+    {
+      "id": "avatar-client",
+      "description": "Client profile picture",
+      "imageUrl": "https://picsum.photos/seed/client1/100/100",
+      "imageHint": "person profile"
+    }
+  ]
+}
