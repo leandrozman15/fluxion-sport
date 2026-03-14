@@ -14,7 +14,8 @@ import {
   Trophy,
   MapPin,
   Clock,
-  TrendingUp
+  TrendingUp,
+  Activity
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -87,6 +88,11 @@ export default function TeamDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
+              <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/attendance-ranking`}>
+                <Activity className="h-4 w-4 mr-2" /> Asistencia
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/events`}>
                 <Calendar className="h-4 w-4 mr-2" /> Calendario
               </Link>
@@ -145,6 +151,11 @@ export default function TeamDetailPage() {
                     </Button>
                   </div>
                 ))}
+                {(!roster || roster.length === 0) && (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No hay jugadores asignados. Usa el botón "Asignar Jugador".
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

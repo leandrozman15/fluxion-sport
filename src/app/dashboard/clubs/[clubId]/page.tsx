@@ -11,7 +11,8 @@ import {
   Trash2,
   ChevronLeft,
   Users,
-  Pencil
+  Pencil,
+  Share2
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -23,10 +24,12 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ClubDetailPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
+  const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingDiv, setEditingDiv] = useState<any>(null);
@@ -68,6 +71,15 @@ export default function ClubDetailPage() {
     deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", id));
   };
 
+  const copyRegistrationLink = () => {
+    const link = `${window.location.origin}/clubs/${clubId}/register`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "Enlace Copiado",
+      description: "El link de inscripción ha sido copiado al portapapeles.",
+    });
+  };
+
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
 
   return (
@@ -81,7 +93,10 @@ export default function ClubDetailPage() {
             <h1 className="text-3xl font-bold font-headline text-foreground">{club?.name}</h1>
             <p className="text-muted-foreground">Gestión de categorías y divisiones deportivas.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={copyRegistrationLink} className="flex items-center gap-2 border-accent text-accent hover:bg-accent/5">
+              <Share2 className="h-4 w-4" /> Link Inscripción
+            </Button>
             <Button variant="outline" asChild>
               <Link href={`/dashboard/clubs/${clubId}/players`} className="flex items-center gap-2">
                 <Users className="h-4 w-4" /> Jugadores
