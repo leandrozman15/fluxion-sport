@@ -51,16 +51,16 @@ service cloud.firestore {
             match /callups/{callupId} {
               allow get, list: if true;
               allow create, delete: if isClubOwner(clubId);
-              allow update: if isSignedIn(); // Permitir al jugador confirmar
+              allow update: if isSignedIn();
+            }
+
+            match /stats/{statId} {
+              allow get, list: if true;
+              allow create, update, delete: if isClubOwner(clubId);
             }
           }
         }
       }
-    }
-
-    match /notifications/{notificationId} {
-      allow read, update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn();
     }
   }
 }

@@ -97,6 +97,21 @@
       },
       "required": ["id", "title", "type", "teamId", "date", "createdAt"]
     },
+    "MatchStat": {
+      "title": "Estadística de Partido",
+      "description": "Registro de goles y asistencias de un jugador en un partido.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "goals": { "type": "number" },
+        "assists": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "eventId", "playerId", "goals", "assists"]
+    },
     "Attendance": {
       "title": "Asistencia",
       "description": "Confirmación de asistencia de un jugador a un evento.",
@@ -124,37 +139,6 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "eventId", "playerId", "status", "createdAt"]
-    },
-    "Payment": {
-      "title": "Pago / Mensualidad",
-      "description": "Registro de pago de mensualidad de un jugador.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "playerId": { "type": "string" },
-        "month": { "type": "number" },
-        "year": { "type": "number" },
-        "amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["paid", "pending", "overdue"] },
-        "paymentMethod": { "type": "string" },
-        "paymentDate": { "type": "string", "format": "date-time" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "playerId", "month", "year", "amount", "status", "createdAt"]
-    },
-    "Notification": {
-      "title": "Notificación",
-      "description": "Aviso para el jugador sobre eventos o cambios.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "title": { "type": "string" },
-        "body": { "type": "string" },
-        "type": { "type": "string" },
-        "read": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
     }
   },
   "auth": {
@@ -177,10 +161,6 @@
       "schema": "#/backend/entities/Player",
       "description": "Jugadores del club."
     },
-    "/clubs/{clubId}/players/{playerId}/payments/{paymentId}": {
-      "schema": "#/backend/entities/Payment",
-      "description": "Historial de pagos del jugador."
-    },
     "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/assignments/{assignmentId}": {
       "schema": "#/backend/entities/TeamPlayer",
       "description": "Plantel del equipo."
@@ -189,6 +169,10 @@
       "schema": "#/backend/entities/Event",
       "description": "Eventos del equipo."
     },
+    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/stats/{statId}": {
+      "schema": "#/backend/entities/MatchStat",
+      "description": "Estadísticas de jugadores por partido."
+    },
     "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/attendance/{attendanceId}": {
       "schema": "#/backend/entities/Attendance",
       "description": "Asistencia a eventos."
@@ -196,10 +180,6 @@
     "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/callups/{callupId}": {
       "schema": "#/backend/entities/MatchCallup",
       "description": "Convocatorias para partidos."
-    },
-    "/notifications/{notificationId}": {
-      "schema": "#/backend/entities/Notification",
-      "description": "Notificaciones de usuario."
     }
   }
 }

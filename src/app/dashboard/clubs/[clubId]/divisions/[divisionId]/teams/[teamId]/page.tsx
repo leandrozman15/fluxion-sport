@@ -13,10 +13,11 @@ import {
   UserPlus,
   Trophy,
   MapPin,
-  Clock
+  Clock,
+  TrendingUp
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, query, where } from "firebase/firestore";
+import { collection, doc, setDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -37,24 +38,17 @@ export default function TeamDetailPage() {
   const teamRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), [db, clubId, divisionId, teamId]);
   const { data: team, isLoading: teamLoading } = useDoc(teamRef);
 
-  // All club players for the selection dropdown
   const allPlayersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
   const { data: allPlayers } = useCollection(allPlayersQuery);
 
-  // Players assigned to THIS team
   const rosterQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments"), [db, clubId, divisionId, teamId]);
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
-
-  // To show player details in the roster, we'd normally need to fetch them. 
-  // For MVP, we'll just show the IDs or assume they are pre-fetched if we were using a different structure.
-  // Optimization: In a real app, we might store name/photo in the assignment too (denormalization).
 
   const handleAssignPlayer = () => {
     if (!selectedPlayerId) return;
     const assignmentId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments")).id;
     const assignmentDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments", assignmentId);
     
-    // Denormalizamos un poco para mostrar en la lista rápido
     const player = allPlayers?.find(p => p.id === selectedPlayerId);
 
     setDoc(assignmentDoc, {
@@ -91,10 +85,15 @@ export default function TeamDetailPage() {
             </div>
             <p className="text-muted-foreground">Entrenador: {team?.coachName}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
               <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/events`}>
                 <Calendar className="h-4 w-4 mr-2" /> Calendario
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>
+                <TrendingUp className="h-4 w-4 mr-2" /> Goleadores
               </Link>
             </Button>
             <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
@@ -106,28 +105,17 @@ export default function TeamDetailPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Asignar a la Plantilla</DialogTitle>
-                  <DialogDescription>Selecciona un jugador del club para este equipo.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Jugador</Label>
-                    <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar jugador..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allPlayers?.map((p: any) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.firstName} {p.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
+                    <SelectTrigger><SelectValue placeholder="Jugador..." /></SelectTrigger>
+                    <SelectContent>
+                      {allPlayers?.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAssignOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleAssignPlayer} disabled={!selectedPlayerId}>Confirmar Asignación</Button>
+                  <Button onClick={handleAssignPlayer} disabled={!selectedPlayerId}>Asignar</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -138,15 +126,10 @@ export default function TeamDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" /> Plantilla Actual
-            </CardTitle>
-            <CardDescription>Lista de jugadores asignados para la temporada {team?.season}.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Plantilla Actual</CardTitle>
           </CardHeader>
           <CardContent>
-            {rosterLoading ? (
-              <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
-            ) : (
+            {rosterLoading ? <Loader2 className="animate-spin" /> : (
               <div className="divide-y">
                 {roster?.map((member: any) => (
                   <div key={member.id} className="flex items-center justify-between py-3">
@@ -162,42 +145,22 @@ export default function TeamDetailPage() {
                     </Button>
                   </div>
                 ))}
-                {roster?.length === 0 && (
-                  <div className="py-8 text-center text-muted-foreground">No hay jugadores asignados.</div>
-                )}
               </div>
             )}
           </CardContent>
         </Card>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Próximo Evento</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-secondary/20 p-4 rounded-lg border border-dashed text-center">
-                <p className="text-sm text-muted-foreground">No hay eventos programados para hoy.</p>
-                <Button variant="link" size="sm" asChild>
-                  <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/events`}>Ir al calendario</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          
           <Card className="bg-primary/5 border-primary/20">
-            <CardHeader>
-              <CardTitle className="text-sm">Resumen Estadístico</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm">Resumen</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Jugadores Totales</span>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Jugadores</span>
                 <span className="font-bold">{roster?.length || 0}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Categoría</span>
-                <span className="font-bold">{divisionId.replace('div-', '')}</span>
-              </div>
+              <Button asChild variant="outline" className="w-full">
+                <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>Ver Rankings</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
