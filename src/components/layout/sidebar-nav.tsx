@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Calendar,
   CreditCard,
+  Contact2,
   UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ const adminItems = [
 
 const playerItems = [
   { title: "Mi Equipo", url: "/dashboard/player", icon: Trophy },
+  { title: "Mi Carnet", url: "/dashboard/player/id-card", icon: Contact2 },
   { title: "Mis Mensualidades", url: "/dashboard/player/payments", icon: CreditCard },
 ];
 
