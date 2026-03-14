@@ -5,16 +5,15 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { 
   Plus, 
-  Users, 
   Loader2,
   Trash2,
   ChevronLeft,
   UserRound,
-  Trophy,
-  ArrowRight
+  ArrowRight,
+  Pencil
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -22,12 +21,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function TeamsPage() {
   const { clubId, divisionId } = useParams() as { clubId: string, divisionId: string };
   const db = useFirestore();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<any>(null);
   const [newTeam, setNewTeam] = useState({ name: "", coachName: "", season: "2024-2025" });
 
   const divRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId), [db, clubId, divisionId]);
@@ -49,7 +50,18 @@ export default function TeamsPage() {
     });
     
     setNewTeam({ name: "", coachName: "", season: "2024-2025" });
-    setIsDialogOpen(false);
+    setIsCreateOpen(false);
+  };
+
+  const handleUpdateTeam = () => {
+    if (!editingTeam) return;
+    const teamDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", editingTeam.id);
+    updateDocumentNonBlocking(teamDoc, {
+      name: editingTeam.name,
+      coachName: editingTeam.coachName,
+      season: editingTeam.season
+    });
+    setIsEditOpen(false);
   };
 
   const handleDeleteTeam = (id: string) => {
@@ -62,14 +74,14 @@ export default function TeamsPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-4">
         <Link href={`/dashboard/clubs/${clubId}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit">
-          <ChevronLeft className="h-4 w-4" /> Volver a {clubId}
+          <ChevronLeft className="h-4 w-4" /> Volver a {division?.clubId || 'Club'}
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold font-headline text-foreground">Equipos: {division?.name}</h1>
             <p className="text-muted-foreground">Listado de plantillas y entrenadores.</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <Plus className="h-4 w-4" /> Nuevo Equipo
@@ -95,7 +107,7 @@ export default function TeamsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
                 <Button onClick={handleCreateTeam} disabled={!newTeam.name}>Crear Equipo</Button>
               </DialogFooter>
             </DialogContent>
@@ -119,9 +131,14 @@ export default function TeamsPage() {
                 </CardDescription>
               </CardHeader>
               <CardFooter className="flex justify-between border-t pt-4">
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteTeam(team.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteTeam(team.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingTeam(team); setIsEditOpen(true); }}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
                 <Button asChild size="sm" variant="outline" className="flex items-center gap-2">
                   <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${team.id}`}>
                     Gestionar <ArrowRight className="h-4 w-4" />
@@ -137,6 +154,32 @@ export default function TeamsPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Equipo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nombre del Equipo</Label>
+              <Input value={editingTeam?.name || ""} onChange={e => setEditingTeam({...editingTeam, name: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Nombre del Entrenador</Label>
+              <Input value={editingTeam?.coachName || ""} onChange={e => setEditingTeam({...editingTeam, coachName: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Temporada</Label>
+              <Input value={editingTeam?.season || ""} onChange={e => setEditingTeam({...editingTeam, season: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateTeam}>Guardar Cambios</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

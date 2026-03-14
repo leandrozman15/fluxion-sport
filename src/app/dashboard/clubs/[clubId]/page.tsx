@@ -6,13 +6,12 @@ import { useParams } from "next/navigation";
 import { 
   Plus, 
   Layers, 
-  Calendar, 
-  Users, 
   ArrowRight,
   Loader2,
   Trash2,
   ChevronLeft,
-  UserPlus
+  Users,
+  Pencil
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -23,12 +22,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function ClubDetailPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingDiv, setEditingDiv] = useState<any>(null);
   const [newDivision, setNewDivision] = useState({ name: "", ageMin: 5, ageMax: 18 });
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
@@ -49,7 +50,18 @@ export default function ClubDetailPage() {
     });
     
     setNewDivision({ name: "", ageMin: 5, ageMax: 18 });
-    setIsDialogOpen(false);
+    setIsCreateOpen(false);
+  };
+
+  const handleUpdateDivision = () => {
+    if (!editingDiv) return;
+    const divDoc = doc(db, "clubs", clubId, "divisions", editingDiv.id);
+    updateDocumentNonBlocking(divDoc, {
+      name: editingDiv.name,
+      ageMin: editingDiv.ageMin,
+      ageMax: editingDiv.ageMax
+    });
+    setIsEditOpen(false);
   };
 
   const handleDeleteDivision = (id: string) => {
@@ -75,7 +87,7 @@ export default function ClubDetailPage() {
                 <Users className="h-4 w-4" /> Jugadores
               </Link>
             </Button>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2">
                   <Plus className="h-4 w-4" /> Nueva División
@@ -103,7 +115,7 @@ export default function ClubDetailPage() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
                   <Button onClick={handleCreateDivision} disabled={!newDivision.name}>Guardar Categoría</Button>
                 </DialogFooter>
               </DialogContent>
@@ -126,9 +138,14 @@ export default function ClubDetailPage() {
                 <CardDescription>Categoría formativa</CardDescription>
               </CardHeader>
               <CardFooter className="flex justify-between border-t pt-4">
-                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDivision(div.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDivision(div.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingDiv(div); setIsEditOpen(true); }}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
                 <Button asChild size="sm" variant="secondary">
                   <Link href={`/dashboard/clubs/${clubId}/divisions/${div.id}`} className="flex items-center gap-2">
                     Equipos <ArrowRight className="h-4 w-4" />
@@ -144,6 +161,34 @@ export default function ClubDetailPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar División</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nombre</Label>
+              <Input value={editingDiv?.name || ""} onChange={e => setEditingDiv({...editingDiv, name: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Edad Mín</Label>
+                <Input type="number" value={editingDiv?.ageMin || 0} onChange={e => setEditingDiv({...editingDiv, ageMin: parseInt(e.target.value)})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Edad Máx</Label>
+                <Input type="number" value={editingDiv?.ageMax || 0} onChange={e => setEditingDiv({...editingDiv, ageMax: parseInt(e.target.value)})} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateDivision}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
