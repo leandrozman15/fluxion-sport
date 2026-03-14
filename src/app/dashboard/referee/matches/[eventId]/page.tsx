@@ -30,14 +30,12 @@ export default function RefereeMatchManagement() {
   const searchParams = useSearchParams();
   const matchPath = searchParams.get('path');
   const db = useFirestore();
-  const router = useRouter();
   const { toast } = useToast();
   
   const [match, setMatch] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
-  const [roster, setRoster] = useState<any[]>([]);
   
   const [newGoal, setNewGoal] = useState({ playerId: "", minute: 1, team: "home" });
 
@@ -51,13 +49,6 @@ export default function RefereeMatchManagement() {
           setMatch({ ...data, id: matchDoc.id });
           setHomeScore(data.homeScore || 0);
           setAwayScore(data.awayScore || 0);
-
-          // Obtener plantilla del equipo local
-          // Path del match: clubs/[clubId]/divisions/[divId]/teams/[teamId]/events/[eventId]
-          const pathParts = matchPath.split('/');
-          const assignmentsPath = `clubs/${pathParts[1]}/divisions/${pathParts[3]}/teams/${pathParts[5]}/assignments`;
-          const rosterSnap = await getDocs(collection(db, assignmentsPath));
-          setRoster(rosterSnap.docs.map(d => d.data()));
         }
       } catch (e) {
         console.error(e);
@@ -67,6 +58,14 @@ export default function RefereeMatchManagement() {
     }
     fetchData();
   }, [db, matchPath]);
+
+  // Obtenemos los convocados CONFIRMADOS para el acta
+  const callupsQuery = useMemoFirebase(() => {
+    if (!db || !eventId) return null;
+    return query(collection(db, "match_callups"), where("matchId", "==", eventId), where("status", "==", "confirmed"));
+  }, [db, eventId]);
+  
+  const { data: roster } = useCollection(callupsQuery);
 
   const matchEventsQuery = useMemoFirebase(() => {
     if (!db || !eventId) return null;
@@ -94,20 +93,19 @@ export default function RefereeMatchManagement() {
 
   const handleAddGoal = async () => {
     if (!newGoal.playerId || !db) return;
-    const player = roster.find(p => p.playerId === newGoal.playerId);
+    const player = roster?.find(p => p.playerId === newGoal.playerId);
     
     try {
       await addDoc(collection(db, "match_events"), {
         matchId: eventId,
         playerId: newGoal.playerId,
         playerName: player?.playerName || "Jugador",
-        teamId: newGoal.team === 'home' ? match.teamId : 'opponent',
+        teamId: newGoal.team === 'home' ? (match?.teamId || 'local') : 'opponent',
         eventType: "goal",
         minute: Number(newGoal.minute),
         createdAt: new Date().toISOString()
       });
 
-      // Actualizar marcador visualmente si es gol del equipo local
       if (newGoal.team === 'home') setHomeScore(prev => prev + 1);
       else setAwayScore(prev => prev + 1);
 
@@ -140,7 +138,6 @@ export default function RefereeMatchManagement() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* CARGA DE RESULTADO */}
         <Card className="shadow-lg border-2 border-primary/20">
           <CardHeader>
             <CardTitle className="text-center">Resultado Final</CardTitle>
@@ -173,12 +170,12 @@ export default function RefereeMatchManagement() {
           </CardContent>
         </Card>
 
-        {/* REGISTRO DE GOLEADORES */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Plus className="h-5 w-5 text-primary" /> Registrar Gol
             </CardTitle>
+            <CardDescription>Solo jugadores confirmados por el coach.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -197,7 +194,11 @@ export default function RefereeMatchManagement() {
                 <Select value={newGoal.playerId} onValueChange={v => setNewGoal({...newGoal, playerId: v})}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                   <SelectContent>
-                    {roster.map(p => <SelectItem key={p.playerId} value={p.playerId}>{p.playerName}</SelectItem>)}
+                    {roster?.map(p => (
+                      <SelectItem key={p.playerId} value={p.playerId}>
+                        {p.playerName} ({p.role === 'starter' ? 'Titular' : 'Suplente'})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -212,7 +213,6 @@ export default function RefereeMatchManagement() {
           </CardContent>
         </Card>
 
-        {/* ACTA DE EVENTOS */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

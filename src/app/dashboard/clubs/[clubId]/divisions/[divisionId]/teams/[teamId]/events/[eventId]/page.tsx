@@ -6,8 +6,6 @@ import { useParams } from "next/navigation";
 import { 
   ChevronLeft, 
   Loader2, 
-  CheckCircle2, 
-  XCircle, 
   Calendar as CalendarIcon,
   MapPin,
   Users,
@@ -17,12 +15,12 @@ import {
   Tally3,
   Star,
   Flag,
-  Clock,
-  Save
+  Save,
+  UserCheck
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, setDoc, updateDoc } from "firebase/firestore";
+import { doc, collection, setDoc, query, where, deleteDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +37,7 @@ export default function EventAttendancePage() {
   const { clubId, divisionId, teamId, eventId } = useParams() as any;
   const db = useFirestore();
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [selectedRole, setSelectedRole] = useState("starter");
   const [isCallupOpen, setIsCallupOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [newStat, setNewStat] = useState({ 
@@ -55,13 +54,14 @@ export default function EventAttendancePage() {
   const { data: event, isLoading: eventLoading } = useDoc(eventRef);
 
   const attendanceQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId, "attendance"), [db, clubId, divisionId, teamId, eventId]);
-  const { data: attendance, isLoading: attLoading } = useCollection(attendanceQuery);
+  const { data: attendance } = useCollection(attendanceQuery);
 
-  const callupsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId, "callups"), [db, clubId, divisionId, teamId, eventId]);
+  // Usamos la colección global match_callups para consistencia
+  const callupsQuery = useMemoFirebase(() => query(collection(db, "match_callups"), where("matchId", "==", eventId)), [db, eventId]);
   const { data: callups, isLoading: callupsLoading } = useCollection(callupsQuery);
 
   const statsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId, "stats"), [db, clubId, divisionId, teamId, eventId]);
-  const { data: stats, isLoading: statsLoading } = useCollection(statsQuery);
+  const { data: stats } = useCollection(statsQuery);
 
   const rosterQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments"), [db, clubId, divisionId, teamId]);
   const { data: roster } = useCollection(rosterQuery);
@@ -79,15 +79,17 @@ export default function EventAttendancePage() {
     const player = roster?.find(p => p.playerId === selectedPlayerId);
     if (!player) return;
 
-    const callupId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId, "callups")).id;
-    const callupDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId, "callups", callupId);
+    const callupId = doc(collection(db, "match_callups")).id;
+    const callupDoc = doc(db, "match_callups", callupId);
 
     setDoc(callupDoc, {
       id: callupId,
-      eventId,
+      matchId: eventId, // Usamos eventId como matchId
+      teamId,
       playerId: selectedPlayerId,
       playerName: player.playerName,
-      status: "called",
+      role: selectedRole,
+      status: "pending",
       createdAt: new Date().toISOString()
     });
 
@@ -123,7 +125,7 @@ export default function EventAttendancePage() {
   };
 
   const handleRemoveCallup = (id: string) => {
-    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId, "callups", id));
+    deleteDoc(doc(db, "match_callups", id));
   };
 
   if (eventLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
@@ -181,97 +183,125 @@ export default function EventAttendancePage() {
         </div>
       </header>
 
-      <Tabs defaultValue="attendance" className="w-full">
+      <Tabs defaultValue="callups" className="w-full">
         <TabsList className="mb-4">
+          <TabsTrigger value="callups" className="flex items-center gap-2">
+            <UserCheck className="h-4 w-4" /> Alineación
+          </TabsTrigger>
           <TabsTrigger value="attendance" className="flex items-center gap-2">
-            <Users className="h-4 w-4" /> Asistencia
+            <Users className="h-4 w-4" /> Respuestas
           </TabsTrigger>
           {event?.type === 'match' && (
-            <>
-              <TabsTrigger value="callups" className="flex items-center gap-2">
-                <Trophy className="h-4 w-4" /> Convocatoria
-              </TabsTrigger>
-              <TabsTrigger value="stats" className="flex items-center gap-2">
-                <Star className="h-4 w-4" /> Estadísticas
-              </TabsTrigger>
-            </>
+            <TabsTrigger value="stats" className="flex items-center gap-2">
+              <Star className="h-4 w-4" /> Estadísticas
+            </TabsTrigger>
           )}
         </TabsList>
-
-        <TabsContent value="attendance">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Lista de Confirmación</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Jugador</TableHead>
-                    <TableHead>Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attendance?.map((att: any) => (
-                    <TableRow key={att.id}>
-                      <TableCell className="font-medium">{att.playerName}</TableCell>
-                      <TableCell>
-                        <Badge variant={att.status === 'going' ? 'default' : 'secondary'} className={att.status === 'going' ? 'bg-green-100 text-green-700' : ''}>
-                          {att.status === 'going' ? 'Voy' : 'No voy'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {attendance?.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-8 text-muted-foreground">Sin respuestas.</TableCell></TableRow>}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="callups">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Convocados</CardTitle>
+                <CardTitle className="text-lg">Citación y Alineación</CardTitle>
+                <CardDescription>Define quiénes son titulares y suplentes.</CardDescription>
               </div>
               <Dialog open={isCallupOpen} onOpenChange={setIsCallupOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Convocar</Button>
+                  <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Añadir Jugador</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>Nuevo Convocado</DialogTitle></DialogHeader>
-                  <div className="py-4">
-                    <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
-                      <SelectTrigger><SelectValue placeholder="Jugador..." /></SelectTrigger>
-                      <SelectContent>
-                        {roster?.map((r: any) => <SelectItem key={r.playerId} value={r.playerId}>{r.playerName}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  <DialogHeader><DialogTitle>Convocar Jugador</DialogTitle></DialogHeader>
+                  <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                      <Label>Jugador</Label>
+                      <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>
+                          {roster?.map((r: any) => <SelectItem key={r.playerId} value={r.playerId}>{r.playerName}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Rol en el Partido</Label>
+                      <Select value={selectedRole} onValueChange={setSelectedRole}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="starter">Titular</SelectItem>
+                          <SelectItem value="substitute">Suplente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <DialogFooter><Button onClick={handleAddCallup}>Confirmar</Button></DialogFooter>
+                  <DialogFooter><Button onClick={handleAddCallup}>Confirmar Citación</Button></DialogFooter>
                 </DialogContent>
               </Dialog>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-3">Titulares</h3>
+                  <div className="border rounded-lg divide-y bg-primary/5">
+                    {callups?.filter(c => c.role === 'starter').map((c: any) => (
+                      <div key={c.id} className="flex items-center justify-between p-3 text-sm">
+                        <span className="font-medium">{c.playerName}</span>
+                        <div className="flex items-center gap-3">
+                          <Badge variant={c.status === 'confirmed' ? 'default' : 'outline'}>{c.status.toUpperCase()}</Badge>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => handleRemoveCallup(c.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </div>
+                    ))}
+                    {callups?.filter(c => c.role === 'starter').length === 0 && <div className="p-4 text-center text-xs text-muted-foreground italic">Sin titulares asignados.</div>}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Suplentes</h3>
+                  <div className="border rounded-lg divide-y bg-muted/30">
+                    {callups?.filter(c => c.role === 'substitute').map((c: any) => (
+                      <div key={c.id} className="flex items-center justify-between p-3 text-sm">
+                        <span className="font-medium">{c.playerName}</span>
+                        <div className="flex items-center gap-3">
+                          <Badge variant={c.status === 'confirmed' ? 'default' : 'outline'}>{c.status.toUpperCase()}</Badge>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => handleRemoveCallup(c.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </div>
+                    ))}
+                    {callups?.filter(c => c.role === 'substitute').length === 0 && <div className="p-4 text-center text-xs text-muted-foreground italic">Sin suplentes asignados.</div>}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="attendance">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Confirmación de Asistencia</CardTitle>
+              <CardDescription>Respuestas de los jugadores a la citación.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Jugador</TableHead>
+                    <TableHead>Rol</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acción</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {callups?.map((c: any) => (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.playerName}</TableCell>
-                      <TableCell><Badge variant="secondary">{c.status}</Badge></TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleRemoveCallup(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <TableCell><Badge variant="secondary">{c.role === 'starter' ? 'Titular' : 'Suplente'}</Badge></TableCell>
+                      <TableCell>
+                        <Badge variant={c.status === 'confirmed' ? 'default' : c.status === 'unavailable' ? 'destructive' : 'secondary'}>
+                          {c.status === 'confirmed' ? 'Confirmado' : c.status === 'unavailable' ? 'Ausente' : 'Pendiente'}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
+                  {callups?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Sin citaciones realizadas.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
@@ -297,7 +327,7 @@ export default function EventAttendancePage() {
                       <Select value={newStat.playerId} onValueChange={v => setNewStat({...newStat, playerId: v})}>
                         <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                         <SelectContent>
-                          {roster?.map((r: any) => <SelectItem key={r.playerId} value={r.playerId}>{r.playerName}</SelectItem>)}
+                          {callups?.filter(c => c.status === 'confirmed').map((r: any) => <SelectItem key={r.playerId} value={r.playerId}>{r.playerName}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -310,18 +340,6 @@ export default function EventAttendancePage() {
                         <Label className="flex items-center gap-1"><Star className="h-3 w-3" /> Asistencias</Label>
                         <Input type="number" value={newStat.assists} onChange={e => setNewStat({...newStat, assists: parseInt(e.target.value)})} />
                       </div>
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-1 text-yellow-600"><Flag className="h-3 w-3" /> Amarillas</Label>
-                        <Input type="number" value={newStat.yellowCards} onChange={e => setNewStat({...newStat, yellowCards: parseInt(e.target.value)})} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-1 text-red-600"><Flag className="h-3 w-3" /> Rojas</Label>
-                        <Input type="number" value={newStat.redCards} onChange={e => setNewStat({...newStat, redCards: parseInt(e.target.value)})} />
-                      </div>
-                      <div className="space-y-2 col-span-2">
-                        <Label className="flex items-center gap-1"><Clock className="h-3 w-3" /> Minutos Jugados</Label>
-                        <Input type="number" value={newStat.minutesPlayed} onChange={e => setNewStat({...newStat, minutesPlayed: parseInt(e.target.value)})} />
-                      </div>
                     </div>
                   </div>
                   <DialogFooter><Button onClick={handleSaveStat}>Guardar</Button></DialogFooter>
@@ -333,10 +351,8 @@ export default function EventAttendancePage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Jugador</TableHead>
-                    <TableHead className="text-center">Min</TableHead>
                     <TableHead className="text-center text-primary">G</TableHead>
                     <TableHead className="text-center text-accent">A</TableHead>
-                    <TableHead className="text-center">A/R</TableHead>
                     <TableHead className="text-right">Acción</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -344,21 +360,14 @@ export default function EventAttendancePage() {
                   {stats?.map((s: any) => (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{s.playerName}</TableCell>
-                      <TableCell className="text-center">{s.minutesPlayed}'</TableCell>
                       <TableCell className="text-center font-bold text-primary">{s.goals}</TableCell>
                       <TableCell className="text-center font-bold text-accent">{s.assists}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex justify-center gap-1">
-                          {s.yellowCards > 0 && <Badge variant="outline" className="bg-yellow-100 text-yellow-700 h-5 w-5 p-0 flex items-center justify-center">{s.yellowCards}</Badge>}
-                          {s.redCards > 0 && <Badge variant="outline" className="bg-red-100 text-red-700 h-5 w-5 p-0 flex items-center justify-center">{s.redCards}</Badge>}
-                        </div>
-                      </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => handleRemoveStat(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </TableCell>
                     </TableRow>
                   ))}
-                  {(!stats || stats.length === 0) && <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No se han registrado estadísticas todavía.</TableCell></TableRow>}
+                  {(!stats || stats.length === 0) && <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground">Sin estadísticas registradas.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
