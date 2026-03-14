@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -13,7 +12,8 @@ import {
   Clock,
   Trophy,
   Activity,
-  User
+  User,
+  ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export default function TeamEventsPage() {
   const { clubId, divisionId, teamId } = useParams() as { clubId: string, divisionId: string, teamId: string };
@@ -147,40 +148,60 @@ export default function TeamEventsPage() {
           <div className="col-span-full flex justify-center p-12"><Loader2 className="animate-spin" /></div>
         ) : (
           events?.map((ev: any) => (
-            <Card key={ev.id} className="relative overflow-hidden">
+            <Card key={ev.id} className="relative overflow-hidden group hover:shadow-md transition-all">
               <div className={cn(
-                "absolute top-0 left-0 w-1 h-full",
+                "absolute top-0 left-0 w-1.5 h-full",
                 ev.type === 'training' ? 'bg-primary' : ev.type === 'match' ? 'bg-accent' : 'bg-secondary'
               )} />
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                  <Badge variant="outline" className="flex items-center gap-1">
+                  <Badge variant="outline" className="flex items-center gap-1 font-bold">
                     {getTypeIcon(ev.type)}
                     {ev.type.toUpperCase()}
                   </Badge>
-                  <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDeleteEvent(ev.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                      <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/events/${ev.id}`}>
+                        <ExternalLink className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDeleteEvent(ev.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <CardTitle className="mt-2">{ev.title}</CardTitle>
-                {ev.opponent && <CardDescription>vs {ev.opponent}</CardDescription>}
+                <CardTitle className="mt-2 text-xl">{ev.title}</CardTitle>
+                {ev.opponent && <CardDescription className="font-bold text-primary">vs {ev.opponent}</CardDescription>}
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" /> {new Date(ev.date).toLocaleString()}
+                  <Clock className="h-4 w-4 text-primary" /> 
+                  <span className="font-medium text-foreground">
+                    {new Date(ev.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" /> {ev.location}
+                  <MapPin className="h-4 w-4 text-primary" /> {ev.location}
                 </div>
-                {ev.description && <p className="italic text-xs pt-2 border-t">{ev.description}</p>}
+                {ev.description && <p className="italic text-xs pt-2 border-t mt-2">{ev.description}</p>}
               </CardContent>
+              <CardFooter className="bg-muted/10 py-3 border-t">
+                <Button variant="link" size="sm" asChild className="p-0 h-auto">
+                  <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/events/${ev.id}`} className="flex items-center gap-1">
+                    Ver Asistencia <ArrowRight className="h-3 w-3 ml-1" />
+                  </Link>
+                </Button>
+              </CardFooter>
             </Card>
           ))
         )}
         {events?.length === 0 && !isLoading && (
-          <div className="col-span-full text-center py-20 border-2 border-dashed rounded-xl">
-            <CalendarIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-20" />
-            <p className="text-muted-foreground">No hay eventos programados.</p>
+          <div className="col-span-full text-center py-24 border-2 border-dashed rounded-xl bg-muted/5">
+            <CalendarIcon className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-10" />
+            <p className="text-muted-foreground font-medium">No hay eventos programados todavía.</p>
+            <Button variant="outline" className="mt-4" onClick={() => setIsDialogOpen(true)}>
+              Crear el primero
+            </Button>
           </div>
         )}
       </div>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,10 +10,11 @@ import {
   Clock, 
   MapPin,
   Loader2,
-  Bell
+  Bell,
+  UserCircle
 } from "lucide-react";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, doc, setDoc, getDocs, limit } from "firebase/firestore";
+import { collection, query, where, doc, setDoc, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,35 +24,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function PlayerDashboard() {
   const { firestore, user } = useFirebase();
   const [playerInfo, setPlayerInfo] = useState<any>(null);
-  const [teamInfo, setTeamInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Buscar el perfil del jugador asociado al userId
+  // 1. Buscar el perfil del jugador asociado al correo del usuario autenticado
   useEffect(() => {
     async function fetchPlayerData() {
       if (!user || !firestore) return;
       
       try {
-        const playersRef = collection(firestore, "clubs"); // Búsqueda profunda simplificada para MVP
-        // En un caso real, buscaríamos en todos los clubes o tendríamos una colección raíz de usuarios-jugadores
-        // Para este MVP, buscaremos en una colección hipotética global de mapeo o similar si existiera.
-        // Como no existe, asumimos que el usuario está en el primer club que encuentre donde coincida su email/id
-        
         const clubsSnap = await getDocs(collection(firestore, "clubs"));
         for (const clubDoc of clubsSnap.docs) {
-          const pSnap = await getDocs(query(collection(firestore, "clubs", clubDoc.id, "players"), where("email", "==", user.email || "")));
+          const pSnap = await getDocs(query(
+            collection(firestore, "clubs", clubDoc.id, "players"), 
+            where("email", "==", user.email || "")
+          ));
+          
           if (!pSnap.empty) {
             const pData = pSnap.docs[0].data();
             setPlayerInfo({ ...pData, clubId: clubDoc.id });
-            
-            // Buscar su equipo (primera asignación que encuentre)
-            const assignSnap = await getDocs(query(collection(firestore, "clubs", clubDoc.id, "divisions", "default", "teams", "default", "assignments"), where("playerId", "==", pData.id)));
-            // Esto es complejo por la estructura anidada. Para el MVP, simplificamos la búsqueda de equipo.
             break;
           }
         }
       } catch (e) {
-        console.error(e);
+        console.error("Error buscando perfil de jugador:", e);
       } finally {
         setLoading(false);
       }
@@ -60,11 +54,11 @@ export default function PlayerDashboard() {
     fetchPlayerData();
   }, [user, firestore]);
 
-  // Query para eventos (asumimos un equipo por defecto para el demo si no se encuentra)
-  // En producción, esto vendría de la asignación real del jugador
+  // Query para eventos del equipo
+  // Nota: Para este demo usamos un equipo por defecto 'team-1' en la 'div-1'
+  // En una versión final, esto vendría de la asignación real guardada en 'assignments'
   const eventsQuery = useMemoFirebase(() => {
     if (!firestore || !playerInfo) return null;
-    // Hardcoded path for demo purposes if real team path is dynamic and nested
     return collection(firestore, "clubs", playerInfo.clubId, "divisions", "div-1", "teams", "team-1", "events");
   }, [firestore, playerInfo]);
 
@@ -73,6 +67,7 @@ export default function PlayerDashboard() {
   const handleAttendance = (eventId: string, status: 'going' | 'not_going') => {
     if (!firestore || !playerInfo) return;
     const attendanceId = `${eventId}_${playerInfo.id}`;
+    
     // Path: /clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/attendance/{attendanceId}
     const attRef = doc(firestore, "clubs", playerInfo.clubId, "divisions", "div-1", "teams", "team-1", "events", eventId, "attendance", attendanceId);
     
@@ -90,75 +85,109 @@ export default function PlayerDashboard() {
 
   if (!playerInfo) {
     return (
-      <div className="text-center py-20">
-        <UserCircle className="h-16 w-16 mx-auto text-muted-foreground opacity-20 mb-4" />
-        <h2 className="text-xl font-bold">Perfil no vinculado</h2>
-        <p className="text-muted-foreground max-w-xs mx-auto mt-2">Pide a tu administrador que vincule tu correo {user?.email} a tu ficha de jugador.</p>
+      <div className="flex flex-col items-center justify-center text-center py-20 px-4">
+        <UserCircle className="h-20 w-20 text-muted-foreground opacity-20 mb-6" />
+        <h2 className="text-2xl font-bold font-headline">Perfil no vinculado</h2>
+        <p className="text-muted-foreground max-w-sm mx-auto mt-2">
+          Tu correo <span className="font-semibold text-foreground">{user?.email}</span> no está asociado a ninguna ficha de jugador activa.
+        </p>
+        <p className="text-sm text-muted-foreground mt-4">
+          Contacta con el administrador de tu club para que te registre.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16 border-2 border-primary">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-xl border">
+        <div className="flex items-center gap-5">
+          <Avatar className="h-20 w-20 border-4 border-primary/10">
             <AvatarImage src={playerInfo.photoUrl} />
-            <AvatarFallback>{playerInfo.firstName[0]}</AvatarFallback>
+            <AvatarFallback className="text-2xl">{playerInfo.firstName[0]}</AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-bold font-headline text-foreground">Hola, {playerInfo.firstName}</h1>
-            <p className="text-muted-foreground">#{playerInfo.jerseyNumber} • {playerInfo.position}</p>
+            <h1 className="text-3xl font-bold font-headline text-foreground">{playerInfo.firstName} {playerInfo.lastName}</h1>
+            <div className="flex gap-2 mt-1">
+              <Badge variant="secondary">#{playerInfo.jerseyNumber}</Badge>
+              <Badge variant="outline">{playerInfo.position}</Badge>
+            </div>
           </div>
         </div>
-        <Badge variant="outline" className="h-fit py-1 px-3">
-          Temporada 2024-2025
-        </Badge>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Temporada Actual</p>
+          <p className="text-lg font-bold text-primary">2024-2025</p>
+        </div>
       </header>
 
       <Tabs defaultValue="events" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="events">Próximos Eventos</TabsTrigger>
-          <TabsTrigger value="team">Mi Equipo</TabsTrigger>
+        <TabsList className="grid w-full max-w-md grid-cols-2 bg-muted/50 p-1">
+          <TabsTrigger value="events" className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4" /> Mis Eventos
+          </TabsTrigger>
+          <TabsTrigger value="team" className="flex items-center gap-2">
+            <Users className="h-4 w-4" /> Compañeros
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="events" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {eventsLoading ? (
-              <Loader2 className="animate-spin mx-auto" />
-            ) : events?.length === 0 ? (
-              <p className="text-muted-foreground col-span-full text-center py-10">No hay eventos programados.</p>
+              <div className="col-span-full flex justify-center py-10">
+                <Loader2 className="animate-spin text-primary" />
+              </div>
+            ) : !events || events.length === 0 ? (
+              <Card className="col-span-full border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <CalendarIcon className="h-12 w-12 text-muted-foreground/20 mb-4" />
+                  <p className="text-muted-foreground font-medium">No hay eventos programados para tu equipo.</p>
+                </CardContent>
+              </Card>
             ) : (
-              events?.map((ev: any) => (
-                <Card key={ev.id}>
+              events.map((ev: any) => (
+                <Card key={ev.id} className="overflow-hidden hover:border-primary/50 transition-colors">
+                  <div className={`h-1.5 w-full ${ev.type === 'match' ? 'bg-primary' : ev.type === 'training' ? 'bg-accent' : 'bg-secondary'}`} />
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
-                      <Badge variant={ev.type === 'match' ? 'default' : 'secondary'}>
-                        {ev.type.toUpperCase()}
+                      <Badge variant={ev.type === 'match' ? 'default' : 'secondary'} className="capitalize">
+                        {ev.type}
                       </Badge>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3 mr-1" /> {new Date(ev.date).toLocaleDateString()}
+                      <div className="flex items-center text-xs font-medium text-muted-foreground bg-secondary/30 px-2 py-1 rounded">
+                        <Clock className="h-3.5 w-3.5 mr-1" /> 
+                        {new Date(ev.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} • {new Date(ev.date).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
-                    <CardTitle className="mt-2 text-xl">{ev.title}</CardTitle>
-                    {ev.opponent && <CardDescription>vs {ev.opponent}</CardDescription>}
+                    <CardTitle className="mt-3 text-xl font-bold">{ev.title}</CardTitle>
+                    {ev.opponent && (
+                      <CardDescription className="flex items-center gap-1 font-semibold text-primary">
+                        <Trophy className="h-3.5 w-3.5" /> vs {ev.opponent}
+                      </CardDescription>
+                    )}
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-4 w-4" /> {ev.location}
+                  <CardContent className="space-y-3 text-sm">
+                    <div className="flex items-start gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                      <div>
+                        <p className="font-medium text-foreground">{ev.location}</p>
+                        {ev.address && <p className="text-xs">{ev.address}</p>}
+                      </div>
                     </div>
-                    <p className="text-xs italic">{ev.description}</p>
+                    {ev.description && (
+                      <p className="text-xs bg-muted/30 p-2 rounded-md italic border-l-2 border-primary/20">
+                        "{ev.description}"
+                      </p>
+                    )}
                   </CardContent>
-                  <CardFooter className="flex gap-2 border-t pt-4">
+                  <CardFooter className="flex gap-3 border-t bg-muted/5 py-4">
                     <Button 
-                      className="flex-1 gap-2" 
+                      className="flex-1 gap-2 hover:bg-green-50 hover:text-green-700 hover:border-green-200" 
                       variant="outline"
                       onClick={() => handleAttendance(ev.id, 'going')}
                     >
-                      <CheckCircle2 className="h-4 w-4 text-green-500" /> Voy
+                      <CheckCircle2 className="h-4 w-4 text-green-500" /> Confirmar
                     </Button>
                     <Button 
-                      className="flex-1 gap-2" 
+                      className="flex-1 gap-2 hover:bg-red-50 hover:text-red-700 hover:border-red-200" 
                       variant="outline"
                       onClick={() => handleAttendance(ev.id, 'not_going')}
                     >
@@ -177,12 +206,12 @@ export default function PlayerDashboard() {
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-primary" /> Plantilla del Equipo
               </CardTitle>
-              <CardDescription>Tus compañeros de esta temporada.</CardDescription>
+              <CardDescription>Compañeros asignados para la temporada 2024-2025.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col gap-4">
-                <p className="text-sm text-muted-foreground italic">Cargando lista de compañeros...</p>
-                {/* Aquí iría la lista de compañeros (assignments) */}
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Users className="h-12 w-12 text-muted-foreground/20 mb-4" />
+                <p className="text-muted-foreground">La lista de compañeros estará disponible cuando el administrador complete las asignaciones.</p>
               </div>
             </CardContent>
           </Card>
