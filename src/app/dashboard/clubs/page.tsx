@@ -12,8 +12,8 @@ import {
   Trash2
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, deleteDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, doc, setDoc } from "firebase/firestore";
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 
 export default function ClubsPage() {
-  const { firestore, auth, user, isUserLoading } = useUser() as any;
+  const { firestore, auth, user, isUserLoading } = useFirebase();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newClub, setNewClub] = useState({ name: "", address: "", phone: "", logoUrl: "" });
 
@@ -63,10 +63,13 @@ export default function ClubsPage() {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center">
-        <h2 className="text-2xl font-bold">Bienvenido a SportsManager</h2>
-        <p className="text-muted-foreground mb-6">Inicia sesión para comenzar a gestionar tus clubes.</p>
-        <Button onClick={() => initiateAnonymousSignIn(auth)}>Empezar ahora</Button>
+      <div className="flex flex-col items-center justify-center p-12 text-center h-[60vh]">
+        <div className="bg-primary/10 p-4 rounded-full mb-4">
+          <ShieldCheck className="h-12 w-12 text-primary" />
+        </div>
+        <h2 className="text-2xl font-bold font-headline">Bienvenido a SportsManager</h2>
+        <p className="text-muted-foreground mb-6 max-w-sm">Inicia sesión de forma anónima para comenzar a gestionar tus clubes y equipos deportivos.</p>
+        <Button size="lg" onClick={() => initiateAnonymousSignIn(auth)}>Empezar ahora</Button>
       </div>
     );
   }
