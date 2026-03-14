@@ -7,41 +7,53 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isClubOwner(clubId) {
-      return isSignedIn() && get(/databases/$(database)/documents/clubs/$(clubId)).data.ownerId == request.auth.uid;
+    function isOwner(docData) {
+      return isSignedIn() && docData.ownerId == request.auth.uid;
+    }
+
+    match /federations/{fedId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(resource.data);
+
+      match /associations/{assocId} {
+        allow get, list: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedIn(); // Para simplificar MVP
+      }
     }
 
     match /clubs/{clubId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(resource.data);
 
       match /players/{playerId} {
         allow get, list: if true;
-        allow create, update, delete: if isClubOwner(clubId);
+        allow create, update, delete: if isSignedIn();
 
         match /payments/{paymentId} {
           allow list, get: if isSignedIn();
-          allow create, update, delete: if isClubOwner(clubId);
+          allow create, update, delete: if isSignedIn();
         }
       }
 
       match /divisions/{divisionId} {
         allow get, list: if true;
-        allow create, update, delete: if isClubOwner(clubId);
+        allow create, update, delete: if isSignedIn();
 
         match /teams/{teamId} {
           allow get, list: if true;
-          allow create, update, delete: if isClubOwner(clubId);
+          allow create, update, delete: if isSignedIn();
 
           match /assignments/{assignmentId} {
             allow get, list: if true;
-            allow create, update, delete: if isClubOwner(clubId);
+            allow create, update, delete: if isSignedIn();
           }
 
           match /events/{eventId} {
             allow get, list: if true;
-            allow create, update, delete: if isClubOwner(clubId);
+            allow create, update, delete: if isSignedIn();
 
             match /attendance/{attendanceId} {
               allow get, list: if true;
@@ -50,13 +62,12 @@ service cloud.firestore {
 
             match /callups/{callupId} {
               allow get, list: if true;
-              allow create, delete: if isClubOwner(clubId);
-              allow update: if isSignedIn();
+              allow create, update, delete: if isSignedIn();
             }
 
             match /stats/{statId} {
               allow get, list: if true;
-              allow create, update, delete: if isClubOwner(clubId);
+              allow create, update, delete: if isSignedIn();
             }
           }
         }

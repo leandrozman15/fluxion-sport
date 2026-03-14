@@ -10,10 +10,11 @@ import {
   ArrowRight,
   Loader2,
   Trash2,
-  Pencil
+  Pencil,
+  Globe
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, query, getDocs } from "firebase/firestore";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 
@@ -29,7 +31,7 @@ export default function ClubsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingClub, setEditingClub] = useState<any>(null);
-  const [newClub, setNewClub] = useState({ name: "", address: "", phone: "", logoUrl: "" });
+  const [newClub, setNewClub] = useState({ name: "", address: "", phone: "", logoUrl: "", associationId: "" });
 
   const clubsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -37,6 +39,28 @@ export default function ClubsPage() {
   }, [firestore, user]);
 
   const { data: clubs, isLoading } = useCollection(clubsQuery);
+
+  // Para poder vincular clubes a asociaciones
+  const [associations, setAssociations] = useState<any[]>([]);
+  const [assocsLoading, setAssocsLoading] = useState(false);
+
+  const fetchAssocs = async () => {
+    if (!firestore) return;
+    setAssocsLoading(true);
+    try {
+      const fedsSnap = await getDocs(collection(firestore, "federations"));
+      const allAssocs: any[] = [];
+      for (const fedDoc of fedsSnap.docs) {
+        const assocsSnap = await getDocs(collection(firestore, "federations", fedDoc.id, "associations"));
+        assocsSnap.forEach(doc => allAssocs.push({ ...doc.data(), fedName: fedDoc.data().name }));
+      }
+      setAssociations(allAssocs);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAssocsLoading(false);
+    }
+  };
 
   const handleCreateClub = () => {
     if (!firestore || !user) {
@@ -53,7 +77,7 @@ export default function ClubsPage() {
       createdAt: new Date().toISOString()
     });
     
-    setNewClub({ name: "", address: "", phone: "", logoUrl: "" });
+    setNewClub({ name: "", address: "", phone: "", logoUrl: "", associationId: "" });
     setIsDialogOpen(false);
   };
 
@@ -64,7 +88,8 @@ export default function ClubsPage() {
       name: editingClub.name,
       address: editingClub.address,
       phone: editingClub.phone,
-      logoUrl: editingClub.logoUrl
+      logoUrl: editingClub.logoUrl,
+      associationId: editingClub.associationId
     });
     setIsEditOpen(false);
   };
@@ -96,7 +121,7 @@ export default function ClubsPage() {
           <h1 className="text-3xl font-bold font-headline text-foreground">Mis Clubes</h1>
           <p className="text-muted-foreground">Administra la estructura raíz de tus organizaciones deportivas.</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if(open) fetchAssocs(); }}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" /> Registrar Club
@@ -111,6 +136,19 @@ export default function ClubsPage() {
               <div className="space-y-2">
                 <Label>Nombre del Club</Label>
                 <Input value={newClub.name} onChange={e => setNewClub({...newClub, name: e.target.value})} placeholder="Ej. Real Madrid C.F." />
+              </div>
+              <div className="space-y-2">
+                <Label>Ligar a Asociación / Liga</Label>
+                <Select value={newClub.associationId} onValueChange={v => setNewClub({...newClub, associationId: v})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={assocsLoading ? "Cargando..." : "Seleccionar Liga (Opcional)"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {associations.map(a => (
+                      <SelectItem key={a.id} value={a.id}>{a.name} ({a.fedName})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Dirección Física</Label>
@@ -155,13 +193,18 @@ export default function ClubsPage() {
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4" /> {club.phone}
                 </div>
+                {club.associationId && (
+                  <div className="flex items-center gap-2 text-accent font-bold">
+                    <Globe className="h-3 w-3" /> Federado
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-4">
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteClub(club.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => { setEditingClub(club); setIsEditOpen(true); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingClub(club); setIsEditOpen(true); fetchAssocs(); }}>
                     <Pencil className="h-4 w-4" />
                   </Button>
                 </div>
@@ -190,6 +233,20 @@ export default function ClubsPage() {
             <div className="space-y-2">
               <Label>Nombre</Label>
               <Input value={editingClub?.name || ""} onChange={e => setEditingClub({...editingClub, name: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Asociación / Liga</Label>
+              <Select value={editingClub?.associationId || ""} onValueChange={v => setEditingClub({...editingClub, associationId: v})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar Liga" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Ninguna (Independiente)</SelectItem>
+                  {associations.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.name} ({a.fedName})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Dirección</Label>

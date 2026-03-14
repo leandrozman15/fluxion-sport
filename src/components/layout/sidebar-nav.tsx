@@ -14,7 +14,9 @@ import {
   Contact2,
   UserCircle,
   Activity,
-  Table as TableIcon
+  Table as TableIcon,
+  Globe,
+  Milestone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -32,6 +34,7 @@ import {
 
 const adminItems = [
   { title: "Panel Control", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Federaciones", url: "/dashboard/federations", icon: Globe },
   { title: "Mis Clubes", url: "/dashboard/clubs", icon: ShieldCheck },
 ];
 
@@ -56,12 +59,12 @@ export function SidebarNav() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Administración</SidebarGroupLabel>
+          <SidebarGroupLabel>Estructura Global</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
+                  <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + "/")}>
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>

@@ -1,6 +1,37 @@
 
 {
   "entities": {
+    "Federation": {
+      "title": "Federación",
+      "description": "Entidad de máximo nivel que agrupa asociaciones por deporte y país.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sport": { "type": "string" },
+        "country": { "type": "string" },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "sport", "country", "ownerId", "createdAt"]
+    },
+    "Association": {
+      "title": "Asociación o Liga",
+      "description": "Entidad regional que pertenece a una federación y agrupa clubes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "region": { "type": "string" },
+        "federationId": { "type": "string" },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "region", "federationId", "createdAt"]
+    },
     "Club": {
       "title": "Club",
       "description": "Entidad raíz que representa al club deportivo.",
@@ -12,6 +43,7 @@
         "phone": { "type": "string" },
         "logoUrl": { "type": "string", "format": "uri" },
         "ownerId": { "type": "string" },
+        "associationId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "ownerId", "createdAt"]
@@ -117,97 +149,27 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "eventId", "playerId", "goals", "assists", "yellowCards", "redCards", "minutesPlayed"]
-    },
-    "Attendance": {
-      "title": "Asistencia",
-      "description": "Confirmación de asistencia de un jugador a un evento.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "eventId": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string" },
-        "status": { "type": "string", "enum": ["going", "not_going", "pending"] },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "eventId", "playerId", "status", "updatedAt"]
-    },
-    "MatchCallup": {
-      "title": "Convocatoria",
-      "description": "Lista de jugadores seleccionados para un partido específico.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "eventId": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string" },
-        "status": { "type": "string", "enum": ["called", "confirmed", "declined"] },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "eventId", "playerId", "status", "createdAt"]
-    },
-    "Standing": {
-      "title": "Posición en Tabla",
-      "description": "Registro de un equipo en la tabla de posiciones de la división.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "teamName": { "type": "string" },
-        "played": { "type": "number" },
-        "won": { "type": "number" },
-        "drawn": { "type": "number" },
-        "lost": { "type": "number" },
-        "goalsFor": { "type": "number" },
-        "goalsAgainst": { "type": "number" },
-        "points": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "teamName", "played", "won", "drawn", "lost", "points"]
     }
   },
   "auth": {
     "providers": ["anonymous", "password"]
   },
   "firestore": {
+    "/federations/{fedId}": {
+      "schema": "#/backend/entities/Federation",
+      "description": "Colección de federaciones."
+    },
+    "/federations/{fedId}/associations/{assocId}": {
+      "schema": "#/backend/entities/Association",
+      "description": "Asociaciones por federación."
+    },
     "/clubs/{clubId}": {
       "schema": "#/backend/entities/Club",
-      "description": "Colección de clubes."
+      "description": "Colección de clubes vinculados opcionalmente a asociaciones."
     },
     "/clubs/{clubId}/divisions/{divisionId}": {
       "schema": "#/backend/entities/Division",
       "description": "Divisiones por club."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}/standings/{standingId}": {
-      "schema": "#/backend/entities/Standing",
-      "description": "Tabla de posiciones de la división."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}": {
-      "schema": "#/backend/entities/Team",
-      "description": "Equipos por división."
-    },
-    "/clubs/{clubId}/players/{playerId}": {
-      "schema": "#/backend/entities/Player",
-      "description": "Jugadores del club."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/assignments/{assignmentId}": {
-      "schema": "#/backend/entities/TeamPlayer",
-      "description": "Plantel del equipo."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}": {
-      "schema": "#/backend/entities/Event",
-      "description": "Eventos del equipo."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/stats/{statId}": {
-      "schema": "#/backend/entities/MatchStat",
-      "description": "Estadísticas de jugadores por partido."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/attendance/{attendanceId}": {
-      "schema": "#/backend/entities/Attendance",
-      "description": "Asistencia a eventos."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}/teams/{teamId}/events/{eventId}/callups/{callupId}": {
-      "schema": "#/backend/entities/MatchCallup",
-      "description": "Convocatorias para partidos."
     }
   }
 }
