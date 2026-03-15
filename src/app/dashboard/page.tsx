@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState } from "react";
 import { 
   Trophy, 
   Users, 
@@ -10,17 +11,92 @@ import {
   Activity,
   ArrowUpRight,
   Target,
-  Zap
+  Zap,
+  Database,
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { mockTransactions } from "@/lib/mock-data";
+import { 
+  mockTransactions, 
+  demoFederations, 
+  demoAssociations, 
+  demoClubs, 
+  demoPlayers, 
+  demoTournaments, 
+  demoStandings 
+} from "@/lib/mock-data";
+import { useFirestore, useUser } from "@/firebase";
+import { doc, setDoc, collection } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
+  const { firestore } = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [seeding, setSeeding] = useState(false);
+
   const totalRevenue = mockTransactions.filter(t => t.type === 'revenue').reduce((acc, t) => acc + t.amount, 0);
-  const totalExpenses = mockTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+
+  const handleSeedData = async () => {
+    if (!firestore || !user) return;
+    setSeeding(true);
+    try {
+      // 1. Cargar Federación
+      for (const fed of demoFederations) {
+        await setDoc(doc(firestore, "federations", fed.id), { ...fed, ownerId: user.uid, createdAt: new Date().toISOString() });
+      }
+      
+      // 2. Cargar Asociación
+      for (const assoc of demoAssociations) {
+        await setDoc(doc(firestore, "federations", assoc.federationId, "associations", assoc.id), { ...assoc, createdAt: new Date().toISOString() });
+      }
+
+      // 3. Cargar Clubes
+      for (const club of demoClubs) {
+        await setDoc(doc(firestore, "clubs", club.id), { ...club, ownerId: user.uid, createdAt: new Date().toISOString() });
+        
+        // Division e Inferiores por defecto
+        const divId = "div-inferiores";
+        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId), { id: divId, clubId: club.id, name: "Divisiones Inferiores", createdAt: new Date().toISOString() });
+        
+        const subId = "sub-7ma";
+        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId), { id: subId, divisionId: divId, name: "7ma División", ageRange: "13-14 años", createdAt: new Date().toISOString() });
+
+        const teamId = "team-a";
+        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId), { id: teamId, name: club.name + " A", coachName: "Entrenador Demo", season: "2025", createdAt: new Date().toISOString() });
+
+        // 4. Cargar Jugadores al Club
+        if (club.id === "club-vic") {
+          for (const player of demoPlayers) {
+            const pId = doc(collection(firestore, "clubs", club.id, "players")).id;
+            await setDoc(doc(firestore, "clubs", club.id, "players", pId), { ...player, id: pId, clubId: club.id, createdAt: new Date().toISOString() });
+          }
+        }
+
+        // 5. Cargar Tablas de Posiciones
+        for (const s of demoStandings) {
+          const sId = doc(collection(firestore, "clubs", club.id, "divisions", divId, "standings")).id;
+          await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "standings", sId), { ...s, id: sId, createdAt: new Date().toISOString() });
+        }
+      }
+
+      // 6. Cargar Torneo
+      for (const tour of demoTournaments) {
+        await setDoc(doc(firestore, "tournaments", tour.id), { ...tour, organizerId: demoFederations[0].id, organizerType: "federation", createdAt: new Date().toISOString() });
+      }
+
+      toast({ title: "¡Ecosistema Cargado!", description: "Se han creado federaciones, clubes y jugadores de ejemplo." });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al cargar datos", description: "Asegúrate de estar autenticado." });
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -30,6 +106,10 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">Resumen de actividad de tu ecosistema deportivo.</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleSeedData} disabled={seeding} className="border-primary text-primary">
+            {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Database className="h-4 w-4 mr-2" />}
+            Cargar Ecosistema de Prueba
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/dashboard/clubs">Ver Mis Clubes</Link>
           </Button>
@@ -122,7 +202,27 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
             <CardHeader>
-              <CardTitle className="text-sm">Estado de la Red</CardTitle>
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" /> Ecosistema Demo
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs opacity-90 leading-relaxed">
+                Usa el botón superior para cargar automáticamente:<br/>
+                • 1 Federación (CAH)<br/>
+                • 1 Asociación Regional<br/>
+                • 3 Clubes de Hockey<br/>
+                • Plantillas y Tablas de Posiciones
+              </p>
+              <Button variant="secondary" size="sm" className="w-full text-xs font-bold" onClick={handleSeedData}>
+                Poblar Sistema Ahora
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-bold">Estado de la Red</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center text-xs">
@@ -133,20 +233,9 @@ export default function DashboardPage() {
                 <span className="opacity-80">Árbitros Disponibles</span>
                 <span className="font-bold">18</span>
               </div>
-              <Button variant="secondary" size="sm" className="w-full text-xs font-bold" asChild>
+              <Button variant="outline" size="sm" className="w-full text-xs font-bold" asChild>
                 <Link href="/dashboard/staff">Gestionar Staff</Link>
               </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Próximos Pasos</CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs text-muted-foreground space-y-3">
-              <p>• Configura tu primera Federación deportiva.</p>
-              <p>• Invita a clubes a través del link de registro.</p>
-              <p>• Asigna árbitros a los partidos de liga.</p>
             </CardContent>
           </Card>
         </div>

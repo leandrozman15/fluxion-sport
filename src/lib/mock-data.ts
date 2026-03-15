@@ -86,3 +86,81 @@ export const mockAppointments: Appointment[] = [
     status: "confirmed"
   }
 ];
+
+// --- ECOSISTEMA DE EJEMPLO DEPORTIVO ---
+
+export const demoFederations = [
+  { 
+    id: "fed-cah", 
+    name: "Confederación Argentina de Hockey", 
+    sport: "Hockey sobre Césped", 
+    country: "Argentina", 
+    logoUrl: "https://picsum.photos/seed/cah/200/200", 
+    description: "Máxima autoridad del hockey en Argentina." 
+  }
+];
+
+export const demoAssociations = [
+  { 
+    id: "assoc-ahba", 
+    federationId: "fed-cah", 
+    name: "Asociación de Hockey de Buenos Aires", 
+    region: "Metropolitana", 
+    logoUrl: "https://picsum.photos/seed/ahba/200/200", 
+    description: "Liga más importante de la región metropolitana." 
+  }
+];
+
+export const demoClubs = [
+  { 
+    id: "club-vic", 
+    associationId: "assoc-ahba", 
+    name: "Club Atlético Vicentinos", 
+    address: "San Miguel, Buenos Aires", 
+    phone: "11-4455-6677", 
+    logoUrl: "https://picsum.photos/seed/vic/200/200" 
+  },
+  { 
+    id: "club-lomas", 
+    associationId: "assoc-ahba", 
+    name: "Lomas Athletic Club", 
+    address: "Lomas de Zamora", 
+    phone: "11-2233-4455", 
+    logoUrl: "https://picsum.photos/seed/lomas/200/200" 
+  },
+  { 
+    id: "club-geba", 
+    associationId: "assoc-ahba", 
+    name: "Gimnasia y Esgrima de Buenos Aires", 
+    address: "Palermo, CABA", 
+    phone: "11-9988-7766", 
+    logoUrl: "https://picsum.photos/seed/geba/200/200" 
+  }
+];
+
+export const demoPlayers = [
+  { firstName: "Juana", lastName: "Viale", position: "Delantera", jerseyNumber: 10, email: "juana@example.com", photoUrl: "https://picsum.photos/seed/p1/200/200" },
+  { firstName: "Martina", lastName: "García", position: "Volante", jerseyNumber: 8, email: "martina@example.com", photoUrl: "https://picsum.photos/seed/p2/200/200" },
+  { firstName: "Delfina", lastName: "Merino", position: "Delantera", jerseyNumber: 7, email: "delfi@example.com", photoUrl: "https://picsum.photos/seed/p3/200/200" },
+  { firstName: "Belén", lastName: "Succi", position: "Arquera", jerseyNumber: 1, email: "belen@example.com", photoUrl: "https://picsum.photos/seed/p4/200/200" },
+  { firstName: "Agustina", lastName: "Albertario", position: "Delantera", jerseyNumber: 19, email: "agus@example.com", photoUrl: "https://picsum.photos/seed/p5/200/200" },
+];
+
+export const demoTournaments = [
+  { 
+    id: "tour-metro-2025", 
+    name: "Metropolitano Damas 2025", 
+    season: "2025", 
+    sport: "Hockey", 
+    startDate: "2025-03-15", 
+    endDate: "2025-11-30" 
+  }
+];
+
+export const demoStandings = [
+  { teamName: "Club Atlético Vicentinos", played: 5, won: 4, drawn: 1, lost: 0, goalsFor: 12, goalsAgainst: 3, points: 13 },
+  { teamName: "Lomas Athletic Club", played: 5, won: 3, drawn: 2, lost: 0, goalsFor: 10, goalsAgainst: 4, points: 11 },
+  { teamName: "Gimnasia y Esgrima", played: 5, won: 3, drawn: 0, lost: 2, goalsFor: 8, goalsAgainst: 6, points: 9 },
+  { teamName: "San Fernando", played: 5, won: 2, drawn: 1, lost: 2, goalsFor: 7, goalsAgainst: 7, points: 7 },
+  { teamName: "River Plate", played: 5, won: 1, drawn: 0, lost: 4, goalsFor: 4, goalsAgainst: 11, points: 3 },
+];
