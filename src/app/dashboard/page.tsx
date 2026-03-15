@@ -92,7 +92,7 @@ export default function DashboardPage() {
         const teamId = "team-a-" + club.id;
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId), { id: teamId, name: club.name + " A", coachName: "Coach " + club.name, season: "2025", createdAt: new Date().toISOString() });
 
-        // 5. Cargar Jugadores e índice global
+        // 5. Cargar Jugadores e índice global (incluyendo email para notificaciones)
         if (club.id === "club-vic") {
           let isFirst = true;
           for (const player of demoPlayers) {
@@ -101,9 +101,15 @@ export default function DashboardPage() {
             const pData = { ...player, id: pId, clubId: club.id, email: pEmail, clubName: club.name, createdAt: new Date().toISOString() };
             await setDoc(doc(firestore, "clubs", club.id, "players", pId), pData);
             
-            // Índice global para la "Puerta Jugadores"
+            // Índice global para la "Puerta Jugadores" y notificaciones
             await setDoc(doc(firestore, "all_players_index", pId), {
-              id: pId, firstName: player.firstName, lastName: player.lastName, photoUrl: player.photoUrl, clubName: club.name, clubId: club.id
+              id: pId, 
+              firstName: player.firstName, 
+              lastName: player.lastName, 
+              photoUrl: player.photoUrl, 
+              clubName: club.name, 
+              clubId: club.id,
+              email: pEmail
             });
 
             isFirst = false;
@@ -112,7 +118,7 @@ export default function DashboardPage() {
       }
 
       toast({ title: "¡Ecosistema Poblado!", description: "Se han cargado las 4 capas del sistema. Explora el Sidebar." });
-      window.location.reload(); // Recargar para actualizar sidebar
+      window.location.reload(); 
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Error al cargar datos" });
@@ -144,7 +150,6 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Vista de las 4 Puertas Principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link href="/dashboard/cah" className="group">
           <Card className="hover:border-primary transition-all cursor-pointer h-full bg-primary/5">
