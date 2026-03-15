@@ -16,9 +16,9 @@ import {
   Activity,
   Table as TableIcon,
   Globe,
-  Milestone,
   Flag,
-  UserCog
+  UserCog,
+  ClipboardCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -42,6 +42,10 @@ const adminItems = [
   { title: "Federaciones", url: "/dashboard/federations", icon: Globe },
   { title: "Mis Clubes", url: "/dashboard/clubs", icon: ShieldCheck },
   { title: "Staff / Árbitros", url: "/dashboard/staff", icon: UserCog },
+];
+
+const coachItems = [
+  { title: "Mis Equipos", url: "/dashboard/coach", icon: ClipboardCheck },
 ];
 
 const refereeItems = [
@@ -98,6 +102,26 @@ export function SidebarNav() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {(userRole === 'coach' || userRole === 'admin') && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Entrenador</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {coachItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + "/")}>
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {(userRole === 'referee' || userRole === 'admin') && (
           <SidebarGroup>

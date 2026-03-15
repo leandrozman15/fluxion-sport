@@ -10,85 +10,40 @@
         "name": { "type": "string" },
         "email": { "type": "string" },
         "role": { "type": "string", "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee"] },
-        "federationId": { "type": "string", "description": "Opcional: ID de la federación que administra." },
-        "associationId": { "type": "string", "description": "Opcional: ID de la asociación que administra." },
-        "clubId": { "type": "string", "description": "Opcional: ID del club que administra o al que pertenece." },
+        "federationId": { "type": "string" },
+        "associationId": { "type": "string" },
+        "clubId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "email", "role"]
     },
-    "Federation": {
-      "title": "Federación",
-      "description": "Entidad nacional rectora del deporte (Ej. CAH).",
+    "Team": {
+      "title": "Equipo",
+      "description": "Plantilla específica de una subcategoría.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "sport": { "type": "string" },
-        "country": { "type": "string" },
-        "logoUrl": { "type": "string" },
+        "coachId": { "type": "string", "description": "UID del entrenador asignado." },
+        "coachName": { "type": "string" },
+        "season": { "type": "string" },
+        "subcategoryId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "TeamEvent": {
+      "title": "Evento de Equipo",
+      "description": "Entrenamiento o partido programado por el entrenador.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["training", "match", "social"] },
+        "date": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
         "description": { "type": "string" },
-        "ownerId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "sport", "country", "ownerId"]
-    },
-    "Association": {
-      "title": "Asociación / Liga",
-      "description": "Entidad regional vinculada a una federación.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "federationId": { "type": "string" },
-        "name": { "type": "string" },
-        "region": { "type": "string" },
-        "logoUrl": { "type": "string" },
-        "description": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "federationId", "name", "region"]
-    },
-    "Club": {
-      "title": "Club Deportivo",
-      "description": "Institución donde se originan los jugadores y equipos.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "associationId": { "type": "string", "description": "Vínculo con la asociación regional." },
-        "name": { "type": "string" },
-        "address": { "type": "string" },
-        "phone": { "type": "string" },
-        "logoUrl": { "type": "string" },
-        "ownerId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "ownerId"]
-    },
-    "ClubDivision": {
-      "title": "División de Club",
-      "description": "Agrupación general de categorías (ej. Inferiores, Senior).",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "clubId": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "clubId", "name"]
-    },
-    "Subcategory": {
-      "title": "Subcategoría",
-      "description": "Nivel específico por edad (ej. 9na, Sub 15).",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "divisionId": { "type": "string" },
-        "name": { "type": "string" },
-        "ageRange": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "divisionId", "name"]
+        "attendanceTaken": { "type": "boolean" }
+      }
     },
     "Tournament": {
       "title": "Torneo",
@@ -98,79 +53,27 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "organizerId": { "type": "string" },
-        "organizerType": { "type": "string", "enum": ["federation", "association"] },
         "season": { "type": "string" },
         "sport": { "type": "string" },
-        "startDate": { "type": "string", "format": "date" },
-        "endDate": { "type": "string", "format": "date" },
-        "logoUrl": { "type": "string", "format": "uri" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "organizerId", "season"]
-    },
-    "TournamentMatch": {
-      "title": "Partido de Torneo",
-      "description": "Encuentro oficial en el fixture.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "tournamentId": { "type": "string" },
-        "categoryId": { "type": "string" },
-        "homeTeamId": { "type": "string" },
-        "homeTeamName": { "type": "string" },
-        "awayTeamId": { "type": "string" },
-        "awayTeamName": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "location": { "type": "string" },
-        "refereeId": { "type": "string" },
-        "status": { "type": "string", "enum": ["scheduled", "played", "cancelled"] },
-        "homeScore": { "type": "number" },
-        "awayScore": { "type": "number" },
-        "lineupSubmitted": { "type": "boolean" },
-        "lineupSubmittedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "tournamentId", "categoryId", "homeTeamId", "awayTeamId", "date"]
-    },
-    "MatchCallup": {
-      "title": "Convocatoria",
-      "description": "Citación de jugador para un partido.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "matchId": { "type": "string" },
-        "teamId": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string" },
-        "role": { "type": "string", "enum": ["starter", "substitute"] },
-        "status": { "type": "string", "enum": ["pending", "confirmed", "unavailable"] },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "matchId", "playerId", "status"]
+        "startDate": { "type": "string", "format": "date" }
+      }
     }
   },
   "auth": {
     "providers": ["anonymous", "password"]
   },
   "firestore": {
-    "/federations/{fedId}": {
-      "schema": "#/backend/entities/Federation",
-      "description": "Raíz de federaciones nacionales."
+    "/users/{userId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "Perfiles de usuario."
     },
-    "/federations/{fedId}/associations/{assocId}": {
-      "schema": "#/backend/entities/Association",
-      "description": "Asociaciones regionales vinculadas a federación."
+    "/clubs/{clubId}/divisions/{divId}/subcategories/{subId}/teams/{teamId}": {
+      "schema": "#/backend/entities/Team",
+      "description": "Gestión de equipos."
     },
-    "/clubs/{clubId}": {
-      "schema": "#/backend/entities/Club",
-      "description": "Instituciones deportivas."
-    },
-    "/tournaments/{tournamentId}": {
-      "schema": "#/backend/entities/Tournament",
-      "description": "Torneos nacionales o regionales."
-    },
-    "/tournament_matches/{matchId}": {
-      "schema": "#/backend/entities/TournamentMatch",
-      "description": "Fixture centralizado."
+    "/clubs/{clubId}/divisions/{divId}/subcategories/{subId}/teams/{teamId}/events/{eventId}": {
+      "schema": "#/backend/entities/TeamEvent",
+      "description": "Agenda del equipo."
     }
   }
 }
