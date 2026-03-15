@@ -27,10 +27,11 @@ import {
   demoClubs, 
   demoPlayers, 
   demoTournaments, 
-  demoStandings 
+  demoStandings,
+  demoMatches
 } from "@/lib/mock-data";
 import { useFirestore, useUser } from "@/firebase";
-import { doc, setDoc, collection } from "firebase/firestore";
+import { doc, setDoc, collection, addDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
@@ -69,11 +70,39 @@ export default function DashboardPage() {
         const teamId = "team-a";
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId), { id: teamId, name: club.name + " A", coachName: "Entrenador Demo", season: "2025", createdAt: new Date().toISOString() });
 
-        // 4. Cargar Jugadores al Club
+        // 4. Cargar Jugadores al Club (Vinculamos uno a tu email para que veas el panel de jugador)
         if (club.id === "club-vic") {
+          let first = true;
           for (const player of demoPlayers) {
             const pId = doc(collection(firestore, "clubs", club.id, "players")).id;
-            await setDoc(doc(firestore, "clubs", club.id, "players", pId), { ...player, id: pId, clubId: club.id, createdAt: new Date().toISOString() });
+            const pEmail = first ? (user.email || player.email) : player.email;
+            const pData = { ...player, id: pId, clubId: club.id, email: pEmail, createdAt: new Date().toISOString() };
+            await setDoc(doc(firestore, "clubs", club.id, "players", pId), pData);
+            
+            // Asignar al equipo A
+            const assignId = doc(collection(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId, "assignments")).id;
+            await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId, "assignments", assignId), {
+              id: assignId,
+              playerId: pId,
+              playerName: `${pData.firstName} ${pData.lastName}`,
+              playerPhoto: pData.photoUrl,
+              teamId,
+              season: "2025"
+            });
+
+            // Registrar algunos pagos
+            const payId = doc(collection(firestore, "clubs", club.id, "players", pId, "payments")).id;
+            await setDoc(doc(firestore, "clubs", club.id, "players", pId, "payments", payId), {
+              id: payId,
+              amount: 50,
+              month: 5,
+              year: 2024,
+              status: "paid",
+              paymentDate: new Date().toISOString(),
+              createdAt: new Date().toISOString()
+            });
+
+            first = false;
           }
         }
 
@@ -82,14 +111,48 @@ export default function DashboardPage() {
           const sId = doc(collection(firestore, "clubs", club.id, "divisions", divId, "standings")).id;
           await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "standings", sId), { ...s, id: sId, createdAt: new Date().toISOString() });
         }
+
+        // 6. Cargar Eventos y Partidos
+        for (const ev of demoMatches) {
+          const evId = doc(collection(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId, "events")).id;
+          const evRef = doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId, "events", evId);
+          await setDoc(evRef, { ...ev, id: evId, teamId, createdAt: new Date().toISOString() });
+
+          // Si es un partido terminado, añadir stats mock
+          if (ev.type === 'match' && ev.matchFinished) {
+            const playersSnap = await getDocs(collection(firestore, "clubs", club.id, "players"));
+            const striker = playersSnap.docs[0];
+            if (striker) {
+              const statId = doc(collection(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId, "events", evId, "stats")).id;
+              await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId, "events", evId, "stats", statId), {
+                id: statId,
+                playerId: striker.id,
+                playerName: `${striker.data().firstName} ${striker.data().lastName}`,
+                goals: 2,
+                assists: 1,
+                minutesPlayed: 60,
+                createdAt: new Date().toISOString()
+              });
+            }
+          }
+        }
       }
 
-      // 6. Cargar Torneo
+      // 7. Cargar Torneo
       for (const tour of demoTournaments) {
         await setDoc(doc(firestore, "tournaments", tour.id), { ...tour, organizerId: demoFederations[0].id, organizerType: "federation", createdAt: new Date().toISOString() });
       }
 
-      toast({ title: "¡Ecosistema Cargado!", description: "Se han creado federaciones, clubes y jugadores de ejemplo." });
+      // 8. Crear un perfil de usuario para tí si no existe
+      await setDoc(doc(firestore, "users", user.uid), {
+        id: user.uid,
+        name: user.displayName || "Admin Demo",
+        email: user.email,
+        role: "admin",
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+
+      toast({ title: "¡Ecosistema Completo!", description: "Se han cargado clubes, jugadoras, partidos, goles y pagos. Revisa todas las secciones." });
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Error al cargar datos", description: "Asegúrate de estar autenticado." });
@@ -212,7 +275,7 @@ export default function DashboardPage() {
                 • 1 Federación (CAH)<br/>
                 • 1 Asociación Regional<br/>
                 • 3 Clubes de Hockey<br/>
-                • Plantillas y Tablas de Posiciones
+                • Plantillas, Partidos y Pagos
               </p>
               <Button variant="secondary" size="sm" className="w-full text-xs font-bold" onClick={handleSeedData}>
                 Poblar Sistema Ahora

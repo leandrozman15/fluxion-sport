@@ -164,3 +164,9 @@ export const demoStandings = [
   { teamName: "San Fernando", played: 5, won: 2, drawn: 1, lost: 2, goalsFor: 7, goalsAgainst: 7, points: 7 },
   { teamName: "River Plate", played: 5, won: 1, drawn: 0, lost: 4, goalsFor: 4, goalsAgainst: 11, points: 3 },
 ];
+
+export const demoMatches = [
+  { title: "Fecha 1: Vicentinos vs Lomas", type: "match", opponent: "Lomas Athletic", date: new Date().toISOString(), location: "Cancha Vicentinos", homeScore: 2, awayScore: 1, matchFinished: true, status: "played" },
+  { title: "Entrenamiento Físico", type: "training", date: new Date(Date.now() + 86400000).toISOString(), location: "Club Sede Central", status: "scheduled" },
+  { title: "Fecha 2: Vicentinos vs GEBA", type: "match", opponent: "GEBA", date: new Date(Date.now() + 172800000).toISOString(), location: "Sede Palermo", status: "scheduled" }
+];
