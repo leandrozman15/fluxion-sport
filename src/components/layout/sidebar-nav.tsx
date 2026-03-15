@@ -18,7 +18,9 @@ import {
   Globe,
   Flag,
   UserCog,
-  ClipboardCheck
+  ClipboardCheck,
+  Building2,
+  UserRoundSearch
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -37,11 +39,11 @@ import { useFirebase } from "@/firebase";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
-const adminItems = [
-  { title: "Panel Control", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Federaciones", url: "/dashboard/federations", icon: Globe },
-  { title: "Mis Clubes", url: "/dashboard/clubs", icon: ShieldCheck },
-  { title: "Staff / Árbitros", url: "/dashboard/staff", icon: UserCog },
+const mainNavItems = [
+  { title: "Panel General", url: "/dashboard", icon: LayoutDashboard },
+  { title: "CAH / Federaciones", url: "/dashboard/federations", icon: Globe },
+  { title: "Instituciones", url: "/dashboard/clubs", icon: Building2 },
+  { title: "Jugadores", url: "/dashboard/player/search", icon: UserRoundSearch },
 ];
 
 const coachItems = [
@@ -79,17 +81,17 @@ export function SidebarNav() {
   return (
     <Sidebar>
       <SidebarHeader className="p-4 flex flex-row items-center gap-2">
-        <div className="bg-primary p-2 rounded-lg">
-          <Trophy className="text-primary-foreground h-5 w-5" />
+        <div className="bg-primary p-2 rounded-lg text-primary-foreground">
+          <Trophy className="h-5 w-5" />
         </div>
         <span className="font-headline font-bold text-xl tracking-tight">SportsManager</span>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Administración</SidebarGroupLabel>
+          <SidebarGroupLabel>Sistema Nacional</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {adminItems.map((item) => (
+              {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + "/")}>
                     <Link href={item.url}>
@@ -103,14 +105,32 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {(userRole === 'admin') && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Gestión de Red</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/staff"}>
+                    <Link href="/dashboard/staff">
+                      <UserCog className="h-4 w-4" />
+                      <span>Staff / Árbitros</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {(userRole === 'coach' || userRole === 'admin') && (
           <SidebarGroup>
-            <SidebarGroupLabel>Entrenador</SidebarGroupLabel>
+            <SidebarGroupLabel>Cuerpo Técnico</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {coachItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + "/")}>
+                    <SidebarMenuButton asChild isActive={pathname === item.url}>
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
@@ -130,7 +150,7 @@ export function SidebarNav() {
               <SidebarMenu>
                 {refereeItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + "/")}>
+                    <SidebarMenuButton asChild isActive={pathname === item.url}>
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
@@ -165,7 +185,7 @@ export function SidebarNav() {
         <div className="flex flex-col gap-2">
           {user && (
             <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 rounded-lg">
-              <UserCircle className="h-4 w-4" />
+              <UserCircle className="h-4 w-4 text-primary" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold truncate max-w-[120px]">{user.email}</span>
                 <span className="text-[8px] uppercase text-primary font-black">{userRole || 'Usuario'}</span>

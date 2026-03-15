@@ -27,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 
-export default function ClubsPage() {
+export default function InstitutionsPage() {
   const { firestore, auth, user, isUserLoading } = useFirebase();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -107,8 +107,8 @@ export default function ClubsPage() {
         <div className="bg-primary/10 p-4 rounded-full mb-4">
           <ShieldCheck className="h-12 w-12 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold font-headline text-foreground">Gestión de Clubes</h2>
-        <p className="text-muted-foreground mb-6 max-w-sm">Inicia sesión para gestionar la base de clubes federados.</p>
+        <h2 className="text-2xl font-bold font-headline text-foreground">Instituciones Deportivas</h2>
+        <p className="text-muted-foreground mb-6 max-w-sm">Inicia sesión para gestionar el padrón de clubes e instituciones.</p>
         <Button size="lg" onClick={() => initiateAnonymousSignIn(auth)}>Empezar ahora</Button>
       </div>
     );
@@ -118,27 +118,27 @@ export default function ClubsPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline text-foreground">Mis Clubes</h1>
-          <p className="text-muted-foreground">Instituciones deportivas vinculadas a asociaciones regionales.</p>
+          <h1 className="text-3xl font-bold font-headline text-foreground">Instituciones</h1>
+          <p className="text-muted-foreground">Clubes y entidades vinculadas al sistema nacional.</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if(open) fetchAssocs(); }}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Registrar Club
+              <Plus className="h-4 w-4" /> Registrar Institución
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nuevo Club Deportivo</DialogTitle>
+              <DialogTitle>Nueva Institución</DialogTitle>
               <DialogDescription>Completa los datos y vincula el club a su asociación regional.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Nombre del Club</Label>
-                <Input value={newClub.name} onChange={e => setNewClub({...newClub, name: e.target.value})} placeholder="Ej. Club Atletico Vicentinos" />
+                <Input value={newClub.name} onChange={e => setNewClub({...newClub, name: e.target.value})} placeholder="Ej. Club Atlético Vicentinos" />
               </div>
               <div className="space-y-2">
-                <Label>Vincular a Asociación / Liga</Label>
+                <Label>Asociación Regional</Label>
                 <Select value={newClub.associationId} onValueChange={v => setNewClub({...newClub, associationId: v})}>
                   <SelectTrigger>
                     <SelectValue placeholder={assocsLoading ? "Cargando..." : "Seleccionar Asociación"} />
@@ -200,7 +200,7 @@ export default function ClubsPage() {
                 </div>
                 <Button asChild size="sm">
                   <Link href={`/dashboard/clubs/${club.id}`} className="flex items-center gap-2">
-                    Administrar <ArrowRight className="h-4 w-4" />
+                    Gestionar <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
               </CardFooter>
@@ -209,7 +209,7 @@ export default function ClubsPage() {
           {clubs?.length === 0 && (
             <div className="col-span-full text-center py-20 border-2 border-dashed rounded-xl bg-muted/20">
               <Building className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-              <p className="text-muted-foreground">No hay clubes registrados todavía.</p>
+              <p className="text-muted-foreground">No hay instituciones registradas todavía.</p>
             </div>
           )}
         </div>
@@ -217,7 +217,7 @@ export default function ClubsPage() {
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Editar Club</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Editar Institución</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Nombre</Label>
