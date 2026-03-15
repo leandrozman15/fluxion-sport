@@ -2,16 +2,22 @@
 {
   "placeholderImages": [
     {
-      "id": "hero-dashboard",
-      "description": "Professional business dashboard overview",
-      "imageUrl": "https://picsum.photos/seed/vantage1/1200/600",
-      "imageHint": "business analytics"
+      "id": "stadium-hero",
+      "description": "Professional sports stadium aerial view",
+      "imageUrl": "https://picsum.photos/seed/sports1/1200/600",
+      "imageHint": "soccer stadium"
     },
     {
-      "id": "avatar-client",
-      "description": "Client profile picture",
-      "imageUrl": "https://picsum.photos/seed/client1/100/100",
-      "imageHint": "person profile"
+      "id": "team-training",
+      "description": "Sports team training on field",
+      "imageUrl": "https://picsum.photos/seed/training1/600/400",
+      "imageHint": "sports training"
+    },
+    {
+      "id": "trophy-celebration",
+      "description": "Winner trophy celebration",
+      "imageUrl": "https://picsum.photos/seed/trophy1/600/400",
+      "imageHint": "trophy victory"
     }
   ]
 }
