@@ -20,7 +20,9 @@ import {
   UserCog,
   ClipboardCheck,
   Building2,
-  UserRoundSearch
+  UserRoundSearch,
+  Map,
+  Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -39,11 +41,13 @@ import { useFirebase } from "@/firebase";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
-const mainNavItems = [
-  { title: "Panel General", url: "/dashboard", icon: LayoutDashboard },
-  { title: "CAH / Federaciones", url: "/dashboard/federations", icon: Globe },
-  { title: "Instituciones", url: "/dashboard/clubs", icon: Building2 },
-  { title: "Jugadores", url: "/dashboard/player/search", icon: UserRoundSearch },
+// Definición de las "4 Puertas" del sistema
+const systemNavItems = [
+  { title: "Panel General", url: "/dashboard", icon: LayoutDashboard, roles: ['admin', 'fed_admin', 'club_admin', 'coach', 'referee', 'player'] },
+  { title: "CAH / Sistema", url: "/dashboard/cah", icon: Database, roles: ['admin'] },
+  { title: "Federaciones", url: "/dashboard/federations", icon: Globe, roles: ['admin', 'fed_admin'] },
+  { title: "Instituciones", url: "/dashboard/clubs", icon: Building2, roles: ['admin', 'fed_admin', 'assoc_admin', 'club_admin'] },
+  { title: "Jugadores", url: "/dashboard/player/search", icon: UserRoundSearch, roles: ['admin', 'fed_admin', 'club_admin'] },
 ];
 
 const coachItems = [
@@ -57,9 +61,9 @@ const refereeItems = [
 const playerItems = [
   { title: "Mi Equipo", url: "/dashboard/player", icon: Trophy },
   { title: "Posiciones", url: "/dashboard/player/standings", icon: TableIcon },
-  { title: "Mis Estadísticas", url: "/dashboard/player/stats", icon: Activity },
+  { title: "Estadísticas", url: "/dashboard/player/stats", icon: Activity },
   { title: "Mi Carnet", url: "/dashboard/player/id-card", icon: Contact2 },
-  { title: "Mis Mensualidades", url: "/dashboard/player/payments", icon: CreditCard },
+  { title: "Mensualidades", url: "/dashboard/player/payments", icon: CreditCard },
 ];
 
 export function SidebarNav() {
@@ -78,6 +82,11 @@ export function SidebarNav() {
     fetchRole();
   }, [user, firestore]);
 
+  const canSee = (roles?: string[]) => {
+    if (!roles) return true;
+    return userRole && roles.includes(userRole);
+  };
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4 flex flex-row items-center gap-2">
@@ -91,7 +100,7 @@ export function SidebarNav() {
           <SidebarGroupLabel>Sistema Nacional</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
+              {systemNavItems.filter(item => canSee(item.roles)).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + "/")}>
                     <Link href={item.url}>
@@ -105,9 +114,9 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {(userRole === 'admin') && (
+        {(userRole === 'admin' || userRole === 'fed_admin') && (
           <SidebarGroup>
-            <SidebarGroupLabel>Gestión de Red</SidebarGroupLabel>
+            <SidebarGroupLabel>Gestión Regional</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
@@ -123,7 +132,7 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
-        {(userRole === 'coach' || userRole === 'admin') && (
+        {(userRole === 'coach' || userRole === 'club_admin' || userRole === 'admin') && (
           <SidebarGroup>
             <SidebarGroupLabel>Cuerpo Técnico</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -145,7 +154,7 @@ export function SidebarNav() {
 
         {(userRole === 'referee' || userRole === 'admin') && (
           <SidebarGroup>
-            <SidebarGroupLabel>Árbitro</SidebarGroupLabel>
+            <SidebarGroupLabel>Oficiales</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {refereeItems.map((item) => (
@@ -163,23 +172,25 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Jugador</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {playerItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
-                    <Link href={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {(userRole === 'player' || !userRole) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {playerItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={pathname === item.url}>
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-4">
         <div className="flex flex-col gap-2">

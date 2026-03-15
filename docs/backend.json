@@ -3,59 +3,60 @@
   "entities": {
     "UserProfile": {
       "title": "Perfil de Usuario",
-      "description": "Información extendida del usuario con roles específicos.",
+      "description": "Información extendida del usuario con roles específicos y alcances organizacionales.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "email": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee"] },
-        "federationId": { "type": "string" },
-        "associationId": { "type": "string" },
-        "clubId": { "type": "string" },
+        "role": { 
+          "type": "string", 
+          "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee"],
+          "description": "Determina el alcance de permisos: global, regional, de club o individual."
+        },
+        "federationId": { "type": "string", "description": "ID de la federación nacional vinculada." },
+        "associationId": { "type": "string", "description": "ID de la asociación regional vinculada." },
+        "clubId": { "type": "string", "description": "ID del club vinculado." },
+        "teamId": { "type": "string", "description": "ID del equipo específico (principalmente para jugadores/coaches)." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "email", "role"]
     },
-    "Team": {
-      "title": "Equipo",
-      "description": "Plantilla específica de una subcategoría.",
+    "Federation": {
+      "title": "Federación Nacional",
+      "description": "Entidad de máximo nivel (ej. CAH).",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "coachId": { "type": "string", "description": "UID del entrenador asignado." },
-        "coachName": { "type": "string" },
-        "season": { "type": "string" },
-        "subcategoryId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "TeamEvent": {
-      "title": "Evento de Equipo",
-      "description": "Entrenamiento o partido programado por el entrenador.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "type": { "type": "string", "enum": ["training", "match", "social"] },
-        "date": { "type": "string", "format": "date-time" },
-        "location": { "type": "string" },
-        "description": { "type": "string" },
-        "attendanceTaken": { "type": "boolean" }
-      }
-    },
-    "Tournament": {
-      "title": "Torneo",
-      "description": "Competición organizada por federación o asociación.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "organizerId": { "type": "string" },
-        "season": { "type": "string" },
         "sport": { "type": "string" },
-        "startDate": { "type": "string", "format": "date" }
+        "country": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "config": { "type": "object" }
+      }
+    },
+    "Association": {
+      "title": "Asociación Regional",
+      "description": "Entidad regional que gestiona ligas y árbitros.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "federationId": { "type": "string" },
+        "name": { "type": "string" },
+        "region": { "type": "string" },
+        "logoUrl": { "type": "string" }
+      }
+    },
+    "Club": {
+      "title": "Club / Institución",
+      "description": "Entidad que gestiona jugadores y equipos locales.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "associationId": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "logoUrl": { "type": "string" }
       }
     }
   },
@@ -65,15 +66,19 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "#/backend/entities/UserProfile",
-      "description": "Perfiles de usuario."
+      "description": "Perfiles de usuario con alcance organizacional."
     },
-    "/clubs/{clubId}/divisions/{divId}/subcategories/{subId}/teams/{teamId}": {
-      "schema": "#/backend/entities/Team",
-      "description": "Gestión de equipos."
+    "/federations/{fedId}": {
+      "schema": "#/backend/entities/Federation",
+      "description": "Datos de federaciones nacionales."
     },
-    "/clubs/{clubId}/divisions/{divId}/subcategories/{subId}/teams/{teamId}/events/{eventId}": {
-      "schema": "#/backend/entities/TeamEvent",
-      "description": "Agenda del equipo."
+    "/federations/{fedId}/associations/{assocId}": {
+      "schema": "#/backend/entities/Association",
+      "description": "Asociaciones regionales vinculadas a una federación."
+    },
+    "/clubs/{clubId}": {
+      "schema": "#/backend/entities/Club",
+      "description": "Instituciones deportivas."
     }
   }
 }
