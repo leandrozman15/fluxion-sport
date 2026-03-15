@@ -21,8 +21,11 @@ import {
   ClipboardCheck,
   Building2,
   UserRoundSearch,
-  Map,
-  Database
+  Database,
+  FileText,
+  BarChart3,
+  CheckCircle2,
+  Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -41,31 +44,6 @@ import { useFirebase } from "@/firebase";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
-// Definición de las "4 Puertas" del sistema
-const systemNavItems = [
-  { title: "Panel General", url: "/dashboard", icon: LayoutDashboard, roles: ['admin', 'fed_admin', 'club_admin', 'coach', 'referee', 'player'] },
-  { title: "CAH / Sistema", url: "/dashboard/cah", icon: Database, roles: ['admin'] },
-  { title: "Federaciones", url: "/dashboard/federations", icon: Globe, roles: ['admin', 'fed_admin'] },
-  { title: "Instituciones", url: "/dashboard/clubs", icon: Building2, roles: ['admin', 'fed_admin', 'assoc_admin', 'club_admin'] },
-  { title: "Jugadores", url: "/dashboard/player/search", icon: UserRoundSearch, roles: ['admin', 'fed_admin', 'club_admin'] },
-];
-
-const coachItems = [
-  { title: "Mis Equipos", url: "/dashboard/coach", icon: ClipboardCheck },
-];
-
-const refereeItems = [
-  { title: "Mis Partidos", url: "/dashboard/referee", icon: Flag },
-];
-
-const playerItems = [
-  { title: "Mi Equipo", url: "/dashboard/player", icon: Trophy },
-  { title: "Posiciones", url: "/dashboard/player/standings", icon: TableIcon },
-  { title: "Estadísticas", url: "/dashboard/player/stats", icon: Activity },
-  { title: "Mi Carnet", url: "/dashboard/player/id-card", icon: Contact2 },
-  { title: "Mensualidades", url: "/dashboard/player/payments", icon: CreditCard },
-];
-
 export function SidebarNav() {
   const pathname = usePathname();
   const { user, firestore } = useFirebase();
@@ -82,10 +60,10 @@ export function SidebarNav() {
     fetchRole();
   }, [user, firestore]);
 
-  const canSee = (roles?: string[]) => {
-    if (!roles) return true;
-    return userRole && roles.includes(userRole);
-  };
+  const isAdmin = (role: string | null) => ['admin', 'fed_admin', 'assoc_admin', 'club_admin'].includes(role || '');
+  const isCoach = (role: string | null) => ['coach', 'admin'].includes(role || '');
+  const isReferee = (role: string | null) => ['referee', 'admin'].includes(role || '');
+  const isPlayer = (role: string | null) => ['player', 'admin', null].includes(role); // null assumes guest/new player
 
   return (
     <Sidebar>
@@ -95,35 +73,51 @@ export function SidebarNav() {
         </div>
         <span className="font-headline font-bold text-xl tracking-tight">SportsManager</span>
       </SidebarHeader>
+      
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Sistema Nacional</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {systemNavItems.filter(item => canSee(item.roles)).map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url || pathname.startsWith(item.url + "/")}>
-                    <Link href={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {(userRole === 'admin' || userRole === 'fed_admin') && (
+        {/* GRUPO 1: ADMINISTRACIÓN (Confederación / Federación / Club) */}
+        {isAdmin(userRole) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Gestión Regional</SidebarGroupLabel>
+            <SidebarGroupLabel>Gestión Institucional</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/staff"}>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
+                    <Link href="/dashboard">
+                      <LayoutDashboard className="h-4 w-4" />
+                      <span>Panel Central</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/staff")}>
                     <Link href="/dashboard/staff">
                       <UserCog className="h-4 w-4" />
-                      <span>Staff / Árbitros</span>
+                      <span>Gestión de Usuarios</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/federations") || pathname.startsWith("/dashboard/clubs")}>
+                    <Link href="/dashboard/clubs">
+                      <Building2 className="h-4 w-4" />
+                      <span>Estructura & Clubes</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.includes("/tournaments")}>
+                    <Link href="/dashboard/federations">
+                      <Flag className="h-4 w-4" />
+                      <span>Torneos & Fixture</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/dashboard/cah">
+                      <BarChart3 className="h-4 w-4" />
+                      <span>Reportes & Auditoría</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -132,66 +126,104 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
-        {(userRole === 'coach' || userRole === 'club_admin' || userRole === 'admin') && (
+        {/* GRUPO 2: ENTRENADORES */}
+        {isCoach(userRole) && (
           <SidebarGroup>
             <SidebarGroupLabel>Cuerpo Técnico</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {coachItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={pathname === item.url}>
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"}>
+                    <Link href="/dashboard/coach">
+                      <ClipboardCheck className="h-4 w-4" />
+                      <span>Panel de Equipo</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/dashboard/coach">
+                      <Bell className="h-4 w-4" />
+                      <span>Convocatorias & Asistencia</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
 
-        {(userRole === 'referee' || userRole === 'admin') && (
+        {/* GRUPO 3: ÁRBITROS */}
+        {isReferee(userRole) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Oficiales</SidebarGroupLabel>
+            <SidebarGroupLabel>Oficiales de Mesa</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {refereeItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={pathname === item.url}>
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/referee"}>
+                    <Link href="/dashboard/referee">
+                      <FileText className="h-4 w-4" />
+                      <span>Mis Partidos & Actas</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/dashboard/referee">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Validación de Resultados</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
 
-        {(userRole === 'player' || !userRole) && (
+        {/* GRUPO 4: JUGADORES */}
+        {isPlayer(userRole) && (
           <SidebarGroup>
             <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {playerItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={pathname === item.url}>
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"}>
+                    <Link href="/dashboard/player">
+                      <Contact2 className="h-4 w-4" />
+                      <span>Mi Ficha & Equipo</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/stats"}>
+                    <Link href="/dashboard/player/stats">
+                      <Activity className="h-4 w-4" />
+                      <span>Estadísticas & Goles</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"}>
+                    <Link href="/dashboard/player/payments">
+                      <CreditCard className="h-4 w-4" />
+                      <span>Cuotas & Mensualidades</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"}>
+                    <Link href="/dashboard/player/id-card">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Carnet Digital</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
       </SidebarContent>
+
       <SidebarFooter className="p-4">
         <div className="flex flex-col gap-2">
           {user && (
