@@ -3,95 +3,74 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Función básica de autenticación
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Función para obtener datos del perfil de usuario
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    // Verificar si el usuario tiene un rol específico
     function isRole(role) {
       return isSignedIn() && getUserData().role == role;
     }
 
-    // Un admin global puede hacer todo
+    // Verificar si es administrador global
     function isGlobalAdmin() {
       return isRole('admin');
     }
 
-    // Permisos de Federaciones
+    // PERMISOS DE LECTURA: Toda la información deportiva es pública para facilitar el ecosistema
+    match /{path=**} {
+      allow read: if true;
+    }
+
+    // PERMISOS DE ESCRITURA: Reglas jerárquicas y recursivas
+
+    // Federaciones y todas sus subcolecciones (Asociaciones, etc)
     match /federations/{fedId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.ownerId || isGlobalAdmin());
-
-      match /associations/{assocId} {
-        allow read: if true;
+      allow write: if isSignedIn();
+      match /{allSubcollections=**} {
         allow write: if isSignedIn();
       }
     }
 
-    // Permisos de Clubes
+    // Clubes y todas sus subcolecciones (Jugadores, Divisiones, Subcategorías, Equipos, Eventos, Pagos, Stats)
     match /clubs/{clubId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.ownerId || isGlobalAdmin());
-
-      match /players/{playerId} {
-        allow read: if true;
+      allow write: if isSignedIn();
+      match /{allSubcollections=**} {
         allow write: if isSignedIn();
-        match /payments/{paymentId} { allow read, write: if isSignedIn(); }
-      }
-
-      match /divisions/{divisionId} {
-        allow read: if true;
-        allow write: if isSignedIn();
-        match /subcategories/{subcatId} {
-          allow read: if true;
-          allow write: if isSignedIn();
-          match /teams/{teamId} {
-            allow read: if true;
-            allow write: if isSignedIn();
-            match /assignments/{assignmentId} { allow read, write: if isSignedIn(); }
-            match /events/{eventId} {
-              allow read, write: if isSignedIn();
-              match /stats/{statId} { allow read, write: if isSignedIn(); }
-            }
-          }
-        }
       }
     }
 
-    // Torneos y Fixture
+    // Torneos y sus subcolecciones (Categorías, Equipos inscritos)
     match /tournaments/{tournamentId} {
-      allow read: if true;
       allow write: if isSignedIn();
-      match /categories/{catId} {
-        allow read: if true;
+      match /{allSubcollections=**} {
         allow write: if isSignedIn();
-        match /teams/{teamId} { allow read, write: if isSignedIn(); }
       }
     }
 
+    // Colecciones Globales (Fixture centralizado y eventos de partido)
     match /tournament_matches/{matchId} {
-      allow read: if true;
       allow write: if isSignedIn();
     }
-
     match /match_callups/{callupId} {
-      allow read: if true;
       allow write: if isSignedIn();
     }
-
     match /match_events/{eventId} {
-      allow read: if true;
       allow write: if isSignedIn();
     }
 
+    // Usuarios: Un usuario solo puede gestionar su propio documento de perfil
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
+    
+    // Comentario para forzar despliegue de reglas corregidas
   }
 }
