@@ -9,14 +9,64 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "email": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "coach", "player", "referee"] },
+        "role": { "type": "string", "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee"] },
+        "federationId": { "type": "string", "description": "Opcional: ID de la federación que administra." },
+        "associationId": { "type": "string", "description": "Opcional: ID de la asociación que administra." },
+        "clubId": { "type": "string", "description": "Opcional: ID del club que administra o al que pertenece." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "email", "role"]
     },
+    "Federation": {
+      "title": "Federación",
+      "description": "Entidad nacional rectora del deporte (Ej. CAH).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sport": { "type": "string" },
+        "country": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "sport", "country", "ownerId"]
+    },
+    "Association": {
+      "title": "Asociación / Liga",
+      "description": "Entidad regional vinculada a una federación.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "federationId": { "type": "string" },
+        "name": { "type": "string" },
+        "region": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "federationId", "name", "region"]
+    },
+    "Club": {
+      "title": "Club Deportivo",
+      "description": "Institución donde se originan los jugadores y equipos.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "associationId": { "type": "string", "description": "Vínculo con la asociación regional." },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "ownerId"]
+    },
     "ClubDivision": {
       "title": "División de Club",
-      "description": "Agrupación general de categorías (ej. Inferiores, Femenino).",
+      "description": "Agrupación general de categorías (ej. Inferiores, Senior).",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -29,7 +79,7 @@
     },
     "Subcategory": {
       "title": "Subcategoría",
-      "description": "Categoría específica por edad dentro de una división (ej. 9na, Sub 15).",
+      "description": "Nivel específico por edad (ej. 9na, Sub 15).",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -42,7 +92,7 @@
     },
     "Tournament": {
       "title": "Torneo",
-      "description": "Competición organizada por una federación o asociación.",
+      "description": "Competición organizada por federación o asociación.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -60,7 +110,7 @@
     },
     "TournamentMatch": {
       "title": "Partido de Torneo",
-      "description": "Encuentro oficial programado en el fixture.",
+      "description": "Encuentro oficial en el fixture.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -75,13 +125,15 @@
         "refereeId": { "type": "string" },
         "status": { "type": "string", "enum": ["scheduled", "played", "cancelled"] },
         "homeScore": { "type": "number" },
-        "awayScore": { "type": "number" }
+        "awayScore": { "type": "number" },
+        "lineupSubmitted": { "type": "boolean" },
+        "lineupSubmittedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "tournamentId", "categoryId", "homeTeamId", "awayTeamId", "date"]
     },
     "MatchCallup": {
-      "title": "Convocatoria de Partido",
-      "description": "Citación de un jugador para un partido específico.",
+      "title": "Convocatoria",
+      "description": "Citación de jugador para un partido.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -100,17 +152,25 @@
     "providers": ["anonymous", "password"]
   },
   "firestore": {
+    "/federations/{fedId}": {
+      "schema": "#/backend/entities/Federation",
+      "description": "Raíz de federaciones nacionales."
+    },
+    "/federations/{fedId}/associations/{assocId}": {
+      "schema": "#/backend/entities/Association",
+      "description": "Asociaciones regionales vinculadas a federación."
+    },
+    "/clubs/{clubId}": {
+      "schema": "#/backend/entities/Club",
+      "description": "Instituciones deportivas."
+    },
     "/tournaments/{tournamentId}": {
       "schema": "#/backend/entities/Tournament",
-      "description": "Colección central de torneos."
+      "description": "Torneos nacionales o regionales."
     },
     "/tournament_matches/{matchId}": {
       "schema": "#/backend/entities/TournamentMatch",
-      "description": "Calendario centralizado de partidos de todos los torneos."
-    },
-    "/match_callups/{callupId}": {
-      "schema": "#/backend/entities/MatchCallup",
-      "description": "Citaciones oficiales a partidos."
+      "description": "Fixture centralizado."
     }
   }
 }

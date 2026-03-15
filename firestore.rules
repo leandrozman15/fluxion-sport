@@ -15,40 +15,16 @@ service cloud.firestore {
       return isSignedIn() && getUserData().role == role;
     }
 
-    // Reglas para Perfiles de Usuario
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == userId;
+    // Un admin global puede hacer todo
+    function isGlobalAdmin() {
+      return isRole('admin');
     }
 
-    // Reglas para Torneos y Fixture
-    match /tournaments/{tournamentId} {
-      allow read: if true;
-      allow create, update, delete: if isSignedIn();
-
-      match /categories/{catId} {
-        allow read: if true;
-        allow write: if isSignedIn();
-
-        match /teams/{teamId} {
-          allow read: if true;
-          allow write: if isSignedIn();
-        }
-      }
-    }
-
-    match /tournament_matches/{matchId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn() && isRole('admin');
-    }
-
-    // Reglas para Federaciones
+    // Permisos de Federaciones
     match /federations/{fedId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.ownerId || isRole('admin'));
+      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.ownerId || isGlobalAdmin());
 
       match /associations/{assocId} {
         allow read: if true;
@@ -56,18 +32,16 @@ service cloud.firestore {
       }
     }
 
-    // Reglas para Clubes
+    // Permisos de Clubes
     match /clubs/{clubId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.ownerId || isRole('admin'));
+      allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.ownerId || isGlobalAdmin());
 
       match /players/{playerId} {
         allow read: if true;
         allow write: if isSignedIn();
-        match /payments/{paymentId} {
-          allow read, write: if isSignedIn();
-        }
+        match /payments/{paymentId} { allow read, write: if isSignedIn(); }
       }
 
       match /divisions/{divisionId} {
@@ -79,32 +53,45 @@ service cloud.firestore {
           match /teams/{teamId} {
             allow read: if true;
             allow write: if isSignedIn();
-            match /assignments/{assignmentId} {
-              allow read, write: if isSignedIn();
-            }
+            match /assignments/{assignmentId} { allow read, write: if isSignedIn(); }
             match /events/{eventId} {
               allow read, write: if isSignedIn();
-              match /attendance/{attId} { allow read, write: if isSignedIn(); }
               match /stats/{statId} { allow read, write: if isSignedIn(); }
-              match /callups/{callId} { allow read, write: if isSignedIn(); }
             }
           }
         }
       }
     }
-    
-    // Reglas para eventos globales de partido
-    match /match_events/{eventId} {
+
+    // Torneos y Fixture
+    match /tournaments/{tournamentId} {
       allow read: if true;
-      allow create, update, delete: if isSignedIn();
+      allow write: if isSignedIn();
+      match /categories/{catId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+        match /teams/{teamId} { allow read, write: if isSignedIn(); }
+      }
     }
 
-    // Reglas para convocatorias
+    match /tournament_matches/{matchId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
     match /match_callups/{callupId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /match_events/{eventId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
     }
   }
 }
