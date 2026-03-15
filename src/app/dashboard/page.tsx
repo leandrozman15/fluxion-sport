@@ -14,7 +14,8 @@ import {
   Zap,
   Database,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,52 +31,75 @@ import {
   demoStandings,
   demoMatches
 } from "@/lib/mock-data";
-import { useFirestore, useUser } from "@/firebase";
-import { doc, setDoc, collection, addDoc } from "firebase/firestore";
+import { useFirebase } from "@/firebase";
+import { doc, setDoc, collection, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 
 export default function DashboardPage() {
-  const { firestore } = useFirestore();
-  const { user } = useUser();
+  const { firestore, user, auth, isUserLoading } = useFirebase();
   const { toast } = useToast();
   const [seeding, setSeeding] = useState(false);
 
   const totalRevenue = mockTransactions.filter(t => t.type === 'revenue').reduce((acc, t) => acc + t.amount, 0);
 
   const handleSeedData = async () => {
-    if (!firestore || !user) return;
+    if (!firestore) return;
+    
+    // Forzar login si no está logueado
+    if (!user) {
+      initiateAnonymousSignIn(auth);
+      toast({ title: "Iniciando sesión...", description: "Por favor pulsa el botón de nuevo en un segundo." });
+      return;
+    }
+
     setSeeding(true);
     try {
-      // 1. Cargar Federación
+      // 1. Cargar Usuario Admin (Tú)
+      await setDoc(doc(firestore, "users", user.uid), {
+        id: user.uid,
+        name: user.displayName || "Administrador Demo",
+        email: user.email || "demo@ejemplo.com",
+        role: "admin",
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+
+      // 2. Cargar Federación
       for (const fed of demoFederations) {
         await setDoc(doc(firestore, "federations", fed.id), { ...fed, ownerId: user.uid, createdAt: new Date().toISOString() });
       }
       
-      // 2. Cargar Asociación
+      // 3. Cargar Asociación
       for (const assoc of demoAssociations) {
         await setDoc(doc(firestore, "federations", assoc.federationId, "associations", assoc.id), { ...assoc, createdAt: new Date().toISOString() });
       }
 
-      // 3. Cargar Clubes
+      // 4. Cargar Clubes
       for (const club of demoClubs) {
         await setDoc(doc(firestore, "clubs", club.id), { ...club, ownerId: user.uid, createdAt: new Date().toISOString() });
         
         // Division e Inferiores por defecto
-        const divId = "div-inferiores";
+        const divId = "div-inferiores-" + club.id;
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId), { id: divId, clubId: club.id, name: "Divisiones Inferiores", createdAt: new Date().toISOString() });
         
-        const subId = "sub-7ma";
+        const subId = "sub-7ma-" + club.id;
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId), { id: subId, divisionId: divId, name: "7ma División", ageRange: "13-14 años", createdAt: new Date().toISOString() });
 
-        const teamId = "team-a";
-        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId), { id: teamId, name: club.name + " A", coachName: "Entrenador Demo", season: "2025", createdAt: new Date().toISOString() });
+        const teamId = "team-a-" + club.id;
+        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId), { 
+          id: teamId, 
+          name: club.name + " A", 
+          coachName: "Coach " + club.name, 
+          season: "2025", 
+          createdAt: new Date().toISOString() 
+        });
 
-        // 4. Cargar Jugadores al Club (Vinculamos uno a tu email para que veas el panel de jugador)
+        // 5. Cargar Jugadores al Club (Vinculamos el primero a tu email para que veas el panel de jugador)
         if (club.id === "club-vic") {
-          let first = true;
+          let isFirst = true;
           for (const player of demoPlayers) {
             const pId = doc(collection(firestore, "clubs", club.id, "players")).id;
-            const pEmail = first ? (user.email || player.email) : player.email;
+            const pEmail = isFirst ? (user.email || "demo-player@example.com") : player.email;
             const pData = { ...player, id: pId, clubId: club.id, email: pEmail, createdAt: new Date().toISOString() };
             await setDoc(doc(firestore, "clubs", club.id, "players", pId), pData);
             
@@ -102,17 +126,17 @@ export default function DashboardPage() {
               createdAt: new Date().toISOString()
             });
 
-            first = false;
+            isFirst = false;
           }
         }
 
-        // 5. Cargar Tablas de Posiciones
+        // 6. Cargar Tablas de Posiciones
         for (const s of demoStandings) {
           const sId = doc(collection(firestore, "clubs", club.id, "divisions", divId, "standings")).id;
           await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "standings", sId), { ...s, id: sId, createdAt: new Date().toISOString() });
         }
 
-        // 6. Cargar Eventos y Partidos
+        // 7. Cargar Eventos y Partidos
         for (const ev of demoMatches) {
           const evId = doc(collection(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId, "events")).id;
           const evRef = doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId, "events", evId);
@@ -138,46 +162,42 @@ export default function DashboardPage() {
         }
       }
 
-      // 7. Cargar Torneo
+      // 8. Cargar Torneo Global
       for (const tour of demoTournaments) {
         await setDoc(doc(firestore, "tournaments", tour.id), { ...tour, organizerId: demoFederations[0].id, organizerType: "federation", createdAt: new Date().toISOString() });
       }
 
-      // 8. Crear un perfil de usuario para tí si no existe
-      await setDoc(doc(firestore, "users", user.uid), {
-        id: user.uid,
-        name: user.displayName || "Admin Demo",
-        email: user.email,
-        role: "admin",
-        createdAt: new Date().toISOString()
-      }, { merge: true });
-
-      toast({ title: "¡Ecosistema Completo!", description: "Se han cargado clubes, jugadoras, partidos, goles y pagos. Revisa todas las secciones." });
+      toast({ title: "¡Ecosistema Poblado!", description: "Se han cargado Federaciones, Clubes, Jugadores y Partidos. Explora la app." });
     } catch (e) {
       console.error(e);
-      toast({ variant: "destructive", title: "Error al cargar datos", description: "Asegúrate de estar autenticado." });
+      toast({ variant: "destructive", title: "Error al cargar datos", description: "Revisa la consola para más detalles." });
     } finally {
       setSeeding(false);
     }
   };
 
+  if (isUserLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline text-foreground">Panel General</h1>
-          <p className="text-muted-foreground">Resumen de actividad de tu ecosistema deportivo.</p>
+          <h1 className="text-3xl font-bold font-headline text-foreground">Panel de Control</h1>
+          <p className="text-muted-foreground">Bienvenido al sistema integral de gestión deportiva.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleSeedData} disabled={seeding} className="border-primary text-primary">
-            {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Database className="h-4 w-4 mr-2" />}
-            Cargar Ecosistema de Prueba
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/dashboard/clubs">Ver Mis Clubes</Link>
-          </Button>
+          {!user ? (
+            <Button onClick={() => initiateAnonymousSignIn(auth)} className="gap-2">
+              <ShieldCheck className="h-4 w-4" /> Iniciar Sesión para Probar
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={handleSeedData} disabled={seeding} className="border-primary text-primary hover:bg-primary/5">
+              {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Database className="h-4 w-4 mr-2" />}
+              Cargar Ecosistema de Prueba
+            </Button>
+          )}
           <Button asChild>
-            <Link href="/dashboard/federations">Gestionar Ligas</Link>
+            <Link href="/dashboard/clubs">Administrar Clubes</Link>
           </Button>
         </div>
       </header>
@@ -209,18 +229,18 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Ingresos (Mock)</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Recaudación (Est.)</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black">${totalRevenue.toLocaleString()}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Recaudación mensual</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Estimado mensual actual</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Efectividad</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Efectividad Partidos</CardTitle>
             <Target className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
@@ -238,13 +258,13 @@ export default function DashboardPage() {
             <CardTitle className="text-lg flex items-center gap-2">
               <Zap className="h-5 w-5 text-primary" /> Actividad Reciente
             </CardTitle>
-            <CardDescription>Eventos y movimientos administrativos de las últimas 24hs.</CardDescription>
+            <CardDescription>Movimientos del ecosistema en tiempo real.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {[
-              { label: "Nuevo Jugador", desc: "Mateo G. se inscribió en Real Madrid C.F.", time: "Hace 2hs", icon: Activity },
-              { label: "Planilla Presentada", desc: "9na A presentó alineación vs C.D. Leones", time: "Hace 5hs", icon: CalendarIcon },
-              { label: "Resultado Cargado", desc: "Arbitro P. registró 2-1 en Primera Div.", time: "Ayer", icon: Trophy },
+              { label: "Nuevo Registro", desc: "Inscripción recibida en Club Vicentinos", time: "Hace 10m", icon: Activity },
+              { label: "Planilla Presentada", desc: "7ma A presentó alineación oficial", time: "Hace 45m", icon: CalendarIcon },
+              { label: "Resultado Cargado", desc: "Árbitro validó 2-1 en Torneo Metropolitano", time: "Hace 2h", icon: Trophy },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border">
                 <div className="bg-primary/10 p-2 rounded-full mt-1">
@@ -263,29 +283,29 @@ export default function DashboardPage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
+          <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-lg">
             <CardHeader>
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" /> Ecosistema Demo
+                <CheckCircle2 className="h-4 w-4" /> Guía de Inicio
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-xs opacity-90 leading-relaxed">
-                Usa el botón superior para cargar automáticamente:<br/>
-                • 1 Federación (CAH)<br/>
-                • 1 Asociación Regional<br/>
-                • 3 Clubes de Hockey<br/>
-                • Plantillas, Partidos y Pagos
+                Para ver la app en acción:<br/>
+                1. Pulsa <strong>Cargar Ecosistema</strong>.<br/>
+                2. Navega a <strong>Federaciones</strong> para ver la CAH.<br/>
+                3. Ve a <strong>Mi Equipo</strong> como jugador.<br/>
+                4. Entra en <strong>Staff</strong> para ver árbitros.
               </p>
               <Button variant="secondary" size="sm" className="w-full text-xs font-bold" onClick={handleSeedData}>
-                Poblar Sistema Ahora
+                Poblar Todo Ahora
               </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-bold">Estado de la Red</CardTitle>
+              <CardTitle className="text-sm font-bold">Estado de Infraestructura</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center text-xs">
