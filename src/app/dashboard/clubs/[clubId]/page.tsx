@@ -19,7 +19,9 @@ import {
   Activity,
   UserRound,
   FileText,
-  Settings2
+  Settings2,
+  ShieldCheck,
+  CreditCard
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -173,7 +175,6 @@ export default function InstitutionDetailPage() {
                 <Button variant="ghost" size="sm" className="w-full">Ver Legajo</Button>
               </CardFooter>
             </Card>
-            {/* Aquí se cargarían dinámicamente los coaches vinculados al club */}
           </div>
         </TabsContent>
 
