@@ -13,7 +13,10 @@ import {
   ChevronLeft,
   MapPin,
   Trophy,
-  LayoutGrid
+  LayoutDashboard,
+  Building2,
+  Users,
+  BarChart3
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -24,8 +27,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Textarea } from "@/components/ui/textarea";
+import { SectionNav } from "@/components/layout/section-nav";
 
 export default function FederationDetailPage() {
   const { federationId } = useParams() as { federationId: string };
@@ -46,6 +50,14 @@ export default function FederationDetailPage() {
   }, [firestore, federationId]);
 
   const { data: associations, isLoading: assocLoading } = useCollection(assocQuery);
+
+  const fedNav = [
+    { title: "Asociaciones", href: `/dashboard/federations/${federationId}`, icon: Milestone },
+    { title: "Torneos Regionales", href: `/dashboard/federations/${federationId}/tournaments`, icon: Trophy },
+    { title: "Clubes Afiliados", href: `/dashboard/federations/${federationId}/clubs`, icon: Building2 },
+    { title: "Cuerpo de Árbitros", href: `/dashboard/federations/${federationId}/referees`, icon: Users },
+    { title: "Estadísticas", href: `/dashboard/federations/${federationId}/stats`, icon: BarChart3 },
+  ];
 
   const handleCreateAssoc = () => {
     if (!firestore) return;
@@ -87,49 +99,45 @@ export default function FederationDetailPage() {
               <p className="text-muted-foreground">{federation?.sport} • {federation?.country}</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild className="gap-2">
-              <Link href={`/dashboard/federations/${federationId}/tournaments`}>
-                <Trophy className="h-4 w-4" /> Gestionar Torneos
-              </Link>
-            </Button>
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" /> Nueva Asociación
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Nueva Asociación Regional</DialogTitle>
-                  <DialogDescription>Crea una liga o asociación local dentro de esta federación.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Nombre</Label>
-                    <Input value={newAssoc.name} onChange={e => setNewAssoc({...newAssoc, name: e.target.value})} placeholder="Ej. Asociación de Fútbol de Madrid" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Región / Ciudad</Label>
-                    <Input value={newAssoc.region} onChange={e => setNewAssoc({...newAssoc, region: e.target.value})} placeholder="Ej. Comunidad de Madrid" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>URL Logo</Label>
-                    <Input value={newAssoc.logoUrl} onChange={e => setNewAssoc({...newAssoc, logoUrl: e.target.value})} placeholder="https://..." />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Descripción</Label>
-                    <Textarea value={newAssoc.description} onChange={e => setNewAssoc({...newAssoc, description: e.target.value})} />
-                  </div>
+          
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" /> Nueva Asociación
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nueva Asociación Regional</DialogTitle>
+                <DialogDescription>Crea una liga o asociación local dentro de esta federación.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Nombre</Label>
+                  <Input value={newAssoc.name} onChange={e => setNewAssoc({...newAssoc, name: e.target.value})} placeholder="Ej. Asociación de Hockey de Madrid" />
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreateAssoc} disabled={!newAssoc.name || !newAssoc.region}>Registrar Asociación</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+                <div className="space-y-2">
+                  <Label>Región / Ciudad</Label>
+                  <Input value={newAssoc.region} onChange={e => setNewAssoc({...newAssoc, region: e.target.value})} placeholder="Ej. Comunidad de Madrid" />
+                </div>
+                <div className="space-y-2">
+                  <Label>URL Logo</Label>
+                  <Input value={newAssoc.logoUrl} onChange={e => setNewAssoc({...newAssoc, logoUrl: e.target.value})} placeholder="https://..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Descripción</Label>
+                  <Textarea value={newAssoc.description} onChange={e => setNewAssoc({...newAssoc, description: e.target.value})} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                <Button onClick={handleCreateAssoc} disabled={!newAssoc.name || !newAssoc.region}>Registrar Asociación</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
+
+        <SectionNav items={fedNav} basePath={`/dashboard/federations/${federationId}`} />
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

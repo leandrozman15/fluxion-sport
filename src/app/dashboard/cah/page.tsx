@@ -10,16 +10,28 @@ import {
   Trophy,
   Activity,
   FileText,
-  Lock
+  Lock,
+  LayoutDashboard,
+  FileSearch,
+  History
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SectionNav } from "@/components/layout/section-nav";
 
 export default function CahControlPanel() {
+  const cahNav = [
+    { title: "Panel General", href: "/dashboard/cah", icon: LayoutDashboard },
+    { title: "Torneos Nacionales", href: "/dashboard/cah/tournaments", icon: Trophy },
+    { title: "Reglamentos PDF", href: "/dashboard/cah/rules", icon: FileText },
+    { title: "Auditoría", href: "/dashboard/cah/audit", icon: ShieldAlert },
+    { title: "Configuración", href: "/dashboard/cah/settings", icon: Settings2 },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="flex flex-col gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest border-primary text-primary">Nivel Nacional</Badge>
@@ -27,14 +39,8 @@ export default function CahControlPanel() {
           <h1 className="text-3xl font-bold font-headline text-foreground">Control Central: CAH</h1>
           <p className="text-muted-foreground">Administración global del sistema y reglamentación nacional.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Settings2 className="h-4 w-4" /> Configuración Global
-          </Button>
-          <Button className="gap-2">
-            <Lock className="h-4 w-4" /> Auditoría Sistema
-          </Button>
-        </div>
+        
+        <SectionNav items={cahNav} basePath="/dashboard/cah" />
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -87,21 +93,21 @@ export default function CahControlPanel() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-orange-500" /> Acciones de Sistema
+                <FileSearch className="h-4 w-4 text-orange-500" /> Acciones Rápidas
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-2">
               <Button variant="outline" className="justify-start gap-3 h-12">
-                <FileText className="h-4 w-4" /> Reglamentos PDF
+                <FileText className="h-4 w-4" /> Ver Reglamentos
               </Button>
               <Button variant="outline" className="justify-start gap-3 h-12">
-                <Users className="h-4 w-4" /> Base de Árbitros Nacionales
+                <Users className="h-4 w-4" /> Padrón Nacional
               </Button>
               <Button variant="outline" className="justify-start gap-3 h-12">
-                <Globe className="h-4 w-4" /> Mapa de Infraestructura
+                <History className="h-4 w-4" /> Historial de Cambios
               </Button>
               <Button variant="outline" className="justify-start gap-3 h-12">
-                <Trophy className="h-4 w-4" /> Torneos Nacionales (CAH)
+                <Lock className="h-4 w-4" /> Permisos de Sistema
               </Button>
             </CardContent>
           </Card>

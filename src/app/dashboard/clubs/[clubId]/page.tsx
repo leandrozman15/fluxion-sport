@@ -10,18 +10,15 @@ import {
   Trash2,
   ChevronLeft,
   Users,
-  Pencil,
   Share2,
   LayoutGrid,
   Building2,
-  UserCheck,
-  Trophy,
-  Activity,
   UserRound,
   FileText,
   Settings2,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  LayoutDashboard
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -33,9 +30,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SectionNav } from "@/components/layout/section-nav";
 
 export default function InstitutionDetailPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -53,6 +51,15 @@ export default function InstitutionDetailPage() {
 
   const [isCreateDivOpen, setIsCreateDivOpen] = useState(false);
   const [newDivision, setNewDivision] = useState({ name: "", description: "" });
+
+  const clubNav = [
+    { title: "Panel Club", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
+    { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
+    { title: "Entrenadores", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
+    { title: "Divisiones", href: `/dashboard/clubs/${clubId}/divisions`, icon: LayoutGrid },
+    { title: "Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
+    { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
+  ];
 
   const handleCreateDivision = () => {
     const divId = doc(collection(db, "clubs", clubId, "divisions")).id;
@@ -89,107 +96,58 @@ export default function InstitutionDetailPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={copyRegistrationLink} className="gap-2 border-accent text-accent hover:bg-accent/5">
+            <Button variant="outline" onClick={copyRegistrationLink} className="gap-2 border-accent text-accent hover:bg-accent/5 text-xs h-9">
               <Share2 className="h-4 w-4" /> Link Inscripción
             </Button>
-            <Button variant="default" className="gap-2">
-              <Settings2 className="h-4 w-4" /> Configuración
+            <Button variant="default" className="gap-2 text-xs h-9">
+              <Settings2 className="h-4 w-4" /> Ajustes Club
             </Button>
           </div>
         </div>
+
+        <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
       </header>
 
-      <Tabs defaultValue="divisions" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-2xl bg-muted/50 p-1">
-          <TabsTrigger value="admin" className="gap-2"><ShieldCheck className="h-4 w-4" /> Administración</TabsTrigger>
-          <TabsTrigger value="coaches" className="gap-2"><UserRound className="h-4 w-4" /> Entrenadores</TabsTrigger>
-          <TabsTrigger value="divisions" className="gap-2"><LayoutGrid className="h-4 w-4" /> Divisiones</TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="bg-primary/5 border-primary/10">
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Padrón Jugadores</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black">{players?.length || 0}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Activos esta temporada</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Efectividad Cobros</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black text-green-600">82%</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Cuotas al día (Mayo 2024)</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Divisiones</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black">{divisions?.length || 0}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Ramas deportivas</p>
+          </CardContent>
+        </Card>
+      </div>
 
-        <TabsContent value="admin" className="space-y-6 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Padrón Jugadores</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-3xl font-black">{players?.length || 0}</div>
-                <Button asChild variant="link" className="p-0 h-auto text-xs" size="sm">
-                  <Link href={`/dashboard/clubs/${clubId}/players`}>Ver listado completo</Link>
-                </Button>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Efectividad Cobros</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-3xl font-black text-green-600">82%</div>
-                <p className="text-[10px] text-muted-foreground mt-1">Cuotas al día (Mayo 2024)</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Documentación</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-3xl font-black">95%</div>
-                <p className="text-[10px] text-muted-foreground mt-1">Fichas médicas cargadas</p>
-              </CardContent>
-            </Card>
-          </div>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Gestión Administrativa</CardTitle>
-              <CardDescription>Herramientas centrales de la institución.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                <Link href={`/dashboard/clubs/${clubId}/players`}>
-                  <Users className="h-5 w-5" /> Base de Jugadores
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex-col gap-2">
-                <CreditCard className="h-5 w-5" /> Finanzas y Cuotas
-              </Button>
-              <Button variant="outline" className="h-20 flex-col gap-2">
-                <FileText className="h-5 w-5" /> Legajos Médicos
-              </Button>
-              <Button variant="outline" className="h-20 flex-col gap-2">
-                <Activity className="h-5 w-5" /> Auditoría
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="coaches" className="space-y-6 mt-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Cuerpo Técnico</h2>
-            <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Registrar Entrenador</Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="hover:border-primary transition-colors">
-              <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar className="h-12 w-12"><AvatarFallback>CO</AvatarFallback></Avatar>
-                <div>
-                  <CardTitle className="text-lg">Carlos Entrenador</CardTitle>
-                  <CardDescription>Coordinador General</CardDescription>
-                </div>
-              </CardHeader>
-              <CardFooter className="border-t pt-4">
-                <Button variant="ghost" size="sm" className="w-full">Ver Legajo</Button>
-              </CardFooter>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="divisions" className="space-y-6 mt-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Ramas y Divisiones</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Divisiones y Ramas</CardTitle>
+              <CardDescription>Organización deportiva del club.</CardDescription>
+            </div>
             <Dialog open={isCreateDivOpen} onOpenChange={setIsCreateDivOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2"><Plus className="h-4 w-4" /> Nueva División</Button>
+                <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Nueva</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Añadir División</DialogTitle></DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label>Nombre (Ej. Divisiones Inferiores)</Label>
+                    <Label>Nombre (Ej. Damas, Inferiores)</Label>
                     <Input value={newDivision.name} onChange={e => setNewDivision({...newDivision, name: e.target.value})} />
                   </div>
                   <div className="space-y-2">
@@ -200,38 +158,53 @@ export default function InstitutionDetailPage() {
                 <DialogFooter><Button onClick={handleCreateDivision}>Guardar</Button></DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {divisionsLoading ? <Loader2 className="animate-spin mx-auto" /> : divisions?.map((div: any) => (
+                <div key={div.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div>
+                    <p className="font-bold">{div.name}</p>
+                    <p className="text-xs text-muted-foreground">{div.description || "División deportiva"}</p>
+                  </div>
+                  <Button asChild size="sm" variant="ghost">
+                    <Link href={`/dashboard/clubs/${clubId}/divisions/${div.id}`}><ArrowRight className="h-4 w-4" /></Link>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {divisionsLoading ? <Loader2 className="animate-spin" /> : divisions?.map((div: any) => (
-              <Card key={div.id} className="group hover:border-primary transition-all">
-                <CardHeader>
-                  <CardTitle className="flex justify-between items-center">
-                    {div.name}
-                    <LayoutGrid className="h-4 w-4 text-muted-foreground" />
-                  </CardTitle>
-                  <CardDescription>{div.description || "División deportiva"}</CardDescription>
-                </CardHeader>
-                <CardFooter className="flex justify-between border-t pt-4">
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", div.id))}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button asChild size="sm" variant="secondary">
-                    <Link href={`/dashboard/clubs/${clubId}/divisions/${div.id}`} className="gap-2">
-                      Subcategorías <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-            {divisions?.length === 0 && !divisionsLoading && (
-              <div className="col-span-full text-center py-12 border-2 border-dashed rounded-xl">
-                <p className="text-muted-foreground">Crea una división (ej. Damas, Caballeros, Inferiores) para organizar los equipos.</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Herramientas de Gestión</CardTitle>
+            <CardDescription>Accesos rápidos de administración.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-3">
+            <Button variant="outline" className="h-24 flex-col gap-2" asChild>
+              <Link href={`/dashboard/clubs/${clubId}/players`}>
+                <Users className="h-5 w-5 text-primary" /> 
+                <span className="text-xs">Base Jugadores</span>
+              </Link>
+            </Button>
+            <Button variant="outline" className="h-24 flex-col gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              <span className="text-xs">Cobros / Cuotas</span>
+            </Button>
+            <Button variant="outline" className="h-24 flex-col gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <span className="text-xs">Legajos Médicos</span>
+            </Button>
+            <Button variant="outline" className="h-24 flex-col gap-2" asChild>
+              <Link href={`/dashboard/clubs/${clubId}/coaches`}>
+                <UserRound className="h-5 w-5 text-primary" />
+                <span className="text-xs">Staff Técnico</span>
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
