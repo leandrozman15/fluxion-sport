@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams } from "next/navigation";
@@ -12,7 +11,9 @@ import {
   FileText, 
   AlertCircle,
   CheckCircle2,
-  LayoutDashboard
+  LayoutDashboard,
+  Layers,
+  UserRound as UserRoundIcon
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
@@ -36,8 +37,8 @@ export default function ClubAdminPage() {
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
     { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
-    { title: "Divisiones", href: `/dashboard/clubs/${clubId}/divisions`, icon: LayoutGrid },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
+    { title: "Divisiones", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
+    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRoundIcon },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
   ];
@@ -122,7 +123,3 @@ export default function ClubAdminPage() {
     </div>
   );
 }
-
-function LayoutGrid(props: any) { return <Layers {...props} />; }
-function UserRound(props: any) { return <UserRoundIcon {...props} />; }
-import { UserRound as UserRoundIcon } from "lucide-react";
