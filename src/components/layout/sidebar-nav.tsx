@@ -25,7 +25,10 @@ import {
   CheckCircle2,
   Bell,
   Search,
-  UserRound
+  UserRound,
+  Layers,
+  ArrowRightLeft,
+  Stethoscope
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -51,7 +54,6 @@ export function SidebarNav() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [playerInfo, setPlayerInfo] = useState<any>(null);
 
-  // 1. Obtener el rol del usuario
   useEffect(() => {
     async function fetchRole() {
       if (!user || !firestore) return;
@@ -63,33 +65,20 @@ export function SidebarNav() {
     fetchRole();
   }, [user, firestore]);
 
-  // 2. Si es jugador, buscar su ID para las notificaciones
   useEffect(() => {
     async function findId() {
       if (userRole === 'player' || !userRole) {
         if (!user || !firestore) return;
-        // Buscamos en el índice global por email
         const q = query(collection(firestore, "all_players_index"), where("email", "==", user.email));
         const snap = await getDocs(q);
         if (!snap.empty) {
           setPlayerInfo(snap.docs[0].data());
-        } else {
-          // Si no está en el índice, intentamos búsqueda profunda (fallback para demo)
-          const clubsSnap = await getDocs(collection(firestore, "clubs"));
-          for (const clubDoc of clubsSnap.docs) {
-            const pSnap = await getDocs(query(collection(firestore, "clubs", clubDoc.id, "players"), where("email", "==", user.email)));
-            if (!pSnap.empty) {
-              setPlayerInfo({ ...pSnap.docs[0].data(), clubId: clubDoc.id });
-              break;
-            }
-          }
         }
       }
     }
     findId();
   }, [user, firestore, userRole]);
 
-  // 3. Consultar convocatorias pendientes en tiempo real
   const pendingCallupsQuery = useMemoFirebase(() => {
     if (!firestore || !playerInfo) return null;
     return query(
@@ -102,9 +91,7 @@ export function SidebarNav() {
   const { data: pendingCallups } = useCollection(pendingCallupsQuery);
   const pendingCount = pendingCallups?.length || 0;
 
-  const isAdmin = (role: string | null) => ['admin', 'fed_admin', 'assoc_admin', 'club_admin'].includes(role || '');
-  const isCoach = (role: string | null) => ['coach', 'admin'].includes(role || '');
-  const isReferee = (role: string | null) => ['referee', 'admin'].includes(role || '');
+  const isAdmin = (role: string | null) => ['admin', 'club_admin'].includes(role || '');
   const isPlayer = (role: string | null) => role === 'player' || role === 'admin' || !role;
 
   return (
@@ -117,104 +104,40 @@ export function SidebarNav() {
       </SidebarHeader>
       
       <SidebarContent>
-        {/* GRUPO 1: ADMINISTRACIÓN */}
-        {isAdmin(userRole) && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Gestión Institucional</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
-                    <Link href="/dashboard">
-                      <LayoutDashboard className="h-4 w-4" />
-                      <span>Panel Central</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/staff")}>
-                    <Link href="/dashboard/staff">
-                      <UserCog className="h-4 w-4" />
-                      <span>Gestión de Usuarios</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clubs")}>
-                    <Link href="/dashboard/clubs">
-                      <Building2 className="h-4 w-4" />
-                      <span>Estructura & Clubes</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.includes("/tournaments")}>
-                    <Link href="/dashboard/federations">
-                      <Flag className="h-4 w-4" />
-                      <span>Torneos & Fixture</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/cah">
-                      <BarChart3 className="h-4 w-4" />
-                      <span>Reportes & Auditoría</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {/* ENFOQUE PRINCIPAL: GESTIÓN DEL CLUB */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Mi Institución</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clubs")}>
+                  <Link href="/dashboard/clubs">
+                    <Building2 className="h-4 w-4" />
+                    <span>Panel de Clubes</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/dashboard/coach">
+                    <ClipboardCheck className="h-4 w-4" />
+                    <span>Cuerpo Técnico</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/dashboard/player/search">
+                    <Search className="h-4 w-4" />
+                    <span>Padrón de Jugadores</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-        {/* GRUPO 2: ENTRENADORES */}
-        {isCoach(userRole) && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Cuerpo Técnico</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"}>
-                    <Link href="/dashboard/coach">
-                      <ClipboardCheck className="h-4 w-4" />
-                      <span>Panel de Equipo</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/coach">
-                      <Bell className="h-4 w-4" />
-                      <span>Asistencia & Agenda</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* GRUPO 3: ÁRBITROS */}
-        {isReferee(userRole) && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Oficiales de Mesa</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/referee"}>
-                    <Link href="/dashboard/referee">
-                      <FileText className="h-4 w-4" />
-                      <span>Mis Partidos & Actas</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* GRUPO 4: JUGADORES */}
+        {/* PERFIL DEL JUGADOR */}
         {isPlayer(userRole) && (
           <SidebarGroup>
             <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
@@ -262,15 +185,32 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
+        {/* ECOSISTEMA EXTERNO (AISLADO / SUSPENDIDO MOMENTANEAMENTE) */}
         <SidebarGroup>
-          <SidebarGroupLabel>Búsqueda</SidebarGroupLabel>
+          <SidebarGroupLabel>Ecosistema Externo</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/search"}>
-                  <Link href="/dashboard/player/search">
-                    <Search className="h-4 w-4" />
-                    <span>Padrón Nacional</span>
+                <SidebarMenuButton asChild className="opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+                  <Link href="/dashboard/federations">
+                    <Globe className="h-4 w-4" />
+                    <span>CAH & Federaciones</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className="opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+                  <Link href="/dashboard/referee">
+                    <Flag className="h-4 w-4" />
+                    <span>Arbitraje & Ligas</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className="opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+                  <Link href="/dashboard/staff">
+                    <UserCog className="h-4 w-4" />
+                    <span>Gestión de Sistema</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -286,7 +226,7 @@ export function SidebarNav() {
               <UserCircle className="h-4 w-4 text-primary" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold truncate max-w-[120px]">{user.email}</span>
-                <span className="text-[8px] uppercase text-primary font-black">{userRole || 'Jugador'}</span>
+                <span className="text-[8px] uppercase text-primary font-black">{userRole || 'Usuario'}</span>
               </div>
             </div>
           )}

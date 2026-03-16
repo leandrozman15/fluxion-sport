@@ -18,7 +18,11 @@ import {
   Settings2,
   ShieldCheck,
   CreditCard,
-  LayoutDashboard
+  LayoutDashboard,
+  Stethoscope,
+  TrendingUp,
+  AlertCircle,
+  Clock
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -28,12 +32,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
+import { useToast } from "@/hooks/use-toast";
 
 export default function InstitutionDetailPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -44,31 +46,19 @@ export default function InstitutionDetailPage() {
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
 
   const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
-  const { data: divisions, isLoading: divisionsLoading } = useCollection(divisionsQuery);
+  const { data: divisions } = useCollection(divisionsQuery);
 
   const playersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
   const { data: players } = useCollection(playersQuery);
 
-  const [isCreateDivOpen, setIsCreateDivOpen] = useState(false);
-  const [newDivision, setNewDivision] = useState({ name: "", description: "" });
-
   const clubNav = [
-    { title: "Panel Club", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
+    { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
     { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
-    { title: "Entrenadores", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Divisiones", href: `/dashboard/clubs/${clubId}/divisions`, icon: LayoutGrid },
-    { title: "Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
+    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
+    { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
   ];
-
-  const handleCreateDivision = () => {
-    const divId = doc(collection(db, "clubs", clubId, "divisions")).id;
-    setDoc(doc(db, "clubs", clubId, "divisions", divId), {
-      ...newDivision, id: divId, clubId, createdAt: new Date().toISOString()
-    });
-    setNewDivision({ name: "", description: "" });
-    setIsCreateDivOpen(false);
-  };
 
   const copyRegistrationLink = () => {
     const link = `${window.location.origin}/clubs/${clubId}/register`;
@@ -100,7 +90,7 @@ export default function InstitutionDetailPage() {
               <Share2 className="h-4 w-4" /> Link Inscripción
             </Button>
             <Button variant="default" className="gap-2 text-xs h-9">
-              <Settings2 className="h-4 w-4" /> Ajustes Club
+              <Settings2 className="h-4 w-4" /> Configurar Club
             </Button>
           </div>
         </div>
@@ -108,19 +98,26 @@ export default function InstitutionDetailPage() {
         <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-primary/5 border-primary/10">
-          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Padrón Jugadores</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Padrón Total</CardTitle></CardHeader>
           <CardContent>
             <div className="text-3xl font-black">{players?.length || 0}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Activos esta temporada</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Jugadores activos</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Efectividad Cobros</CardTitle></CardHeader>
+        <Card className="bg-green-50">
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Cobranza Mayo</CardTitle></CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-green-600">82%</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Cuotas al día (Mayo 2024)</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Efectividad de pago</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-red-50">
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Legajos Médicos</CardTitle></CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black text-red-600">12</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Vencidos o faltantes</p>
           </CardContent>
         </Card>
         <Card>
@@ -132,78 +129,75 @@ export default function InstitutionDetailPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">Divisiones y Ramas</CardTitle>
-              <CardDescription>Organización deportiva del club.</CardDescription>
-            </div>
-            <Dialog open={isCreateDivOpen} onOpenChange={setIsCreateDivOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Nueva</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Añadir División</DialogTitle></DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Nombre (Ej. Damas, Inferiores)</Label>
-                    <Input value={newDivision.name} onChange={e => setNewDivision({...newDivision, name: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Descripción</Label>
-                    <Input value={newDivision.description} onChange={e => setNewDivision({...newDivision, description: e.target.value})} />
-                  </div>
-                </div>
-                <DialogFooter><Button onClick={handleCreateDivision}>Guardar</Button></DialogFooter>
-              </DialogContent>
-            </Dialog>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" /> Actividad Reciente del Club
+            </CardTitle>
+            <CardDescription>Resumen de movimientos administrativos y deportivos.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {divisionsLoading ? <Loader2 className="animate-spin mx-auto" /> : divisions?.map((div: any) => (
-                <div key={div.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div>
-                    <p className="font-bold">{div.name}</p>
-                    <p className="text-xs text-muted-foreground">{div.description || "División deportiva"}</p>
-                  </div>
-                  <Button asChild size="sm" variant="ghost">
-                    <Link href={`/dashboard/clubs/${clubId}/divisions/${div.id}`}><ArrowRight className="h-4 w-4" /></Link>
-                  </Button>
+          <CardContent className="space-y-4">
+            {[
+              { label: "Nuevo Ingreso", desc: "Se registró a Mateo González en 9na División.", time: "Hace 2 horas", icon: Users },
+              { label: "Pago Registrado", desc: "Cobro de cuota social de 15 jugadores.", time: "Hace 5 horas", icon: CreditCard },
+              { label: "Agenda Actualizada", desc: "Entrenamiento de 1ra Damas movido a las 19:00hs.", time: "Ayer", icon: Calendar },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-4 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                <div className="bg-primary/10 p-2 rounded-full mt-1">
+                  <item.icon className="h-4 w-4 text-primary" />
                 </div>
-              ))}
-            </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-bold">{item.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{item.time}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+                </div>
+              </div>
+            ))}
           </CardContent>
+          <CardFooter className="bg-muted/10 border-t pt-4">
+            <Button variant="link" className="w-full text-xs text-muted-foreground">Ver historial completo</Button>
+          </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Herramientas de Gestión</CardTitle>
-            <CardDescription>Accesos rápidos de administración.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="h-24 flex-col gap-2" asChild>
-              <Link href={`/dashboard/clubs/${clubId}/players`}>
-                <Users className="h-5 w-5 text-primary" /> 
-                <span className="text-xs">Base Jugadores</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-24 flex-col gap-2">
-              <CreditCard className="h-5 w-5 text-primary" />
-              <span className="text-xs">Cobros / Cuotas</span>
-            </Button>
-            <Button variant="outline" className="h-24 flex-col gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <span className="text-xs">Legajos Médicos</span>
-            </Button>
-            <Button variant="outline" className="h-24 flex-col gap-2" asChild>
-              <Link href={`/dashboard/clubs/${clubId}/coaches`}>
-                <UserRound className="h-5 w-5 text-primary" />
-                <span className="text-xs">Staff Técnico</span>
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-orange-500" /> Alertas Críticas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg text-xs">
+                <p className="font-bold text-orange-800 mb-1">Pases Pendientes</p>
+                <p className="text-orange-700">3 jugadoras esperando validación de asociación regional.</p>
+              </div>
+              <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-xs">
+                <p className="font-bold text-red-800 mb-1">Seguro Médico</p>
+                <p className="text-red-700">La póliza colectiva vence en 15 días.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-none">
+            <CardHeader>
+              <CardTitle className="text-lg">Acceso Rápido</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-2">
+              <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10" asChild>
+                <Link href={`/dashboard/clubs/${clubId}/players`}><FileText className="h-4 w-4" /> Legajos Médicos</Link>
+              </Button>
+              <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10">
+                <TrendingUp className="h-4 w-4" /> Reporte de Cuotas
+              </Button>
+              <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10">
+                <UserRound className="h-4 w-4" /> Staff del Club
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
