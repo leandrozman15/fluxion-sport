@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -40,8 +41,23 @@
         "description": { "type": "string" },
         "price": { "type": "number" },
         "category": { "type": "string", "enum": ["indumentaria", "equipamiento", "accesorios"] },
-        "photoUrl": { "type": "string" },
-        "stock": { "type": "number" }
+        "images": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "Lista de URLs o Data URIs de las imágenes (máximo 5)."
+        },
+        "sizes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "stock": { "type": "number" }
+            }
+          },
+          "description": "Desglose de stock por talle (ej. S, M, L, XL)."
+        },
+        "stock": { "type": "number", "description": "Stock total consolidado." }
       }
     },
     "Match": {

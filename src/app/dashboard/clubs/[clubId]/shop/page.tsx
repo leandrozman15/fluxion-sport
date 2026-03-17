@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -11,7 +12,8 @@ import {
   Filter,
   ShoppingCart,
   Search,
-  CheckCircle2
+  CheckCircle2,
+  ChevronLeft
 } from "lucide-react";
 import { collection, doc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -22,6 +24,10 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 export default function ClubShopPublicPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -29,6 +35,8 @@ export default function ClubShopPublicPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("all");
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedSize, setSelectedSize] = useState("");
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
@@ -39,14 +47,18 @@ export default function ClubShopPublicPage() {
   const filteredProducts = products?.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCat = category === 'all' || p.category === category;
-    return matchesSearch && matchesCat;
+    const isActive = p.status !== 'paused';
+    return matchesSearch && matchesCat && isActive;
   });
 
-  const handleOrder = (productName: string) => {
+  const handleOrder = () => {
+    if (!selectedProduct) return;
     toast({
-      title: "Interés Registrado",
-      description: `Se ha notificado a la secretaría del club tu interés por: ${productName}`,
+      title: "Reserva Registrada",
+      description: `Se ha notificado al club tu interés por: ${selectedProduct.name} ${selectedSize ? `(Talle ${selectedSize})` : ""}`,
     });
+    setSelectedProduct(null);
+    setSelectedSize("");
   };
 
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
@@ -94,7 +106,7 @@ export default function ClubShopPublicPage() {
             <Card key={p.id} className="overflow-hidden border-none shadow-md hover:shadow-2xl transition-all duration-300 group flex flex-col h-full">
               <div className="aspect-[4/5] overflow-hidden relative">
                 <Avatar className="h-full w-full rounded-none">
-                  <AvatarImage src={p.photoUrl} className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <AvatarImage src={p.images?.[0] || p.photoUrl} className="object-cover group-hover:scale-110 transition-transform duration-500" />
                   <AvatarFallback className="rounded-none bg-muted flex items-center justify-center">
                     <Package className="h-12 w-12 opacity-10" />
                   </AvatarFallback>
@@ -107,6 +119,11 @@ export default function ClubShopPublicPage() {
                 {p.stock < 5 && p.stock > 0 && (
                   <div className="absolute top-3 right-3">
                     <Badge variant="destructive" className="animate-pulse">Últimas {p.stock}!</Badge>
+                  </div>
+                )}
+                {p.images?.length > 1 && (
+                  <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[8px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md">
+                    +{p.images.length - 1} fotos
                   </div>
                 )}
               </div>
@@ -123,14 +140,14 @@ export default function ClubShopPublicPage() {
               <CardFooter className="pt-0 p-6">
                 <Button 
                   className="w-full h-11 font-bold gap-2 bg-foreground hover:bg-primary transition-all shadow-lg hover:shadow-primary/20"
-                  onClick={() => handleOrder(p.name)}
-                  disabled={p.stock === 0}
+                  onClick={() => setSelectedProduct(p)}
+                  disabled={p.stock <= 0}
                   suppressHydrationWarning
                 >
-                  {p.stock === 0 ? "Sin Stock" : (
+                  {p.stock <= 0 ? "Sin Stock" : (
                     <>
                       <ShoppingCart className="h-4 w-4" /> 
-                      Reservar Artículo
+                      Ver Detalles
                     </>
                   )}
                 </Button>
@@ -138,15 +155,87 @@ export default function ClubShopPublicPage() {
             </Card>
           ))
         )}
-        
-        {filteredProducts?.length === 0 && !productsLoading && (
-          <div className="col-span-full text-center py-32 bg-muted/20 rounded-3xl border-2 border-dashed">
-            <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground opacity-10 mb-4" />
-            <h3 className="text-xl font-bold text-muted-foreground">No encontramos lo que buscas</h3>
-            <p className="text-muted-foreground mt-2 max-w-xs mx-auto text-sm">Intenta con otros filtros o contacta a la tienda del club para pedidos especiales.</p>
-          </div>
-        )}
       </div>
+
+      {/* Detalle del Producto & Reserva */}
+      <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          {selectedProduct && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+              <div className="space-y-4">
+                <div className="aspect-square rounded-2xl overflow-hidden border bg-muted">
+                  <img src={selectedProduct.images?.[0] || selectedProduct.photoUrl} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {selectedProduct.images?.slice(1).map((img: string, idx: number) => (
+                    <div key={idx} className="h-20 w-20 rounded-lg border overflow-hidden flex-shrink-0">
+                      <img src={img} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <DialogHeader>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black uppercase">{selectedProduct.category}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-bold">Stock: {selectedProduct.stock}</Badge>
+                  </div>
+                  <DialogTitle className="text-3xl font-black">{selectedProduct.name}</DialogTitle>
+                  <div className="text-3xl font-black text-primary mt-2">${selectedProduct.price}</div>
+                </DialogHeader>
+
+                <ScrollArea className="flex-1 mt-6 pr-4">
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Descripción</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {selectedProduct.description || "Este es un producto oficial del club diseñado con materiales de alta calidad."}
+                      </p>
+                    </div>
+
+                    {selectedProduct.sizes?.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Selecciona tu Talle</h4>
+                        <RadioGroup value={selectedSize} onValueChange={setSelectedSize} className="grid grid-cols-3 gap-3">
+                          {selectedProduct.sizes.map((s: any, idx: number) => (
+                            <div key={idx}>
+                              <RadioGroupItem 
+                                value={s.label} 
+                                id={`size-${idx}`} 
+                                className="peer sr-only" 
+                                disabled={s.stock <= 0}
+                              />
+                              <Label
+                                htmlFor={`size-${idx}`}
+                                className={`flex flex-col items-center justify-center rounded-xl border-2 p-3 bg-card hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 transition-all cursor-pointer ${s.stock <= 0 ? "opacity-30 grayscale cursor-not-allowed" : ""}`}
+                              >
+                                <span className="text-lg font-black">{s.label}</span>
+                                <span className="text-[10px] font-bold text-muted-foreground">{s.stock > 0 ? `${s.stock} disp.` : "Agotado"}</span>
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+
+                <DialogFooter className="mt-8 border-t pt-6">
+                  <Button 
+                    className="w-full h-14 text-lg font-black gap-3 shadow-xl shadow-primary/20"
+                    onClick={handleOrder}
+                    disabled={selectedProduct.sizes?.length > 0 && !selectedSize}
+                  >
+                    <ShoppingCart className="h-6 w-6" />
+                    Reservar ahora
+                  </Button>
+                </DialogFooter>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="bg-muted/30 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 border border-dashed">
         <div className="flex items-center gap-4">
