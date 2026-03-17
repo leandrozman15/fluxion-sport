@@ -11,24 +11,22 @@ import {
   ChevronLeft,
   Calendar,
   UserPlus,
-  Trophy,
-  MapPin,
-  Clock,
   TrendingUp,
-  Activity
+  Activity,
+  Settings2
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-board";
 
 export default function TeamDetailPage() {
   const { clubId, divisionId, teamId } = useParams() as { clubId: string, divisionId: string, teamId: string };
@@ -76,36 +74,36 @@ export default function TeamDetailPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-4">
         <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit">
-          <ChevronLeft className="h-4 w-4" /> Volver a equipos
+          <ChevronLeft className="h-4 w-4" /> Volver a la categoría
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold font-headline text-foreground">{team?.name}</h1>
-              <Badge>{team?.season}</Badge>
+              <Badge variant="outline">{team?.season}</Badge>
             </div>
             <p className="text-muted-foreground">Entrenador: {team?.coachName}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild size="sm">
               <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/attendance-ranking`}>
                 <Activity className="h-4 w-4 mr-2" /> Asistencia
               </Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild size="sm">
               <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/events`}>
                 <Calendar className="h-4 w-4 mr-2" /> Calendario
               </Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild size="sm">
               <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>
                 <TrendingUp className="h-4 w-4 mr-2" /> Goleadores
               </Link>
             </Button>
             <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
               <DialogTrigger asChild>
-                <Button className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" /> Asignar Jugador
+                <Button className="flex items-center gap-2" size="sm">
+                  <UserPlus className="h-4 w-4" /> Asignar Jugadora
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -114,7 +112,7 @@ export default function TeamDetailPage() {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
-                    <SelectTrigger><SelectValue placeholder="Jugador..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Jugadora..." /></SelectTrigger>
                     <SelectContent>
                       {allPlayers?.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.firstName} {p.lastName}</SelectItem>)}
                     </SelectContent>
@@ -129,53 +127,66 @@ export default function TeamDetailPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Plantilla Actual</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {rosterLoading ? <Loader2 className="animate-spin" /> : (
-              <div className="divide-y">
-                {roster?.map((member: any) => (
-                  <div key={member.id} className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={member.playerPhoto} />
-                        <AvatarFallback>J</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{member.playerName}</span>
-                    </div>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleUnassignPlayer(member.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                {(!roster || roster.length === 0) && (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No hay jugadores asignados. Usa el botón "Asignar Jugador".
+      <Tabs defaultValue="roster" className="w-full">
+        <TabsList className="bg-muted/50 p-1 mb-6">
+          <TabsTrigger value="roster" className="gap-2 px-6"><Users className="h-4 w-4" /> Plantilla</TabsTrigger>
+          <TabsTrigger value="tactical" className="gap-2 px-6"><Settings2 className="h-4 w-4" /> Pizarra Táctica</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="roster">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Plantilla Oficial</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {rosterLoading ? <Loader2 className="animate-spin" /> : (
+                  <div className="divide-y">
+                    {roster?.map((member: any) => (
+                      <div key={member.id} className="flex items-center justify-between py-3 group">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 border-2 border-muted">
+                            <AvatarImage src={member.playerPhoto} />
+                            <AvatarFallback>J</AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium">{member.playerName}</span>
+                        </div>
+                        <Button variant="ghost" size="sm" className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleUnassignPlayer(member.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    {(!roster || roster.length === 0) && (
+                      <div className="py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">
+                        No hay jugadoras asignadas. Usa el botón "Asignar Jugadora".
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        <div className="space-y-6">
-          <Card className="bg-primary/5 border-primary/20">
-            <CardHeader><CardTitle className="text-sm">Resumen</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Jugadores</span>
-                <span className="font-bold">{roster?.length || 0}</span>
-              </div>
-              <Button asChild variant="outline" className="w-full">
-                <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>Ver Rankings</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            <div className="space-y-6">
+              <Card className="bg-primary/5 border-primary/20">
+                <CardHeader><CardTitle className="text-sm">Resumen del Plantel</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Total Jugadoras</span>
+                    <span className="font-bold text-lg">{roster?.length || 0}</span>
+                  </div>
+                  <Button asChild variant="outline" className="w-full text-xs">
+                    <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>Ver Rankings de Goleadoras</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="tactical">
+          <HockeyTacticalBoard roster={roster || []} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
