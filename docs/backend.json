@@ -40,6 +40,16 @@
         "clubId": { "type": "string" },
         "name": { "type": "string" },
         "description": { "type": "string" },
+        "trainingSessions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "day": { "type": "string" },
+              "time": { "type": "string" }
+            }
+          }
+        },
         "trainingDays": { "type": "string" },
         "trainingTime": { "type": "string" }
       }
