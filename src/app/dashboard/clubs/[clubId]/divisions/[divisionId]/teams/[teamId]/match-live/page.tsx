@@ -9,18 +9,17 @@ import {
   Pause, 
   RotateCcw, 
   UserPlus, 
-  UserMinus, 
   Trophy, 
-  Flag, 
   ChevronLeft,
   Loader2,
   Save,
   Clock,
   Activity,
-  Zap,
   Users,
   ShieldCheck,
-  ArrowRightLeft
+  RefreshCw,
+  GripVertical,
+  X
 } from "lucide-react";
 import { doc, setDoc, collection } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -30,14 +29,23 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-interface MatchPlayer {
+interface PositionSlot {
+  id: string;
+  x: number;
+  y: number;
+  label: string;
+  assignedPlayerId: string | null;
+}
+
+interface MatchPlayerStats {
   playerId: string;
   playerName: string;
   playerPhoto: string;
-  isOnField: boolean;
   timePlayed: number; // en segundos
   goals: number;
   yellowCards: number;
@@ -49,60 +57,104 @@ export default function MatchLiveTrackerPage() {
   const db = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
+  const fieldRef = useRef<HTMLDivElement>(null);
 
+  // Estados de Partido
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
   const [opponentName, setOpponentName] = useState("Rival");
   
-  const [matchPlayers, setMatchPlayers] = useState<MatchPlayer[]>([]);
+  // Estados de Pizarra
+  const [playerCount, setPlayerCount] = useState(11);
+  const [positions, setPositions] = useState<PositionSlot[]>([]);
+  const [draggingPosId, setDragPosId] = useState<string | null>(null);
+  
+  // Estadísticas acumuladas
+  const [playerStats, setPlayerStats] = useState<Record<string, MatchPlayerStats>>({});
   const [matchEvents, setMatchEvents] = useState<any[]>([]);
 
-  // Cargar datos del equipo específico
+  // Cargar datos del equipo
   const teamRef = useMemoFirebase(() => 
     doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), 
     [db, clubId, divisionId, teamId]
   );
   const { data: team, isLoading: teamLoading } = useDoc(teamRef);
 
-  // Cargar roster del equipo
+  // Cargar roster
   const rosterQuery = useMemoFirebase(() => 
     collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments"), 
     [db, clubId, divisionId, teamId]
   );
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
 
+  // Inicializar estadísticas cuando carga el roster
   useEffect(() => {
-    if (roster && matchPlayers.length === 0) {
-      setMatchPlayers(roster.map(p => ({
-        playerId: p.playerId,
-        playerName: p.playerName,
-        playerPhoto: p.playerPhoto,
-        isOnField: false,
-        timePlayed: 0,
-        goals: 0,
-        yellowCards: 0,
-        redCards: 0
-      })));
+    if (roster && Object.keys(playerStats).length === 0) {
+      const initialStats: Record<string, MatchPlayerStats> = {};
+      roster.forEach(p => {
+        initialStats[p.playerId] = {
+          playerId: p.playerId,
+          playerName: p.playerName,
+          playerPhoto: p.playerPhoto,
+          timePlayed: 0,
+          goals: 0,
+          yellowCards: 0,
+          redCards: 0
+        };
+      });
+      setPlayerStats(initialStats);
     }
-  }, [roster, matchPlayers.length]);
+  }, [roster]);
 
-  // Lógica del Cronómetro
+  // Inicializar posiciones de la pizarra
+  useEffect(() => {
+    const newPositions: PositionSlot[] = [];
+    newPositions.push({ id: 'pos-gk', x: 50, y: 90, label: 'GK', assignedPlayerId: null });
+
+    const remaining = playerCount - 1;
+    const defCount = Math.ceil(remaining * 0.35);
+    const midCount = Math.ceil(remaining * 0.35);
+    const fwdCount = remaining - defCount - midCount;
+
+    for (let i = 0; i < defCount; i++) {
+      newPositions.push({ id: `pos-df-${i}`, x: (100 / (defCount + 1)) * (i + 1), y: 70, label: 'DF', assignedPlayerId: null });
+    }
+    for (let i = 0; i < midCount; i++) {
+      newPositions.push({ id: `pos-md-${i}`, x: (100 / (midCount + 1)) * (i + 1), y: 45, label: 'MF', assignedPlayerId: null });
+    }
+    for (let i = 0; i < fwdCount; i++) {
+      newPositions.push({ id: `pos-fw-${i}`, x: (100 / (fwdCount + 1)) * (i + 1), y: 20, label: 'FW', assignedPlayerId: null });
+    }
+    setPositions(newPositions);
+  }, [playerCount]);
+
+  // Lógica del Cronómetro y Tiempo de Juego
   useEffect(() => {
     let interval: any = null;
     if (isActive) {
       interval = setInterval(() => {
         setSeconds(prev => prev + 1);
-        setMatchPlayers(prev => prev.map(p => 
-          p.isOnField ? { ...p, timePlayed: p.timePlayed + 1 } : p
-        ));
+        
+        // Identificar quiénes están en cancha (asignados a un slot)
+        const activeIds = positions.map(p => p.assignedPlayerId).filter(id => id !== null);
+        
+        setPlayerStats(prev => {
+          const updated = { ...prev };
+          activeIds.forEach(id => {
+            if (updated[id!]) {
+              updated[id!].timePlayed += 1;
+            }
+          });
+          return updated;
+        });
       }, 1000);
     } else {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isActive]);
+  }, [isActive, positions]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -110,14 +162,41 @@ export default function MatchLiveTrackerPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleTogglePlayer = (playerId: string) => {
-    setMatchPlayers(prev => prev.map(p => 
-      p.playerId === playerId ? { ...p, isOnField: !p.isOnField } : p
+  // Manejo de movimiento de fichas
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggingPosId || !fieldRef.current) return;
+    const rect = fieldRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setPositions(prev => prev.map(p => 
+      p.id === draggingPosId ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
     ));
   };
 
+  // Drag & Drop para asignar jugadores
+  const onDragStartPlayer = (e: React.DragEvent, playerId: string) => {
+    e.dataTransfer.setData("playerId", playerId);
+  };
+
+  const onDropOnSlot = (e: React.DragEvent, slotId: string) => {
+    e.preventDefault();
+    const playerId = e.dataTransfer.getData("playerId");
+    if (!playerId) return;
+
+    setPositions(prev => {
+      // Quitar de cualquier otro slot (cambio)
+      const cleaned = prev.map(p => p.assignedPlayerId === playerId ? { ...p, assignedPlayerId: null } : p);
+      // Asignar al nuevo slot
+      return cleaned.map(p => p.id === slotId ? { ...p, assignedPlayerId: playerId } : p);
+    });
+  };
+
+  const handleUnassign = (slotId: string) => {
+    setPositions(prev => prev.map(p => p.id === slotId ? { ...p, assignedPlayerId: null } : p));
+  };
+
   const handleEvent = (playerId: string, type: 'goal' | 'yellow' | 'red') => {
-    const player = matchPlayers.find(p => p.playerId === playerId);
+    const player = playerStats[playerId];
     if (!player) return;
 
     const eventMinute = Math.floor(seconds / 60);
@@ -131,17 +210,20 @@ export default function MatchLiveTrackerPage() {
 
     setMatchEvents(prev => [newEvent, ...prev]);
 
-    setMatchPlayers(prev => prev.map(p => {
-      if (p.playerId === playerId) {
-        if (type === 'goal') {
-          setHomeScore(s => s + 1);
-          return { ...p, goals: p.goals + 1 };
-        }
-        if (type === 'yellow') return { ...p, yellowCards: p.yellowCards + 1 };
-        if (type === 'red') return { ...p, redCards: p.redCards + 1, isOnField: false };
+    setPlayerStats(prev => {
+      const p = prev[playerId];
+      if (type === 'goal') {
+        setHomeScore(s => s + 1);
+        return { ...prev, [playerId]: { ...p, goals: p.goals + 1 } };
       }
-      return p;
-    }));
+      if (type === 'yellow') return { ...prev, [playerId]: { ...p, yellowCards: p.yellowCards + 1 } };
+      if (type === 'red') {
+        // Al recibir roja, sale del campo
+        setPositions(pos => pos.map(slot => slot.assignedPlayerId === playerId ? { ...slot, assignedPlayerId: null } : slot));
+        return { ...prev, [playerId]: { ...p, redCards: p.redCards + 1 } };
+      }
+      return prev;
+    });
 
     toast({ title: "Evento Registrado", description: `${type.toUpperCase()} - ${player.playerName} (min ${eventMinute})` });
   };
@@ -167,14 +249,15 @@ export default function MatchLiveTrackerPage() {
         createdAt: new Date().toISOString()
       });
 
-      for (const p of matchPlayers) {
+      for (const pId in playerStats) {
+        const p = playerStats[pId];
         if (p.timePlayed > 0 || p.goals > 0 || p.yellowCards > 0 || p.redCards > 0) {
-          const statId = `${matchId}_${p.playerId}`;
+          const statId = `${matchId}_${pId}`;
           const statDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", matchId, "stats", statId);
           await setDoc(statDoc, {
             id: statId,
             matchId,
-            playerId: p.playerId,
+            playerId: pId,
             playerName: p.playerName,
             goals: p.goals,
             assists: 0,
@@ -196,11 +279,11 @@ export default function MatchLiveTrackerPage() {
 
   if (rosterLoading || teamLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
 
-  const playersOnField = matchPlayers.filter(p => p.isOnField);
-  const playersOnBench = matchPlayers.filter(p => !p.isOnField);
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20 select-none" 
+         onMouseMove={handleMouseMove} 
+         onMouseUp={() => setDragPosId(null)}>
+      
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
@@ -208,7 +291,7 @@ export default function MatchLiveTrackerPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold font-headline">Match Live Console</h1>
-            <p className="text-muted-foreground">Panel táctico y control de incidencias.</p>
+            <p className="text-muted-foreground">Pizarra interactiva y control de incidencias.</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -278,121 +361,142 @@ export default function MatchLiveTrackerPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Pizarra del Campo (Cancha) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Pizarra del Campo */}
         <div className="lg:col-span-8 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-primary" /> Campo de Juego ({playersOnField.length})
+              <ShieldCheck className="h-4 w-4 text-primary" /> Campo de Juego
             </h3>
+            <div className="flex items-center gap-4 bg-white p-2 rounded-lg border shadow-sm">
+              <Label className="text-[10px] font-bold uppercase">Sistema:</Label>
+              <Badge variant="secondary" className="font-black">{playerCount} vs {playerCount}</Badge>
+              <Slider 
+                className="w-32"
+                value={[playerCount]} 
+                min={5} max={11} step={1} 
+                onValueChange={(v) => setPlayerCount(v[0])}
+              />
+            </div>
           </div>
           
-          <div className="relative w-full aspect-[4/3] bg-[#244d1f] rounded-2xl border-[6px] border-white shadow-2xl overflow-hidden p-4">
-            {/* Marcado de Cancha */}
-            <div className="absolute inset-0 opacity-20 pointer-events-none" 
-                 style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 10%, rgba(255,255,255,0.1) 10%, rgba(255,255,255,0.1) 20%)' }} />
-            <div className="absolute top-1/2 left-0 w-full h-[2px] bg-white/50 -translate-y-1/2" />
-            <div className="absolute top-1/2 left-1/2 w-24 h-24 border-2 border-white/50 rounded-full -translate-x-1/2 -translate-y-1/2" />
+          <div 
+            ref={fieldRef}
+            className="relative w-full aspect-[2/3] max-w-lg mx-auto bg-[#244d1f] rounded-2xl border-[6px] border-white shadow-2xl overflow-hidden cursor-crosshair"
+          >
+            {/* Marcado de Cancha (SVG) */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50" viewBox="0 0 100 150">
+              <line x1="0" y1="75" x2="100" y2="75" stroke="white" strokeWidth="0.8" />
+              <circle cx="50" cy="75" r="10" fill="none" stroke="white" strokeWidth="0.8" />
+              <path d="M 15 0 Q 15 30 50 30 Q 85 30 85 0" fill="none" stroke="white" strokeWidth="0.8" />
+              <path d="M 15 150 Q 15 120 50 120 Q 85 120 85 150" fill="none" stroke="white" strokeWidth="0.8" />
+            </svg>
             
-            {/* Jugadoras en Cancha */}
-            <div className="relative z-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 h-full content-start overflow-y-auto pr-2 custom-scrollbar">
-              {playersOnField.map((p) => (
-                <Card key={p.playerId} className="bg-white/95 backdrop-blur shadow-lg border-none overflow-hidden h-fit animate-in zoom-in-95 duration-200">
-                  <div className="p-2 border-b flex items-center gap-2 bg-muted/30">
-                    <Avatar className="h-8 w-8 border-2 border-primary/20">
-                      <AvatarImage src={p.playerPhoto} />
-                      <AvatarFallback>{p.playerName[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-black truncate">{p.playerName.split(' ')[0]}</p>
-                      <div className="flex items-center gap-1 text-[8px] font-bold text-muted-foreground">
-                        <Clock className="h-2 w-2" /> {formatTime(p.timePlayed)}'
-                      </div>
+            {/* Fichas de Jugadoras */}
+            {positions.map((p) => {
+              const stats = p.assignedPlayerId ? playerStats[p.assignedPlayerId] : null;
+              return (
+                <div
+                  key={p.id}
+                  className={cn(
+                    "absolute -translate-x-1/2 -translate-y-1/2 transition-transform duration-75",
+                    draggingPosId === p.id ? "scale-110 z-50" : "z-10"
+                  )}
+                  style={{ left: `${p.x}%`, top: `${p.y}%` }}
+                  onMouseDown={() => setDragPosId(p.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => onDropOnSlot(e, p.id)}
+                >
+                  <div className="flex flex-col items-center group">
+                    <div className="relative">
+                      <Avatar className={cn(
+                        "h-14 w-14 border-2 shadow-xl bg-background transition-all",
+                        stats ? "border-primary" : "border-dashed border-white/40 bg-white/5"
+                      )}>
+                        <AvatarImage src={stats?.playerPhoto} />
+                        <AvatarFallback className="text-[10px] font-black opacity-50">{p.label}</AvatarFallback>
+                      </Avatar>
+                      
+                      {stats && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleUnassign(p.id); }}
+                          className="absolute -top-1 -right-1 bg-destructive text-white rounded-full p-0.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+
+                      {/* Botones de acción rápidos al hover */}
+                      {stats && (
+                        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 z-50">
+                          <Button size="icon" className="h-7 w-7 rounded-full bg-primary" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'goal'); }}>⚽</Button>
+                          <Button size="icon" className="h-7 w-7 rounded-full bg-yellow-500" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'yellow'); }}>🟨</Button>
+                          <Button size="icon" className="h-7 w-7 rounded-full bg-red-600" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'red'); }}>🟥</Button>
+                        </div>
+                      )}
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6 text-orange-600 hover:bg-orange-50"
-                      onClick={() => handleTogglePlayer(p.playerId)}
-                    >
-                      <UserMinus className="h-3 w-3" />
-                    </Button>
+                    
+                    {stats && (
+                      <div className="mt-1 flex flex-col items-center">
+                        <span className="px-2 py-0.5 bg-black/80 backdrop-blur-sm rounded-full text-[9px] font-bold text-white whitespace-nowrap shadow-sm">
+                          {stats.playerName.split(' ')[0]}
+                        </span>
+                        <span className="text-[8px] font-black text-primary bg-white/90 px-1 rounded mt-0.5">
+                          {formatTime(stats.timePlayed)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="grid grid-cols-3 divide-x text-center bg-white">
-                    <button 
-                      className="py-2 hover:bg-primary/5 transition-colors text-xs font-black text-primary"
-                      onClick={() => handleEvent(p.playerId, 'goal')}
-                    >
-                      ⚽ {p.goals > 0 && <span className="ml-1 text-[8px] bg-primary text-white rounded-full px-1">{p.goals}</span>}
-                    </button>
-                    <button 
-                      className="py-2 hover:bg-yellow-50 transition-colors text-xs"
-                      onClick={() => handleEvent(p.playerId, 'yellow')}
-                    >
-                      🟨 {p.yellowCards > 0 && <span className="ml-1 text-[8px] bg-yellow-500 text-white rounded-full px-1">{p.yellowCards}</span>}
-                    </button>
-                    <button 
-                      className="py-2 hover:bg-red-50 transition-colors text-xs"
-                      onClick={() => handleEvent(p.playerId, 'red')}
-                    >
-                      🟥
-                    </button>
-                  </div>
-                </Card>
-              ))}
-              {playersOnField.length === 0 && (
-                <div className="col-span-full h-full flex flex-col items-center justify-center text-white/30 text-center py-20">
-                  <ArrowRightLeft className="h-12 w-12 mb-2 opacity-20" />
-                  <p className="font-bold uppercase tracking-widest">Cancha Vacía</p>
-                  <p className="text-xs">Ingresa jugadoras desde el banco de suplentes.</p>
                 </div>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Pizarra del Banco (Suplentes) */}
+        {/* Banco de Suplentes */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           <Card className="flex-1 flex flex-col border-none shadow-xl bg-slate-50">
             <CardHeader className="bg-slate-200/50 pb-4">
               <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                 <Users className="h-4 w-4 text-slate-600" /> Banco de Suplentes
               </CardTitle>
-              <CardDescription className="text-[10px] font-bold">Listas para entrar ({playersOnBench.length})</CardDescription>
+              <CardDescription className="text-[10px] font-bold">Arrastra al campo para realizar el cambio</CardDescription>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-hidden">
               <ScrollArea className="h-[450px]">
-                <div className="p-4 space-y-3">
-                  {playersOnBench.map((p) => (
-                    <div 
-                      key={p.playerId} 
-                      className="flex items-center justify-between p-3 bg-white rounded-xl border-2 border-transparent hover:border-primary/30 shadow-sm transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border-2 border-slate-100">
-                          <AvatarImage src={p.playerPhoto} />
-                          <AvatarFallback>{p.playerName[0]}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold leading-none">{p.playerName}</span>
-                          <span className="text-[9px] font-medium text-muted-foreground mt-1">Jugado: {Math.floor(p.timePlayed / 60)} min</span>
-                        </div>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-8 gap-1 font-bold text-[10px] uppercase border-slate-200 hover:bg-primary hover:text-white hover:border-primary transition-all"
-                        onClick={() => handleTogglePlayer(p.playerId)}
+                <div className="p-4 space-y-2">
+                  {roster?.map((p: any) => {
+                    const stats = playerStats[p.playerId];
+                    const isAssigned = positions.some(pos => pos.assignedPlayerId === p.playerId);
+                    return (
+                      <div 
+                        key={p.id} 
+                        draggable={!isAssigned}
+                        onDragStart={(e) => onDragStartPlayer(e, p.playerId)}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-xl border-2 transition-all group",
+                          isAssigned 
+                            ? "bg-muted/50 opacity-40 border-transparent grayscale" 
+                            : "bg-white border-transparent hover:border-primary/30 shadow-sm cursor-grab active:cursor-grabbing"
+                        )}
                       >
-                        <UserPlus className="h-3 w-3" /> Entrar
-                      </Button>
-                    </div>
-                  ))}
-                  {playersOnBench.length === 0 && (
-                    <div className="text-center py-12 opacity-30">
-                      <p className="text-[10px] font-black uppercase">Sin jugadoras en banco</p>
-                    </div>
-                  )}
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 border-2 border-slate-100">
+                            <AvatarImage src={p.playerPhoto} />
+                            <AvatarFallback>{p.playerName[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold leading-none">{p.playerName}</span>
+                            <span className="text-[9px] font-medium text-muted-foreground mt-1">
+                              {isAssigned ? "EN CAMPO" : `Jugado: ${Math.floor((stats?.timePlayed || 0) / 60)} min`}
+                            </span>
+                          </div>
+                        </div>
+                        {!isAssigned && <GripVertical className="h-4 w-4 text-muted-foreground opacity-30" />}
+                        {isAssigned && <RefreshCw className="h-3 w-3 text-primary animate-spin-slow" />}
+                      </div>
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </CardContent>
