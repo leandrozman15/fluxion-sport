@@ -58,6 +58,21 @@
         "address": { "type": "string" },
         "logoUrl": { "type": "string" }
       }
+    },
+    "ShopProduct": {
+      "title": "Producto de Tienda",
+      "description": "Artículos de merchandising o indumentaria del club.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["indumentaria", "equipamiento", "accesorios"] },
+        "photoUrl": { "type": "string" },
+        "stock": { "type": "number" },
+        "sizes": { "type": "array", "items": { "type": "string" } }
+      }
     }
   },
   "auth": {
@@ -79,6 +94,10 @@
     "/clubs/{clubId}": {
       "schema": "#/backend/entities/Club",
       "description": "Instituciones deportivas."
+    },
+    "/clubs/{clubId}/shop_products/{productId}": {
+      "schema": "#/backend/entities/ShopProduct",
+      "description": "Catálogo de productos de la tienda del club."
     }
   }
 }

@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import { 
   LayoutDashboard, 
   Settings,
@@ -28,7 +28,8 @@ import {
   UserRound,
   Layers,
   ArrowRightLeft,
-  Stethoscope
+  Stethoscope,
+  ShoppingBag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -50,6 +51,8 @@ import { doc, getDoc, collection, query, where, getDocs } from "firebase/firesto
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const params = useParams();
+  const clubId = params?.clubId as string;
   const { user, firestore } = useFirebase();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [playerInfo, setPlayerInfo] = useState<any>(null);
@@ -91,7 +94,6 @@ export function SidebarNav() {
   const { data: pendingCallups } = useCollection(pendingCallupsQuery);
   const pendingCount = pendingCallups?.length || 0;
 
-  const isAdmin = (role: string | null) => ['admin', 'club_admin'].includes(role || '');
   const isPlayer = (role: string | null) => role === 'player' || role === 'admin' || !role;
 
   return (
@@ -104,7 +106,6 @@ export function SidebarNav() {
       </SidebarHeader>
       
       <SidebarContent>
-        {/* ENFOQUE PRINCIPAL: GESTIÓN DEL CLUB */}
         <SidebarGroup>
           <SidebarGroupLabel>Mi Institución</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -125,6 +126,16 @@ export function SidebarNav() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {clubId && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.includes("/shop")}>
+                    <Link href={`/dashboard/clubs/${clubId}/shop`}>
+                      <ShoppingBag className="h-4 w-4" />
+                      <span>Tienda Club</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <Link href="/dashboard/player/search">
@@ -137,7 +148,6 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* PERFIL DEL JUGADOR */}
         {isPlayer(userRole) && (
           <SidebarGroup>
             <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
@@ -185,7 +195,6 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
-        {/* ECOSISTEMA EXTERNO (AISLADO / SUSPENDIDO MOMENTANEAMENTE) */}
         <SidebarGroup>
           <SidebarGroupLabel>Ecosistema Externo</SidebarGroupLabel>
           <SidebarGroupContent>
