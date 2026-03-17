@@ -205,25 +205,34 @@ export default function MatchLiveTrackerPage() {
       playerId,
       playerName: player.playerName,
       minute: eventMinute,
-      id: Date.now().toString()
+      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
 
+    // 1. Registrar evento en la lista de incidencias
     setMatchEvents(prev => [newEvent, ...prev]);
 
+    // 2. Actualizar marcador si es gol (Separado para evitar doble incremento)
+    if (type === 'goal') {
+      setHomeScore(s => s + 1);
+    }
+
+    // 3. Actualizar estadísticas individuales de la jugadora
     setPlayerStats(prev => {
       const p = prev[playerId];
-      if (type === 'goal') {
-        setHomeScore(s => s + 1);
-        return { ...prev, [playerId]: { ...p, goals: p.goals + 1 } };
-      }
-      if (type === 'yellow') return { ...prev, [playerId]: { ...p, yellowCards: p.yellowCards + 1 } };
-      if (type === 'red') {
-        // Al recibir roja, sale del campo
-        setPositions(pos => pos.map(slot => slot.assignedPlayerId === playerId ? { ...slot, assignedPlayerId: null } : slot));
-        return { ...prev, [playerId]: { ...p, redCards: p.redCards + 1 } };
-      }
-      return prev;
+      if (!p) return prev;
+      
+      const updated = { ...p };
+      if (type === 'goal') updated.goals += 1;
+      if (type === 'yellow') updated.yellowCards += 1;
+      if (type === 'red') updated.redCards += 1;
+      
+      return { ...prev, [playerId]: updated };
     });
+
+    // 4. Si es roja, remover del campo automáticamente
+    if (type === 'red') {
+      setPositions(pos => pos.map(slot => slot.assignedPlayerId === playerId ? { ...slot, assignedPlayerId: null } : slot));
+    }
 
     toast({ title: "Evento Registrado", description: `${type.toUpperCase()} - ${player.playerName} (min ${eventMinute})` });
   };
