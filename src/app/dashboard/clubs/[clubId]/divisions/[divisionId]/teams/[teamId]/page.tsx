@@ -18,7 +18,8 @@ import {
   XCircle,
   HelpCircle,
   Timer,
-  AlertCircle
+  AlertCircle,
+  PlayCircle
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where, getDocs } from "firebase/firestore";
@@ -57,7 +58,6 @@ export default function TeamDetailPage() {
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
 
   // Buscar si hay un entrenamiento hoy para habilitar modo asistencia
-  // Se refactoriza para evitar necesidad de índice compuesto (type + date)
   useEffect(() => {
     async function fetchTodayEvent() {
       if (!db) return;
@@ -65,7 +65,6 @@ export default function TeamDetailPage() {
         const todayStr = new Date().toISOString().split('T')[0];
         
         const eventsRef = collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events");
-        // Consultamos solo por tipo para evitar el índice compuesto con el rango de fechas
         const q = query(
           eventsRef, 
           where("type", "==", "training")
@@ -73,7 +72,6 @@ export default function TeamDetailPage() {
         
         const snap = await getDocs(q);
         if (!snap.empty) {
-          // Filtramos en memoria para encontrar el de hoy
           const found = snap.docs.find(doc => {
             const data = doc.data();
             return data.date && data.date.startsWith(todayStr);
@@ -157,6 +155,11 @@ export default function TeamDetailPage() {
             <p className="text-muted-foreground">Entrenador: {team?.coachName}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="default" asChild size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg gap-2">
+              <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/match-live`}>
+                <PlayCircle className="h-4 w-4" /> Modo Partido Live
+              </Link>
+            </Button>
             <Button variant="outline" asChild size="sm">
               <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/attendance-ranking`}>
                 <Activity className="h-4 w-4 mr-2" /> Asistencia
