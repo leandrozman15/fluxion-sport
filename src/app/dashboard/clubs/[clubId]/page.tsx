@@ -37,12 +37,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
-import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function InstitutionDetailPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -58,26 +55,6 @@ export default function InstitutionDetailPage() {
   const playersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
   const { data: players } = useCollection(playersQuery);
 
-  // Estados para configuración del club
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [configForm, setConfigForm] = useState({
-    name: "",
-    address: "",
-    phone: "",
-    logoUrl: ""
-  });
-
-  useEffect(() => {
-    if (club) {
-      setConfigForm({
-        name: club.name || "",
-        address: club.address || "",
-        phone: club.phone || "",
-        logoUrl: club.logoUrl || ""
-      });
-    }
-  }, [club]);
-
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
     { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
@@ -91,16 +68,6 @@ export default function InstitutionDetailPage() {
     const link = `${window.location.origin}/clubs/${clubId}/register`;
     navigator.clipboard.writeText(link);
     toast({ title: "Enlace Copiado", description: "El link de inscripción ha sido copiado." });
-  };
-
-  const handleSaveConfig = () => {
-    if (!clubId) return;
-    updateDocumentNonBlocking(doc(db, "clubs", clubId), configForm);
-    setIsConfigOpen(false);
-    toast({ 
-      title: "Configuración Guardada", 
-      description: "Los datos de la institución han sido actualizados correctamente." 
-    });
   };
 
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
@@ -127,65 +94,11 @@ export default function InstitutionDetailPage() {
               <Share2 className="h-4 w-4" /> Link Inscripción
             </Button>
             
-            <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
-              <DialogTrigger asChild>
-                <Button variant="default" className="gap-2 text-xs h-9">
-                  <Settings2 className="h-4 w-4" /> Configurar Club
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Ajustes de Institución</DialogTitle>
-                  <DialogDescription>Modifica la identidad visual y datos de contacto de {club?.name}.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="flex justify-center mb-4">
-                    <Avatar className="h-20 w-20 border-2">
-                      <AvatarImage src={configForm.logoUrl} />
-                      <AvatarFallback><Building2 className="h-8 w-8" /></AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Nombre de la Institución</Label>
-                    <Input 
-                      value={configForm.name} 
-                      onChange={e => setConfigForm({...configForm, name: e.target.value})} 
-                      placeholder="Ej. Club Atlético..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>URL del Logo (Imagen PNG/JPG)</Label>
-                    <Input 
-                      value={configForm.logoUrl} 
-                      onChange={e => setConfigForm({...configForm, logoUrl: e.target.value})} 
-                      placeholder="https://..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Dirección de la Sede</Label>
-                    <Input 
-                      value={configForm.address} 
-                      onChange={e => setConfigForm({...configForm, address: e.target.value})} 
-                      placeholder="Calle, Ciudad, Provincia"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Teléfono de Contacto</Label>
-                    <Input 
-                      value={configForm.phone} 
-                      onChange={e => setConfigForm({...configForm, phone: e.target.value})} 
-                      placeholder="+54..."
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsConfigOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleSaveConfig} className="gap-2">
-                    <Save className="h-4 w-4" /> Guardar Cambios
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button variant="default" className="gap-2 text-xs h-9" asChild>
+              <Link href={`/dashboard/clubs/${clubId}/settings`}>
+                <Settings2 className="h-4 w-4" /> Configurar Club
+              </Link>
+            </Button>
           </div>
         </div>
 
