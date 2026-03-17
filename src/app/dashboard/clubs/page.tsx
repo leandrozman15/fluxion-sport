@@ -26,6 +26,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function InstitutionsPage() {
   const { firestore, auth, user, isUserLoading } = useFirebase();
@@ -135,7 +146,7 @@ export default function InstitutionsPage() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Nombre del Club</Label>
-                <Input value={newClub.name} onChange={e => setNewClub({...newClub, name: e.target.value})} placeholder="Ej. Club Atlético Vicentinos" />
+                <Input value={newClub.name} onChange={e => setNewClub({...newClub, name: e.target.value})} placeholder="Ej. Lomas Athletic Club" />
               </div>
               <div className="space-y-2">
                 <Label>Asociación Regional</Label>
@@ -191,9 +202,28 @@ export default function InstitutionsPage() {
               </CardContent>
               <CardFooter className="flex justify-between border-t bg-muted/10 pt-4">
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteClub(club.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción eliminará a <strong>{club.name}</strong> del sistema. No se podrán recuperar los datos asociados.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteClub(club.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Eliminar Permanentemente
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  
                   <Button variant="ghost" size="sm" onClick={() => { setEditingClub(club); setIsEditOpen(true); fetchAssocs(); }}>
                     <Pencil className="h-4 w-4" />
                   </Button>

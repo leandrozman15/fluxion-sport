@@ -88,12 +88,13 @@ export default function DashboardPage() {
         const divId = "div-inferiores-" + club.id;
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId), { id: divId, clubId: club.id, name: "Divisiones Inferiores", createdAt: new Date().toISOString() });
         const subId = "sub-7ma-" + club.id;
-        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId), { id: subId, divisionId: divId, name: "7ma División", ageRange: "13-14 años", createdAt: new Date().toISOString() });
+        // Ahora asignamos directamente equipos bajo la categoría
         const teamId = "team-a-" + club.id;
-        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "subcategories", subId, "teams", teamId), { id: teamId, name: club.name + " A", coachName: "Coach " + club.name, season: "2025", createdAt: new Date().toISOString() });
+        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "teams", teamId), { id: teamId, name: club.name + " A", coachName: "Coach " + club.name, season: "2025", createdAt: new Date().toISOString() });
 
         // 5. Cargar Jugadores e índice global (incluyendo email para notificaciones)
-        if (club.id === "club-vic") {
+        // Usamos el primer club de la lista (Lomas) para los jugadores de prueba
+        if (club.id === "club-lomas") {
           let isFirst = true;
           for (const player of demoPlayers) {
             const pId = doc(collection(firestore, "clubs", club.id, "players")).id;
@@ -204,7 +205,7 @@ export default function DashboardPage() {
             {[
               { label: "Validación de Carnet", desc: "Federación Buenos Aires validó 45 nuevos jugadores", icon: ShieldCheck },
               { label: "Designación Arbitral", desc: "18 árbitros asignados para la Fecha 5 del Metropolitano", icon: Flag },
-              { label: "Resultado Oficial", desc: "Vicentinos 2-1 Lomas (Validado por CAH)", icon: Trophy },
+              { label: "Resultado Oficial", desc: "Lomas 2-1 Mitre (Validado por CAH)", icon: Trophy },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-4 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
                 <div className="bg-primary/10 p-2 rounded-full mt-1">

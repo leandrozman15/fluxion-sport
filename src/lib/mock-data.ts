@@ -113,14 +113,6 @@ export const demoAssociations = [
 
 export const demoClubs = [
   { 
-    id: "club-vic", 
-    associationId: "assoc-ahba", 
-    name: "Club Atlético Vicentinos", 
-    address: "San Miguel, Buenos Aires", 
-    phone: "11-4455-6677", 
-    logoUrl: "https://picsum.photos/seed/vic/200/200" 
-  },
-  { 
     id: "club-lomas", 
     associationId: "assoc-ahba", 
     name: "Lomas Athletic Club", 
@@ -135,6 +127,14 @@ export const demoClubs = [
     address: "Palermo, CABA", 
     phone: "11-9988-7766", 
     logoUrl: "https://picsum.photos/seed/geba/200/200" 
+  },
+  { 
+    id: "club-mitre", 
+    associationId: "assoc-ahba", 
+    name: "Club Mitre", 
+    address: "San Martín, Buenos Aires", 
+    phone: "11-3344-5566", 
+    logoUrl: "https://picsum.photos/seed/mitre/200/200" 
   }
 ];
 
@@ -158,15 +158,15 @@ export const demoTournaments = [
 ];
 
 export const demoStandings = [
-  { teamName: "Club Atlético Vicentinos", played: 5, won: 4, drawn: 1, lost: 0, goalsFor: 12, goalsAgainst: 3, points: 13 },
-  { teamName: "Lomas Athletic Club", played: 5, won: 3, drawn: 2, lost: 0, goalsFor: 10, goalsAgainst: 4, points: 11 },
-  { teamName: "Gimnasia y Esgrima", played: 5, won: 3, drawn: 0, lost: 2, goalsFor: 8, goalsAgainst: 6, points: 9 },
+  { teamName: "Lomas Athletic Club", played: 5, won: 4, drawn: 1, lost: 0, goalsFor: 12, goalsAgainst: 3, points: 13 },
+  { teamName: "Gimnasia y Esgrima", played: 5, won: 3, drawn: 2, lost: 0, goalsFor: 10, goalsAgainst: 4, points: 11 },
+  { teamName: "Club Mitre", played: 5, won: 3, drawn: 0, lost: 2, goalsFor: 8, goalsAgainst: 6, points: 9 },
   { teamName: "San Fernando", played: 5, won: 2, drawn: 1, lost: 2, goalsFor: 7, goalsAgainst: 7, points: 7 },
   { teamName: "River Plate", played: 5, won: 1, drawn: 0, lost: 4, goalsFor: 4, goalsAgainst: 11, points: 3 },
 ];
 
 export const demoMatches = [
-  { title: "Fecha 1: Vicentinos vs Lomas", type: "match", opponent: "Lomas Athletic", date: new Date().toISOString(), location: "Cancha Vicentinos", homeScore: 2, awayScore: 1, matchFinished: true, status: "played" },
+  { title: "Fecha 1: Lomas vs Mitre", type: "match", opponent: "Club Mitre", date: new Date().toISOString(), location: "Cancha Lomas", homeScore: 2, awayScore: 1, matchFinished: true, status: "played" },
   { title: "Entrenamiento Físico", type: "training", date: new Date(Date.now() + 86400000).toISOString(), location: "Club Sede Central", status: "scheduled" },
-  { title: "Fecha 2: Vicentinos vs GEBA", type: "match", opponent: "GEBA", date: new Date(Date.now() + 172800000).toISOString(), location: "Sede Palermo", status: "scheduled" }
+  { title: "Fecha 2: Lomas vs GEBA", type: "match", opponent: "GEBA", date: new Date(Date.now() + 172800000).toISOString(), location: "Sede Palermo", status: "scheduled" }
 ];
