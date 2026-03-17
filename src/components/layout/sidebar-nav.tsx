@@ -29,7 +29,8 @@ import {
   Layers,
   ArrowRightLeft,
   Stethoscope,
-  ShoppingBag
+  ShoppingBag,
+  ListOrdered
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -130,14 +131,24 @@ export function SidebarNav() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {clubId && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.includes("/shop/admin")}>
-                    <Link href={`/dashboard/clubs/${clubId}/shop/admin`}>
-                      <Settings className="h-4 w-4" />
-                      <span>Admin Tienda</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname.includes("/shop/admin")}>
+                      <Link href={`/dashboard/clubs/${clubId}/shop/admin`}>
+                        <Settings className="h-4 w-4" />
+                        <span>Catálogo Tienda</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname.includes("/shop/orders")}>
+                      <Link href={`/dashboard/clubs/${clubId}/shop/orders`}>
+                        <ListOrdered className="h-4 w-4" />
+                        <span>Pedidos Tienda</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
               )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
@@ -178,14 +189,24 @@ export function SidebarNav() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {playerClubId && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname.includes("/shop") && !pathname.includes("/admin")}>
-                      <Link href={`/dashboard/clubs/${playerClubId}/shop`}>
-                        <ShoppingBag className="h-4 w-4" />
-                        <span>Tienda del Club</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={pathname.includes("/shop") && !pathname.includes("/admin") && !pathname.includes("/orders")}>
+                        <Link href={`/dashboard/clubs/${playerClubId}/shop`}>
+                          <ShoppingBag className="h-4 w-4" />
+                          <span>Tienda del Club</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/shop/orders"}>
+                        <Link href="/dashboard/player/shop/orders">
+                          <ListOrdered className="h-4 w-4" />
+                          <span>Mis Pedidos</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </>
                 )}
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"}>

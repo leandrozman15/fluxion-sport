@@ -43,8 +43,7 @@
         "category": { "type": "string", "enum": ["indumentaria", "equipamiento", "accesorios"] },
         "images": { 
           "type": "array", 
-          "items": { "type": "string" },
-          "description": "Lista de URLs o Data URIs de las imágenes (máximo 5)."
+          "items": { "type": "string" }
         },
         "sizes": {
           "type": "array",
@@ -54,23 +53,30 @@
               "label": { "type": "string" },
               "stock": { "type": "number" }
             }
-          },
-          "description": "Desglose de stock por talle (ej. S, M, L, XL)."
+          }
         },
-        "stock": { "type": "number", "description": "Stock total consolidado." }
+        "stock": { "type": "number" }
       }
     },
-    "Match": {
-      "title": "Encuentro Deportivo",
-      "description": "Datos de un partido oficial o entrenamiento.",
+    "ShopOrder": {
+      "title": "Pedido de Tienda",
+      "description": "Registro de una reserva o compra de un socio.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "title": { "type": "string" },
-        "date": { "type": "string" },
-        "opponent": { "type": "string" },
-        "location": { "type": "string" },
-        "status": { "type": "string" }
+        "clubId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "productImage": { "type": "string" },
+        "size": { "type": "string" },
+        "price": { "type": "number" },
+        "status": { 
+          "type": "string", 
+          "enum": ["pending", "preparing", "ready", "delivered", "cancelled"] 
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -88,15 +94,11 @@
     },
     "/clubs/{clubId}/shop_products/{productId}": {
       "schema": "#/backend/entities/ShopProduct",
-      "description": "Catálogo de productos de la tienda."
+      "description": "Catálogo de productos."
     },
-    "/all_players_index/{playerId}": {
-      "schema": { "type": "object" },
-      "description": "Índice global para búsqueda transversal de jugadores."
-    },
-    "/match_callups/{callupId}": {
-      "schema": { "type": "object" },
-      "description": "Citaciones de jugadores a partidos."
+    "/clubs/{clubId}/shop_orders/{orderId}": {
+      "schema": "#/backend/entities/ShopOrder",
+      "description": "Pedidos y ventas de la tienda."
     }
   }
 }

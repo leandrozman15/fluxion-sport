@@ -1,22 +1,20 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { 
   ShoppingBag, 
   Loader2, 
   Package, 
   Tag, 
-  ChevronRight,
-  Filter,
-  ShoppingCart,
-  Search,
+  Search, 
   CheckCircle2,
+  ShoppingCart,
   ChevronLeft
 } from "lucide-react";
-import { collection, doc } from "firebase/firestore";
-import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { collection, doc, setDoc, query, where, getDocs } from "firebase/firestore";
+import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase } from "@/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,19 +22,35 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 export default function ClubShopPublicPage() {
   const { clubId } = useParams() as { clubId: string };
+  const { user } = useFirebase();
   const db = useFirestore();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedSize, setSelectedSize] = useState("");
+  const [isOrdering, setIsOrdering] = useState(false);
+  const [playerInfo, setPlayerInfo] = useState<any>(null);
+
+  useEffect(() => {
+    async function findMe() {
+      if (!user || !db) return;
+      const q = query(collection(db, "clubs", clubId, "players"), where("email", "==", user.email));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        setPlayerInfo(snap.docs[0].data());
+      }
+    }
+    findMe();
+  }, [user, db, clubId]);
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
@@ -51,14 +65,39 @@ export default function ClubShopPublicPage() {
     return matchesSearch && matchesCat && isActive;
   });
 
-  const handleOrder = () => {
-    if (!selectedProduct) return;
-    toast({
-      title: "Reserva Registrada",
-      description: `Se ha notificado al club tu interés por: ${selectedProduct.name} ${selectedSize ? `(Talle ${selectedSize})` : ""}`,
-    });
-    setSelectedProduct(null);
-    setSelectedSize("");
+  const handleOrder = async () => {
+    if (!selectedProduct || !user) return;
+    setIsOrdering(true);
+    try {
+      const orderId = doc(collection(db, "clubs", clubId, "shop_orders")).id;
+      const orderDoc = doc(db, "clubs", clubId, "shop_orders", orderId);
+
+      await setDoc(orderDoc, {
+        id: orderId,
+        clubId,
+        playerId: playerInfo?.id || user.uid,
+        playerName: playerInfo ? `${playerInfo.firstName} ${playerInfo.lastName}` : (user.displayName || user.email),
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        productImage: selectedProduct.images?.[0] || "",
+        size: selectedSize,
+        price: selectedProduct.price,
+        status: "pending",
+        createdAt: new Date().toISOString()
+      });
+
+      toast({
+        title: "Reserva Registrada",
+        description: `Se ha notificado al club tu interés por: ${selectedProduct.name}`,
+      });
+      setSelectedProduct(null);
+      setSelectedSize("");
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al reservar" });
+    } finally {
+      setIsOrdering(false);
+    }
   };
 
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
@@ -121,11 +160,6 @@ export default function ClubShopPublicPage() {
                     <Badge variant="destructive" className="animate-pulse">Últimas {p.stock}!</Badge>
                   </div>
                 )}
-                {p.images?.length > 1 && (
-                  <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[8px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md">
-                    +{p.images.length - 1} fotos
-                  </div>
-                )}
               </div>
               <CardHeader className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -157,7 +191,6 @@ export default function ClubShopPublicPage() {
         )}
       </div>
 
-      {/* Detalle del Producto & Reserva */}
       <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           {selectedProduct && (
@@ -225,9 +258,9 @@ export default function ClubShopPublicPage() {
                   <Button 
                     className="w-full h-14 text-lg font-black gap-3 shadow-xl shadow-primary/20"
                     onClick={handleOrder}
-                    disabled={selectedProduct.sizes?.length > 0 && !selectedSize}
+                    disabled={isOrdering || (selectedProduct.sizes?.length > 0 && !selectedSize)}
                   >
-                    <ShoppingCart className="h-6 w-6" />
+                    {isOrdering ? <Loader2 className="animate-spin" /> : <ShoppingCart className="h-6 w-6" />}
                     Reservar ahora
                   </Button>
                 </DialogFooter>
@@ -247,7 +280,9 @@ export default function ClubShopPublicPage() {
             <p className="text-muted-foreground text-sm">Todos los pedidos se retiran por secretaría del club de Lunes a Viernes de 17:00 a 21:00hs.</p>
           </div>
         </div>
-        <Button variant="outline" className="h-12 px-8 font-bold border-2" suppressHydrationWarning>Ver mis Reservas</Button>
+        <Button variant="outline" className="h-12 px-8 font-bold border-2" asChild>
+          <Link href="/dashboard/player/shop/orders">Ver mis Reservas</Link>
+        </Button>
       </div>
     </div>
   );

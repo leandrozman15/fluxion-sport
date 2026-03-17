@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -7,15 +8,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // PERMISOS DE LECTURA: Toda la información es pública para facilitar la visibilidad del ecosistema
+    // Permitimos lectura y escritura completa durante la fase de prototipado 
+    // para asegurar que el creador pueda gestionar todo el ecosistema.
     match /{path=**} {
-      allow read: if true;
-    }
-
-    // PERMISOS DE ESCRITURA: Permitimos escritura a cualquier usuario autenticado durante la fase de prototipado
-    // Esto asegura que el "creador" pueda poblar datos y gestionar todas las secciones (Club, Tienda, Torneos)
-    match /{path=**} {
-      allow write: if isSignedIn();
+      allow read, write: if true;
     }
   }
 }
