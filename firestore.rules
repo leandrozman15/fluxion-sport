@@ -8,8 +8,8 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Permitimos lectura y escritura completa durante la fase de prototipado 
-    // para asegurar que el creador pueda gestionar todo el ecosistema.
+    // Permitimos acceso total durante desarrollo para evitar bloqueos en el prototipado
+    // En producción se deberían segmentar por roles específicos
     match /{path=**} {
       allow read, write: if true;
     }

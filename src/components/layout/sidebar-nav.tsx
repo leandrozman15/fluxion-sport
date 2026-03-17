@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   Calendar,
   CreditCard,
-  Contact2,
   UserCircle,
   Activity,
   Table as TableIcon,
@@ -95,9 +94,8 @@ export function SidebarNav() {
   const { data: pendingCallups } = useCollection(pendingCallupsQuery);
   const pendingCount = pendingCallups?.length || 0;
 
-  const isPlayer = (role: string | null) => role === 'player' || role === 'admin' || !role;
+  const isPlayer = userRole === 'player' || !userRole;
   
-  // Determinamos el clubId para el jugador (desde su perfil o desde la URL)
   const playerClubId = playerInfo?.clubId || clubId;
 
   return (
@@ -123,38 +121,18 @@ export function SidebarNav() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"}>
                   <Link href="/dashboard/coach">
                     <ClipboardCheck className="h-4 w-4" />
                     <span>Cuerpo Técnico</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {clubId && (
-                <>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname.includes("/shop/admin")}>
-                      <Link href={`/dashboard/clubs/${clubId}/shop/admin`}>
-                        <Settings className="h-4 w-4" />
-                        <span>Catálogo Tienda</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname.includes("/shop/orders")}>
-                      <Link href={`/dashboard/clubs/${clubId}/shop/orders`}>
-                        <ListOrdered className="h-4 w-4" />
-                        <span>Pedidos Tienda</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </>
-              )}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href="/dashboard/player/search">
-                    <Search className="h-4 w-4" />
-                    <span>Padrón de Jugadores</span>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"}>
+                  <Link href="/dashboard/player/id-card">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>Carnet Digital</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -162,7 +140,7 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isPlayer(userRole) && (
+        {isPlayer && (
           <SidebarGroup>
             <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -170,7 +148,7 @@ export function SidebarNav() {
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"}>
                     <Link href="/dashboard/player">
-                      <Contact2 className="h-4 w-4" />
+                      <UserCircle className="h-4 w-4" />
                       <span>Mi Ficha & Convocatorias</span>
                     </Link>
                   </SidebarMenuButton>
@@ -180,47 +158,21 @@ export function SidebarNav() {
                     </SidebarMenuBadge>
                   )}
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/stats"}>
-                    <Link href="/dashboard/player/stats">
-                      <Activity className="h-4 w-4" />
-                      <span>Estadísticas & Goles</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
                 {playerClubId && (
-                  <>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton asChild isActive={pathname.includes("/shop") && !pathname.includes("/admin") && !pathname.includes("/orders")}>
-                        <Link href={`/dashboard/clubs/${playerClubId}/shop`}>
-                          <ShoppingBag className="h-4 w-4" />
-                          <span>Tienda del Club</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/shop/orders"}>
-                        <Link href="/dashboard/player/shop/orders">
-                          <ListOrdered className="h-4 w-4" />
-                          <span>Mis Pedidos</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname.includes("/shop") && !pathname.includes("/admin")}>
+                      <Link href={`/dashboard/clubs/${playerClubId}/shop`}>
+                        <ShoppingBag className="h-4 w-4" />
+                        <span>Tienda del Club</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 )}
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"}>
                     <Link href="/dashboard/player/payments">
                       <CreditCard className="h-4 w-4" />
                       <span>Cuotas & Mensualidades</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"}>
-                    <Link href="/dashboard/player/id-card">
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>Carnet Digital</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -234,7 +186,7 @@ export function SidebarNav() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+                <SidebarMenuButton asChild className="opacity-60">
                   <Link href="/dashboard/federations">
                     <Globe className="h-4 w-4" />
                     <span>CAH & Federaciones</span>
@@ -242,18 +194,10 @@ export function SidebarNav() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+                <SidebarMenuButton asChild className="opacity-60">
                   <Link href="/dashboard/referee">
                     <Flag className="h-4 w-4" />
                     <span>Arbitraje & Ligas</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className="opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
-                  <Link href="/dashboard/staff">
-                    <UserCog className="h-4 w-4" />
-                    <span>Gestión de Sistema</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -269,18 +213,10 @@ export function SidebarNav() {
               <UserCircle className="h-4 w-4 text-primary" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold truncate max-w-[120px]">{user.email}</span>
-                <span className="text-[8px] uppercase text-primary font-black">{userRole || 'Usuario'}</span>
+                <span className="text-[8px] uppercase text-primary font-black">{userRole || 'Socio'}</span>
               </div>
             </div>
           )}
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton>
-                <Settings className="h-4 w-4" />
-                <span>Configuración</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
         </div>
       </SidebarFooter>
     </Sidebar>

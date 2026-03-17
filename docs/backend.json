@@ -15,6 +15,7 @@
           "description": "Determina el alcance de permisos: global, regional, de club o individual."
         },
         "clubId": { "type": "string" },
+        "parkingActive": { "type": "boolean", "description": "Indica si tiene el plan de estacionamiento en el predio activo." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "email", "role"]
@@ -49,57 +50,7 @@
               "time": { "type": "string" }
             }
           }
-        },
-        "trainingDays": { "type": "string" },
-        "trainingTime": { "type": "string" }
-      }
-    },
-    "ShopProduct": {
-      "title": "Producto de Tienda",
-      "description": "Artículos de merchandising o indumentaria del club.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "price": { "type": "number" },
-        "category": { "type": "string", "enum": ["indumentaria", "equipamiento", "accesorios"] },
-        "images": { 
-          "type": "array", 
-          "items": { "type": "string" }
-        },
-        "sizes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "label": { "type": "string" },
-              "stock": { "type": "number" }
-            }
-          }
-        },
-        "stock": { "type": "number" }
-      }
-    },
-    "ShopOrder": {
-      "title": "Pedido de Tienda",
-      "description": "Registro de una reserva o compra de un socio.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "clubId": { "type": "string" },
-        "playerId": { "type": "string" },
-        "playerName": { "type": "string" },
-        "productId": { "type": "string" },
-        "productName": { "type": "string" },
-        "productImage": { "type": "string" },
-        "size": { "type": "string" },
-        "price": { "type": "number" },
-        "status": { 
-          "type": "string", 
-          "enum": ["pending", "preparing", "ready", "delivered", "cancelled"] 
-        },
-        "createdAt": { "type": "string", "format": "date-time" }
+        }
       }
     }
   },
@@ -115,17 +66,9 @@
       "schema": "#/backend/entities/Club",
       "description": "Instituciones deportivas."
     },
-    "/clubs/{clubId}/divisions/{divisionId}": {
-      "schema": "#/backend/entities/Division",
-      "description": "Categorías del club."
-    },
-    "/clubs/{clubId}/shop_products/{productId}": {
-      "schema": "#/backend/entities/ShopProduct",
-      "description": "Catálogo de productos."
-    },
-    "/clubs/{clubId}/shop_orders/{orderId}": {
-      "schema": "#/backend/entities/ShopOrder",
-      "description": "Pedidos y ventas de la tienda."
+    "/clubs/{clubId}/players/{playerId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "Fichas de jugadores por club."
     }
   }
 }
