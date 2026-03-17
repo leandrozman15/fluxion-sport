@@ -21,7 +21,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, query, where, getDocs, limit } from "firebase/firestore";
+import { collection, doc, setDoc, query, where, getDocs } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -57,27 +57,31 @@ export default function TeamDetailPage() {
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
 
   // Buscar si hay un entrenamiento hoy para habilitar modo asistencia
+  // Se refactoriza para evitar necesidad de índice compuesto (type + date)
   useEffect(() => {
     async function fetchTodayEvent() {
       if (!db) return;
       try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
+        const todayStr = new Date().toISOString().split('T')[0];
+        
         const eventsRef = collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events");
+        // Consultamos solo por tipo para evitar el índice compuesto con el rango de fechas
         const q = query(
           eventsRef, 
-          where("type", "==", "training"),
-          where("date", ">=", today.toISOString()),
-          where("date", "<", tomorrow.toISOString()),
-          limit(1)
+          where("type", "==", "training")
         );
         
         const snap = await getDocs(q);
         if (!snap.empty) {
-          setTodayEvent({ ...snap.docs[0].data(), id: snap.docs[0].id });
+          // Filtramos en memoria para encontrar el de hoy
+          const found = snap.docs.find(doc => {
+            const data = doc.data();
+            return data.date && data.date.startsWith(todayStr);
+          });
+          
+          if (found) {
+            setTodayEvent({ ...found.data(), id: found.id });
+          }
         }
       } catch (e) {
         console.error("Error buscando evento de hoy:", e);
