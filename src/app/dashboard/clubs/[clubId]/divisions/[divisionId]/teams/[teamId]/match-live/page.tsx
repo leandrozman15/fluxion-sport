@@ -17,7 +17,8 @@ import {
   Clock,
   Activity,
   UserCheck,
-  Zap
+  Zap,
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, addDoc } from "firebase/firestore";
