@@ -14,7 +14,7 @@ import {
   Table as TableIcon
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function CategoryTeamsPage() {
@@ -37,6 +38,13 @@ export default function CategoryTeamsPage() {
 
   const teamsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams"), [db, clubId, divisionId]);
   const { data: teams, isLoading: teamsLoading } = useCollection(teamsQuery);
+
+  // Consultamos los entrenadores disponibles en el club para el selector
+  const coachesQuery = useMemoFirebase(() => 
+    query(collection(db, "users"), where("clubId", "==", clubId), where("role", "==", "coach")),
+    [db, clubId]
+  );
+  const { data: coaches } = useCollection(coachesQuery);
 
   const handleCreateTeam = () => {
     const teamId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams")).id;
@@ -97,7 +105,7 @@ export default function CategoryTeamsPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Crear Equipo</DialogTitle>
-                  <DialogDescription>Añade un equipo específico (ej. Primera A, Intermedia, 9na Blanca).</DialogDescription>
+                  <DialogDescription>Añade un equipo específico para la categoría {category?.name}.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -105,8 +113,25 @@ export default function CategoryTeamsPage() {
                     <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Nombre del Entrenador</Label>
-                    <Input value={newTeam.coachName} onChange={e => setNewTeam({...newTeam, coachName: e.target.value})} placeholder="Ej. Camila DT" />
+                    <Label>Entrenador Asignado</Label>
+                    <Select value={newTeam.coachName} onValueChange={v => setNewTeam({...newTeam, coachName: v})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar Entrenador..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {coaches?.map((coach: any) => (
+                          <SelectItem key={coach.id} value={coach.name}>
+                            {coach.name} ({coach.specialty})
+                          </SelectItem>
+                        ))}
+                        {(!coaches || coaches.length === 0) && (
+                          <SelectItem value="_none" disabled>No hay entrenadores registrados</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {(!coaches || coaches.length === 0) && (
+                      <p className="text-[10px] text-destructive">Debes registrar entrenadores en la sección "Staff Técnico" primero.</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Temporada</Label>
@@ -115,7 +140,7 @@ export default function CategoryTeamsPage() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreateTeam} disabled={!newTeam.name}>Crear Equipo</Button>
+                  <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachName}>Crear Equipo</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -174,8 +199,19 @@ export default function CategoryTeamsPage() {
               <Input value={editingTeam?.name || ""} onChange={e => setEditingTeam({...editingTeam, name: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Nombre del Entrenador</Label>
-              <Input value={editingTeam?.coachName || ""} onChange={e => setEditingTeam({...editingTeam, coachName: e.target.value})} />
+              <Label>Entrenador Asignado</Label>
+              <Select value={editingTeam?.coachName || ""} onValueChange={v => setEditingTeam({...editingTeam, coachName: v})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar Entrenador..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {coaches?.map((coach: any) => (
+                    <SelectItem key={coach.id} value={coach.name}>
+                      {coach.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Temporada</Label>
