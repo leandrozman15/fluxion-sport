@@ -38,19 +38,20 @@ export default function GenericIdCardPage() {
       if (!user || !firestore) return;
       try {
         // 1. Obtener rol del usuario global
-        const userDoc = await getDoc(doc(firestore, "users", user.uid));
-        const userData = userDoc.data();
+        const userDocRef = doc(firestore, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        const userData = userDoc.exists() ? userDoc.data() : null;
         const role = userData?.role || 'player';
         
         let foundProfile = null;
         let foundClub = null;
 
-        if (role === 'admin' || role === 'coach') {
+        if (role === 'admin' || role === 'coach' || role === 'fed_admin') {
           // Es staff o directivo
           foundProfile = userData;
           setRoleInfo({ 
             role, 
-            label: role === 'admin' ? 'Directivo' : 'Entrenador' 
+            label: role === 'admin' ? 'Directivo' : role === 'coach' ? 'Entrenador' : 'Federativo'
           });
           
           if (userData?.clubId) {
@@ -103,7 +104,7 @@ export default function GenericIdCardPage() {
       }
     }
     fetchData();
-  }, [user, firestore]);
+  }, [user, firestore, teamInfo]);
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
 
@@ -111,7 +112,7 @@ export default function GenericIdCardPage() {
     <div className="flex flex-col items-center justify-center text-center py-20 px-4">
       <UserCircle className="h-16 w-16 mx-auto text-muted-foreground opacity-20 mb-4" />
       <h2 className="text-xl font-bold">Sin identificación</h2>
-      <p className="text-muted-foreground mt-2 max-w-xs">No hemos encontrado un carnet asociado a tu cuenta. Contacta con secretaría.</p>
+      <p className="text-muted-foreground mt-2 max-w-xs">No hemos encontrado un carnet asociado a tu cuenta. Contacta con secretaría para vincular tu ficha.</p>
     </div>
   );
 
