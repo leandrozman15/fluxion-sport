@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   UserRound,
   Users,
-  CreditCard
+  CreditCard,
+  Calendar,
+  Clock
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -33,7 +35,7 @@ export default function ClubCategoriesListPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingDiv, setEditingDiv] = useState<any>(null);
-  const [newDiv, setNewDiv] = useState({ name: "", description: "" });
+  const [newDiv, setNewDiv] = useState({ name: "", description: "", trainingDays: "", trainingTime: "" });
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
@@ -61,7 +63,7 @@ export default function ClubCategoriesListPage() {
       createdAt: new Date().toISOString()
     });
     
-    setNewDiv({ name: "", description: "" });
+    setNewDiv({ name: "", description: "", trainingDays: "", trainingTime: "" });
     setIsCreateOpen(false);
   };
 
@@ -70,7 +72,9 @@ export default function ClubCategoriesListPage() {
     const divDoc = doc(db, "clubs", clubId, "divisions", editingDiv.id);
     updateDocumentNonBlocking(divDoc, {
       name: editingDiv.name,
-      description: editingDiv.description
+      description: editingDiv.description,
+      trainingDays: editingDiv.trainingDays,
+      trainingTime: editingDiv.trainingTime
     });
     setIsEditOpen(false);
   };
@@ -95,10 +99,10 @@ export default function ClubCategoriesListPage() {
                 <Plus className="h-4 w-4" /> Nueva Categoría
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Crear Categoría</DialogTitle>
-                <DialogDescription>Añade una rama (ej. Damas, Caballeros, Mami Hockey).</DialogDescription>
+                <DialogDescription>Añade una rama (ej. Damas, Caballeros, Mami Hockey) y define su horario general.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
@@ -108,6 +112,16 @@ export default function ClubCategoriesListPage() {
                 <div className="space-y-2">
                   <Label>Descripción Corta</Label>
                   <Input value={newDiv.description} onChange={e => setNewDiv({...newDiv, description: e.target.value})} placeholder="Ej. Rama femenina competitiva" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2"><Calendar className="h-3 w-3" /> Días</Label>
+                    <Input value={newDiv.trainingDays} onChange={e => setNewDiv({...newDiv, trainingDays: e.target.value})} placeholder="Ej. Lun, Mié, Vie" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2"><Clock className="h-3 w-3" /> Horario</Label>
+                    <Input value={newDiv.trainingTime} onChange={e => setNewDiv({...newDiv, trainingTime: e.target.value})} placeholder="Ej. 18:30 a 20:00" />
+                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -131,7 +145,14 @@ export default function ClubCategoriesListPage() {
                   {division.name}
                   <Layers className="h-4 w-4 text-primary" />
                 </CardTitle>
-                <CardDescription>{division.description || "Gestión de equipos y planteles."}</CardDescription>
+                <CardDescription className="flex flex-col gap-2">
+                  <span>{division.description || "Gestión de equipos y planteles."}</span>
+                  {division.trainingDays && (
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase text-primary bg-primary/5 w-fit px-2 py-1 rounded-md border border-primary/10">
+                      <Clock className="h-3 w-3" /> {division.trainingDays} • {division.trainingTime}
+                    </div>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardFooter className="flex justify-between border-t pt-4">
                 <div className="flex gap-1">
@@ -159,7 +180,7 @@ export default function ClubCategoriesListPage() {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Categoría</DialogTitle>
           </DialogHeader>
@@ -171,6 +192,16 @@ export default function ClubCategoriesListPage() {
             <div className="space-y-2">
               <Label>Descripción</Label>
               <Input value={editingDiv?.description || ""} onChange={e => setEditingDiv({...editingDiv, description: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Días de Entrenamiento</Label>
+                <Input value={editingDiv?.trainingDays || ""} onChange={e => setEditingDiv({...editingDiv, trainingDays: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Horario</Label>
+                <Input value={editingDiv?.trainingTime || ""} onChange={e => setEditingDiv({...editingDiv, trainingTime: e.target.value})} />
+              </div>
             </div>
           </div>
           <DialogFooter>

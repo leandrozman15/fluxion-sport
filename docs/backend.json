@@ -31,6 +31,19 @@
         "phone": { "type": "string" }
       }
     },
+    "Division": {
+      "title": "Categoría / Rama",
+      "description": "Rama deportiva del club (ej. Damas, Caballeros).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clubId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "trainingDays": { "type": "string" },
+        "trainingTime": { "type": "string" }
+      }
+    },
     "ShopProduct": {
       "title": "Producto de Tienda",
       "description": "Artículos de merchandising o indumentaria del club.",
@@ -91,6 +104,10 @@
     "/clubs/{clubId}": {
       "schema": "#/backend/entities/Club",
       "description": "Instituciones deportivas."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}": {
+      "schema": "#/backend/entities/Division",
+      "description": "Categorías del club."
     },
     "/clubs/{clubId}/shop_products/{productId}": {
       "schema": "#/backend/entities/ShopProduct",
