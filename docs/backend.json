@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "UserProfile": {
@@ -14,38 +13,10 @@
           "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee"],
           "description": "Determina el alcance de permisos: global, regional, de club o individual."
         },
-        "federationId": { "type": "string", "description": "ID de la federación nacional vinculada." },
-        "associationId": { "type": "string", "description": "ID de la asociación regional vinculada." },
-        "clubId": { "type": "string", "description": "ID del club vinculado." },
-        "teamId": { "type": "string", "description": "ID del equipo específico (principalmente para jugadores/coaches)." },
+        "clubId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "email", "role"]
-    },
-    "Federation": {
-      "title": "Federación Nacional",
-      "description": "Entidad de máximo nivel (ej. CAH).",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "sport": { "type": "string" },
-        "country": { "type": "string" },
-        "logoUrl": { "type": "string" },
-        "config": { "type": "object" }
-      }
-    },
-    "Association": {
-      "title": "Asociación Regional",
-      "description": "Entidad regional que gestiona ligas y árbitros.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "federationId": { "type": "string" },
-        "name": { "type": "string" },
-        "region": { "type": "string" },
-        "logoUrl": { "type": "string" }
-      }
     },
     "Club": {
       "title": "Club / Institución",
@@ -53,10 +24,10 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "associationId": { "type": "string" },
         "name": { "type": "string" },
         "address": { "type": "string" },
-        "logoUrl": { "type": "string" }
+        "logoUrl": { "type": "string" },
+        "phone": { "type": "string" }
       }
     },
     "ShopProduct": {
@@ -70,8 +41,20 @@
         "price": { "type": "number" },
         "category": { "type": "string", "enum": ["indumentaria", "equipamiento", "accesorios"] },
         "photoUrl": { "type": "string" },
-        "stock": { "type": "number" },
-        "sizes": { "type": "array", "items": { "type": "string" } }
+        "stock": { "type": "number" }
+      }
+    },
+    "Match": {
+      "title": "Encuentro Deportivo",
+      "description": "Datos de un partido oficial o entrenamiento.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "opponent": { "type": "string" },
+        "location": { "type": "string" },
+        "status": { "type": "string" }
       }
     }
   },
@@ -81,15 +64,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "#/backend/entities/UserProfile",
-      "description": "Perfiles de usuario con alcance organizacional."
-    },
-    "/federations/{fedId}": {
-      "schema": "#/backend/entities/Federation",
-      "description": "Datos de federaciones nacionales."
-    },
-    "/federations/{fedId}/associations/{assocId}": {
-      "schema": "#/backend/entities/Association",
-      "description": "Asociaciones regionales vinculadas a una federación."
+      "description": "Perfiles de usuario."
     },
     "/clubs/{clubId}": {
       "schema": "#/backend/entities/Club",
@@ -97,7 +72,15 @@
     },
     "/clubs/{clubId}/shop_products/{productId}": {
       "schema": "#/backend/entities/ShopProduct",
-      "description": "Catálogo de productos de la tienda del club."
+      "description": "Catálogo de productos de la tienda."
+    },
+    "/all_players_index/{playerId}": {
+      "schema": { "type": "object" },
+      "description": "Índice global para búsqueda transversal de jugadores."
+    },
+    "/match_callups/{callupId}": {
+      "schema": { "type": "object" },
+      "description": "Citaciones de jugadores a partidos."
     }
   }
 }
