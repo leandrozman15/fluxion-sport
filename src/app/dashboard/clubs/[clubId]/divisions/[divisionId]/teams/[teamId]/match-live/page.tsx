@@ -24,6 +24,7 @@ import { collection, doc, setDoc, addDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,7 @@ export default function MatchLiveTrackerPage() {
   const [matchEvents, setMatchEvents] = useState<any[]>([]);
 
   // Cargar datos del equipo
-  const teamRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), [db, clubId, divisionId, teamId]);
+  const teamRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: team, isLoading: teamLoading } = useDoc(teamRef);
 
   // Cargar roster del equipo
