@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,7 +10,8 @@ import {
   UserCircle,
   Trophy,
   Star,
-  Target
+  Target,
+  Building2
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc } from "firebase/firestore";
@@ -126,26 +126,31 @@ export default function PlayerIdCardPage() {
         <CardContent className="p-0">
           <div className="p-6 flex justify-between items-start">
             <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <Trophy className="h-6 w-6 text-white" />
+              <div className="bg-white p-1 rounded-lg shadow-inner">
+                <Avatar className="h-12 w-12 rounded-md border-none">
+                  <AvatarImage src={clubInfo?.logoUrl} className="object-contain" />
+                  <AvatarFallback className="bg-primary/10">
+                    <Trophy className="h-6 w-6 text-primary" />
+                  </AvatarFallback>
+                </Avatar>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest opacity-80">Socio Oficial</p>
-                <p className="text-lg font-bold font-headline truncate max-w-[180px]">{clubInfo?.name || "SportsManager"}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 leading-none mb-1">Socio Oficial</p>
+                <p className="text-lg font-black font-headline truncate max-w-[180px] leading-tight">{clubInfo?.name || "SportsManager"}</p>
               </div>
             </div>
-            <Badge variant="outline" className="text-white border-white/30 bg-white/10 backdrop-blur-sm">
+            <Badge variant="outline" className="text-white border-white/30 bg-white/10 backdrop-blur-sm font-bold">
               {teamInfo?.season || "2024-2025"}
             </Badge>
           </div>
 
-          <div className="bg-white text-foreground mx-4 mb-4 rounded-xl p-6 flex flex-col items-center space-y-4">
+          <div className="bg-white text-foreground mx-4 mb-4 rounded-xl p-6 flex flex-col items-center space-y-4 shadow-inner">
             <div className="relative">
               <Avatar className="h-32 w-32 border-4 border-primary/10 shadow-lg">
-                <AvatarImage src={playerInfo.photoUrl} />
+                <AvatarImage src={playerInfo.photoUrl} className="object-cover" />
                 <AvatarFallback className="text-4xl font-bold">{playerInfo.firstName[0]}</AvatarFallback>
               </Avatar>
-              <div className="absolute -bottom-2 -right-2 bg-primary text-white text-sm font-bold w-10 h-10 flex items-center justify-center rounded-full border-4 border-white">
+              <div className="absolute -bottom-2 -right-2 bg-primary text-white text-sm font-bold w-10 h-10 flex items-center justify-center rounded-full border-4 border-white shadow-lg">
                 #{playerInfo.jerseyNumber}
               </div>
             </div>
@@ -154,7 +159,7 @@ export default function PlayerIdCardPage() {
               <h2 className="text-2xl font-bold font-headline uppercase leading-tight">{playerInfo.firstName} {playerInfo.lastName}</h2>
               <p className="text-primary font-bold text-sm mt-1 uppercase tracking-wider">{playerInfo.position}</p>
               {teamInfo && (
-                <p className="text-[10px] text-muted-foreground mt-2 font-medium bg-muted/50 px-3 py-1 rounded-full">
+                <p className="text-[10px] text-muted-foreground mt-2 font-black bg-muted/50 px-3 py-1 rounded-full uppercase tracking-tighter">
                   {teamInfo.name} • {teamInfo.divName}
                 </p>
               )}
@@ -186,17 +191,20 @@ export default function PlayerIdCardPage() {
           </div>
           
           <div className="px-6 py-4 bg-black/10 flex justify-between items-center">
-             <p className="text-xs font-bold tracking-widest">ESTADO: ACTIVO</p>
-             <ShieldCheck className="h-5 w-5 text-white/50" />
+             <p className="text-xs font-black tracking-widest flex items-center gap-2">
+               <ShieldCheck className="h-4 w-4 text-white" />
+               ESTADO: SOCIO ACTIVO
+             </p>
+             <p className="text-[10px] font-bold opacity-50">VALIDADO POR CAH</p>
           </div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-2 gap-4 w-full pb-10">
-        <Button variant="outline" className="flex items-center gap-2">
+        <Button variant="outline" className="flex items-center gap-2 font-bold">
           <Download className="h-4 w-4" /> Descargar
         </Button>
-        <Button variant="outline" className="flex items-center gap-2">
+        <Button variant="outline" className="flex items-center gap-2 font-bold">
           <Share2 className="h-4 w-4" /> Compartir
         </Button>
       </div>
