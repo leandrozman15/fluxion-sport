@@ -17,7 +17,10 @@ import {
   XCircle,
   HelpCircle,
   Users,
-  BellRing
+  BellRing,
+  ClipboardList,
+  Target,
+  Timer
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
@@ -98,13 +101,11 @@ export default function EventAttendancePage() {
   const handlePublishCallups = () => {
     if (!event || !callups) return;
     
-    // 1. Marcar el evento como publicado
     updateDocumentNonBlocking(eventRef, {
       callupsPublished: true,
       callupsPublishedAt: new Date().toISOString()
     });
 
-    // 2. Marcar cada citación como publicada para que aparezca en la app del jugador
     callups.forEach(c => {
       updateDocumentNonBlocking(doc(db, "match_callups", c.id), { published: true });
     });
@@ -144,6 +145,7 @@ export default function EventAttendancePage() {
             <div className="flex items-center gap-4 mt-2 text-muted-foreground">
               <span className="flex items-center gap-1 text-sm"><CalendarIcon className="h-4 w-4" /> {new Date(event?.date).toLocaleString()}</span>
               <span className="flex items-center gap-1 text-sm"><MapPin className="h-4 w-4" /> {event?.location}</span>
+              {isTraining && event?.duration && <span className="flex items-center gap-1 text-sm"><Timer className="h-4 w-4" /> {event.duration} min</span>}
             </div>
           </div>
           <div className="flex gap-2">
@@ -168,9 +170,14 @@ export default function EventAttendancePage() {
       <Tabs defaultValue={isTraining ? "attendance" : "callups"} className="w-full">
         <TabsList className="mb-4">
           {isTraining && (
-            <TabsTrigger value="attendance" className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4" /> Control de Asistencia
-            </TabsTrigger>
+            <>
+              <TabsTrigger value="attendance" className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" /> Control de Asistencia
+              </TabsTrigger>
+              <TabsTrigger value="planning" className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" /> Plan de Trabajo
+              </TabsTrigger>
+            </>
           )}
           {isMatch && (
             <>
@@ -224,6 +231,69 @@ export default function EventAttendancePage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="planning">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-primary" /> Detalle de la Sesión
+                </CardTitle>
+                <CardDescription>Planificación técnica y ejercicios previstos.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {event?.objectives && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <Target className="h-3 w-3 text-primary" /> Objetivos Principales
+                    </h4>
+                    <p className="p-4 bg-primary/5 rounded-lg border border-primary/10 font-medium">{event.objectives}</p>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Desarrollo de la Clase / Ejercicios</h4>
+                  <div className="p-6 border-2 border-dashed rounded-xl bg-card">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                      {event?.description || "No se han cargado ejercicios detallados para esta sesión."}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="border-t bg-muted/5">
+                <Button variant="outline" size="sm" className="w-full gap-2">Editar Planificación</Button>
+              </CardFooter>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className="bg-primary text-primary-foreground">
+                <CardHeader>
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Timer className="h-4 w-4" /> Cronograma
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center text-sm border-b border-white/10 pb-2">
+                    <span className="opacity-80">Duración Total</span>
+                    <span className="font-black">{event?.duration || 90} min</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm border-b border-white/10 pb-2">
+                    <span className="opacity-80">Entrada en Calor</span>
+                    <span className="font-bold">15 min</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm border-b border-white/10 pb-2">
+                    <span className="opacity-80">Bloque Principal</span>
+                    <span className="font-bold">60 min</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="opacity-80">Cierre / Elongación</span>
+                    <span className="font-bold">15 min</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="callups">
