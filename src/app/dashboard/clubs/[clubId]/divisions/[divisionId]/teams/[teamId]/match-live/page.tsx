@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -57,6 +56,10 @@ export default function MatchLiveTrackerPage() {
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayer[]>([]);
   const [matchEvents, setMatchEvents] = useState<any[]>([]);
 
+  // Cargar datos del equipo
+  const teamRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), [db, clubId, divisionId, teamId]);
+  const { data: team, isLoading: teamLoading } = useDoc(teamRef);
+
   // Cargar roster del equipo
   const rosterQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments"), [db, clubId, divisionId, teamId]);
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
@@ -74,7 +77,7 @@ export default function MatchLiveTrackerPage() {
         redCards: 0
       })));
     }
-  }, [roster]);
+  }, [roster, matchPlayers.length]);
 
   // Lógica del Cronómetro
   useEffect(() => {
@@ -186,7 +189,7 @@ export default function MatchLiveTrackerPage() {
     }
   };
 
-  if (rosterLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
+  if (rosterLoading || teamLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
