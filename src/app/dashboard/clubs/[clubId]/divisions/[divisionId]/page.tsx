@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   ArrowRight,
   Pencil,
-  Milestone
+  UserRound,
+  Table as TableIcon
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -20,49 +21,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
-export default function SubcategoriesPage() {
+export default function CategoryTeamsPage() {
   const { clubId, divisionId } = useParams() as { clubId: string, divisionId: string };
   const db = useFirestore();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingSub, setEditingSub] = useState<any>(null);
-  const [newSub, setNewSub] = useState({ name: "", ageRange: "" });
+  const [editingTeam, setEditingTeam] = useState<any>(null);
+  const [newTeam, setNewTeam] = useState({ name: "", coachName: "", season: "2025" });
 
   const divRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId), [db, clubId, divisionId]);
-  const { data: division, isLoading: divLoading } = useDoc(divRef);
+  const { data: category, isLoading: divLoading } = useDoc(divRef);
 
-  const subsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "subcategories"), [db, clubId, divisionId]);
-  const { data: subcategories, isLoading: subsLoading } = useCollection(subsQuery);
+  const teamsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams"), [db, clubId, divisionId]);
+  const { data: teams, isLoading: teamsLoading } = useCollection(teamsQuery);
 
-  const handleCreateSub = () => {
-    const subId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "subcategories")).id;
-    const subDoc = doc(db, "clubs", clubId, "divisions", divisionId, "subcategories", subId);
+  const handleCreateTeam = () => {
+    const teamId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams")).id;
+    const teamDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId);
     
-    setDoc(subDoc, {
-      ...newSub,
-      id: subId,
+    setDoc(teamDoc, {
+      ...newTeam,
+      id: teamId,
       divisionId,
+      clubId,
       createdAt: new Date().toISOString()
     });
     
-    setNewSub({ name: "", ageRange: "" });
+    setNewTeam({ name: "", coachName: "", season: "2025" });
     setIsCreateOpen(false);
   };
 
-  const handleUpdateSub = () => {
-    if (!editingSub) return;
-    const subDoc = doc(db, "clubs", clubId, "divisions", divisionId, "subcategories", editingSub.id);
-    updateDocumentNonBlocking(subDoc, {
-      name: editingSub.name,
-      ageRange: editingSub.ageRange
+  const handleUpdateTeam = () => {
+    if (!editingTeam) return;
+    const teamDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", editingTeam.id);
+    updateDocumentNonBlocking(teamDoc, {
+      name: editingTeam.name,
+      coachName: editingTeam.coachName,
+      season: editingTeam.season
     });
     setIsEditOpen(false);
   };
 
-  const handleDeleteSub = (id: string) => {
-    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", divisionId, "subcategories", id));
+  const handleDeleteTeam = (id: string) => {
+    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", divisionId, "teams", id));
   };
 
   if (divLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
@@ -75,73 +79,86 @@ export default function SubcategoriesPage() {
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold font-headline text-foreground">Subniveles: {division?.name}</h1>
-            <p className="text-muted-foreground">Categorías específicas por edad (ej. 9na, 8va, Sub 15).</p>
+            <h1 className="text-3xl font-bold font-headline text-foreground">Equipos: {category?.name}</h1>
+            <p className="text-muted-foreground">Plantillas que compiten en esta categoría.</p>
           </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Nueva Subcategoría
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Crear Subcategoría</DialogTitle>
-                <DialogDescription>Añade un nivel específico a esta categoría.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Nombre (Ej. 9na o Sub 15)</Label>
-                  <Input value={newSub.name} onChange={e => setNewSub({...newSub, name: e.target.value})} placeholder="Ej. 9na" />
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/standings`}>
+                <TableIcon className="h-4 w-4 mr-2" /> Ver Tabla Posiciones
+              </Link>
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" /> Nuevo Equipo
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Crear Equipo</DialogTitle>
+                  <DialogDescription>Añade un equipo específico (ej. Primera A, Intermedia, 9na Blanca).</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Nombre del Equipo</Label>
+                    <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nombre del Entrenador</Label>
+                    <Input value={newTeam.coachName} onChange={e => setNewTeam({...newTeam, coachName: e.target.value})} placeholder="Ej. Camila DT" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Temporada</Label>
+                    <Input value={newTeam.season} onChange={e => setNewTeam({...newTeam, season: e.target.value})} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Rango de Edad (Opcional)</Label>
-                  <Input value={newSub.ageRange} onChange={e => setNewSub({...newSub, ageRange: e.target.value})} placeholder="Ej. 10-11 años" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreateSub} disabled={!newSub.name}>Crear</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleCreateTeam} disabled={!newTeam.name}>Crear Equipo</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {subsLoading ? (
+        {teamsLoading ? (
           <div className="col-span-full flex justify-center p-12"><Loader2 className="animate-spin" /></div>
         ) : (
-          subcategories?.map((sub: any) => (
-            <Card key={sub.id} className="hover:border-primary transition-all">
+          teams?.map((team: any) => (
+            <Card key={team.id}>
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
-                  {sub.name}
-                  <Milestone className="h-4 w-4 text-primary" />
+                  {team.name}
+                  <Badge variant="secondary">{team.season}</Badge>
                 </CardTitle>
-                <CardDescription>{sub.ageRange || "Sin rango definido"}</CardDescription>
+                <CardDescription className="flex items-center gap-1">
+                  <UserRound className="h-3 w-3" /> Coach: {team.coachName}
+                </CardDescription>
               </CardHeader>
               <CardFooter className="flex justify-between border-t pt-4">
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteSub(sub.id)}>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteTeam(team.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => { setEditingSub(sub); setIsEditOpen(true); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingTeam(team); setIsEditOpen(true); }}>
                     <Pencil className="h-4 w-4" />
                   </Button>
                 </div>
-                <Button asChild size="sm" variant="outline">
-                  <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/subcategories/${sub.id}`}>
-                    Equipos <ArrowRight className="h-4 w-4 ml-2" />
+                <Button asChild size="sm" variant="outline" className="flex items-center gap-2">
+                  <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${team.id}`}>
+                    Gestionar Plantel <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
               </CardFooter>
             </Card>
           ))
         )}
-        {subcategories?.length === 0 && !subsLoading && (
+        {teams?.length === 0 && !teamsLoading && (
           <div className="col-span-full text-center py-12 border-2 border-dashed rounded-xl">
-            <p className="text-muted-foreground">Aún no hay subcategorías registradas en {division?.name}.</p>
+            <p className="text-muted-foreground">Aún no hay equipos en esta categoría.</p>
           </div>
         )}
       </div>
@@ -149,21 +166,25 @@ export default function SubcategoriesPage() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Subcategoría</DialogTitle>
+            <DialogTitle>Editar Equipo</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Nombre</Label>
-              <Input value={editingSub?.name || ""} onChange={e => setEditingSub({...editingSub, name: e.target.value})} />
+              <Label>Nombre del Equipo</Label>
+              <Input value={editingTeam?.name || ""} onChange={e => setEditingTeam({...editingTeam, name: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Rango de Edad</Label>
-              <Input value={editingSub?.ageRange || ""} onChange={e => setEditingSub({...editingSub, ageRange: e.target.value})} />
+              <Label>Nombre del Entrenador</Label>
+              <Input value={editingTeam?.coachName || ""} onChange={e => setEditingTeam({...editingTeam, coachName: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Temporada</Label>
+              <Input value={editingTeam?.season || ""} onChange={e => setEditingTeam({...editingTeam, season: e.target.value})} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateSub}>Guardar Cambios</Button>
+            <Button onClick={handleUpdateTeam}>Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

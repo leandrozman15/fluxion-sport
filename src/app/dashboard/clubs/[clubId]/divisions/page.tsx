@@ -7,7 +7,6 @@ import {
   Plus, 
   Loader2,
   Trash2,
-  ChevronLeft,
   ArrowRight,
   Pencil,
   Layers,
@@ -28,7 +27,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { SectionNav } from "@/components/layout/section-nav";
 
-export default function ClubDivisionsListPage() {
+export default function ClubCategoriesListPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -40,7 +39,7 @@ export default function ClubDivisionsListPage() {
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
 
   const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
-  const { data: divisions, isLoading: divsLoading } = useCollection(divisionsQuery);
+  const { data: categories, isLoading: divsLoading } = useCollection(divisionsQuery);
 
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
@@ -125,14 +124,14 @@ export default function ClubDivisionsListPage() {
         {divsLoading ? (
           <div className="col-span-full flex justify-center p-12"><Loader2 className="animate-spin" /></div>
         ) : (
-          divisions?.map((division: any) => (
+          categories?.map((division: any) => (
             <Card key={division.id} className="hover:border-primary transition-all border-l-4 border-l-primary">
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
                   {division.name}
                   <Layers className="h-4 w-4 text-primary" />
                 </CardTitle>
-                <CardDescription>{division.description || "Gestión de subcategorías y equipos."}</CardDescription>
+                <CardDescription>{division.description || "Gestión de equipos y planteles."}</CardDescription>
               </CardHeader>
               <CardFooter className="flex justify-between border-t pt-4">
                 <div className="flex gap-1">
@@ -145,14 +144,14 @@ export default function ClubDivisionsListPage() {
                 </div>
                 <Button asChild size="sm" variant="outline">
                   <Link href={`/dashboard/clubs/${clubId}/divisions/${division.id}`}>
-                    Ver Subcategorías <ArrowRight className="h-4 w-4 ml-2" />
+                    Gestionar Equipos <ArrowRight className="h-4 w-4 ml-2" />
                   </Link>
                 </Button>
               </CardFooter>
             </Card>
           ))
         )}
-        {divisions?.length === 0 && !divsLoading && (
+        {categories?.length === 0 && !divsLoading && (
           <div className="col-span-full text-center py-12 border-2 border-dashed rounded-xl">
             <p className="text-muted-foreground">Aún no hay categorías registradas en {club?.name}.</p>
           </div>
