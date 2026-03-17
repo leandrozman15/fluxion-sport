@@ -119,9 +119,9 @@ export default function ClubCategoriesListPage() {
     if (!editingDiv) return;
     const divDoc = doc(db, "clubs", clubId, "divisions", editingDiv.id);
     updateDocumentNonBlocking(divDoc, {
-      name: editingDiv.name,
-      description: editingDiv.description,
-      trainingSessions: editingDiv.trainingSessions
+      name: editingDiv.name || "",
+      description: editingDiv.description || "",
+      trainingSessions: editingDiv.trainingSessions || []
     });
     setIsEditOpen(false);
   };
@@ -142,7 +142,7 @@ export default function ClubCategoriesListPage() {
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2" suppressHydrationWarning>
+              <Button className="flex items-center gap-2">
                 <Plus className="h-4 w-4" /> Nueva Categoría
               </Button>
             </DialogTrigger>
@@ -155,17 +155,17 @@ export default function ClubCategoriesListPage() {
                 <div className="space-y-6 py-4">
                   <div className="space-y-2">
                     <Label>Nombre de la Categoría</Label>
-                    <Input value={newDiv.name} onChange={e => setNewDiv({...newDiv, name: e.target.value})} placeholder="Ej. Damas" suppressHydrationWarning />
+                    <Input value={newDiv.name} onChange={e => setNewDiv({...newDiv, name: e.target.value})} placeholder="Ej. Damas" />
                   </div>
                   <div className="space-y-2">
                     <Label>Descripción Corta</Label>
-                    <Input value={newDiv.description} onChange={e => setNewDiv({...newDiv, description: e.target.value})} placeholder="Ej. Rama femenina competitiva" suppressHydrationWarning />
+                    <Input value={newDiv.description} onChange={e => setNewDiv({...newDiv, description: e.target.value})} placeholder="Ej. Rama femenina competitiva" />
                   </div>
                   
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <Label className="text-xs font-black uppercase tracking-widest text-primary">Cronograma Semanal</Label>
-                      <Button variant="ghost" size="sm" onClick={() => addSession()} className="h-7 text-[10px] gap-1" suppressHydrationWarning>
+                      <Button variant="ghost" size="sm" onClick={() => addSession()} className="h-7 text-[10px] gap-1">
                         <PlusCircle className="h-3 w-3" /> Agregar Día
                       </Button>
                     </div>
@@ -180,7 +180,6 @@ export default function ClubCategoriesListPage() {
                               onChange={e => updateSession(idx, 'day', e.target.value)} 
                               placeholder="Ej. Martes"
                               className="h-8 text-xs"
-                              suppressHydrationWarning
                             />
                           </div>
                           <div className="flex-1 space-y-1">
@@ -190,10 +189,9 @@ export default function ClubCategoriesListPage() {
                               onChange={e => updateSession(idx, 'time', e.target.value)} 
                               placeholder="18:00 a 19:30"
                               className="h-8 text-xs"
-                              suppressHydrationWarning
                             />
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => removeSession(idx)} className="h-8 w-8 p-0 text-destructive" suppressHydrationWarning>
+                          <Button variant="ghost" size="sm" onClick={() => removeSession(idx)} className="h-8 w-8 p-0 text-destructive">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
@@ -203,8 +201,8 @@ export default function ClubCategoriesListPage() {
                 </div>
               </ScrollArea>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)} suppressHydrationWarning>Cancelar</Button>
-                <Button onClick={handleCreateDiv} disabled={!newDiv.name} suppressHydrationWarning>Crear</Button>
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                <Button onClick={handleCreateDiv} disabled={!newDiv.name}>Crear</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -243,14 +241,14 @@ export default function ClubCategoriesListPage() {
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-4">
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDiv(division.id)} suppressHydrationWarning>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteDiv(division.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => { setEditingDiv(division); setIsEditOpen(true); }} suppressHydrationWarning>
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingDiv(division); setIsEditOpen(true); }}>
                     <Pencil className="h-4 w-4" />
                   </Button>
                 </div>
-                <Button asChild size="sm" variant="outline" suppressHydrationWarning>
+                <Button asChild size="sm" variant="outline">
                   <Link href={`/dashboard/clubs/${clubId}/divisions/${division.id}`}>
                     Gestionar Equipos <ArrowRight className="h-4 w-4 ml-2" />
                   </Link>
@@ -275,17 +273,17 @@ export default function ClubCategoriesListPage() {
             <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label>Nombre</Label>
-                <Input value={editingDiv?.name || ""} onChange={e => setEditingDiv({...editingDiv, name: e.target.value})} suppressHydrationWarning />
+                <Input value={editingDiv?.name || ""} onChange={e => setEditingDiv({...editingDiv, name: e.target.value})} />
               </div>
               <div className="space-y-2">
                 <Label>Descripción</Label>
-                <Input value={editingDiv?.description || ""} onChange={e => setEditingDiv({...editingDiv, description: e.target.value})} suppressHydrationWarning />
+                <Input value={editingDiv?.description || ""} onChange={e => setEditingDiv({...editingDiv, description: e.target.value})} />
               </div>
               
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label className="text-xs font-black uppercase tracking-widest text-primary">Cronograma Semanal</Label>
-                  <Button variant="ghost" size="sm" onClick={() => addSession(true)} className="h-7 text-[10px] gap-1" suppressHydrationWarning>
+                  <Button variant="ghost" size="sm" onClick={() => addSession(true)} className="h-7 text-[10px] gap-1">
                     <PlusCircle className="h-3 w-3" /> Agregar Día
                   </Button>
                 </div>
@@ -299,7 +297,6 @@ export default function ClubCategoriesListPage() {
                           value={session.day} 
                           onChange={e => updateSession(idx, 'day', e.target.value, true)} 
                           className="h-8 text-xs"
-                          suppressHydrationWarning
                         />
                       </div>
                       <div className="flex-1 space-y-1">
@@ -308,10 +305,9 @@ export default function ClubCategoriesListPage() {
                           value={session.time} 
                           onChange={e => updateSession(idx, 'time', e.target.value, true)} 
                           className="h-8 text-xs"
-                          suppressHydrationWarning
                         />
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => removeSession(idx, true)} className="h-8 w-8 p-0 text-destructive" suppressHydrationWarning>
+                      <Button variant="ghost" size="sm" onClick={() => removeSession(idx, true)} className="h-8 w-8 p-0 text-destructive">
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -321,8 +317,8 @@ export default function ClubCategoriesListPage() {
             </div>
           </ScrollArea>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)} suppressHydrationWarning>Cancelar</Button>
-            <Button onClick={handleUpdateDiv} suppressHydrationWarning>Guardar Cambios</Button>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateDiv}>Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
