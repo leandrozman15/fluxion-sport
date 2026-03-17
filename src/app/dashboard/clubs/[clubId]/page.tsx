@@ -195,7 +195,7 @@ export default function InstitutionDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-none">
+          <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-none shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg">Acceso Rápido</CardTitle>
             </CardHeader>
@@ -203,8 +203,8 @@ export default function InstitutionDetailPage() {
               <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10" asChild>
                 <Link href={`/dashboard/clubs/${clubId}/players`}><FileText className="h-4 w-4" /> Legajos Médicos</Link>
               </Button>
-              <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10">
-                <TrendingUp className="h-4 w-4" /> Reporte de Cuotas
+              <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10" asChild>
+                <Link href={`/dashboard/clubs/${clubId}/shop/admin`}><ShoppingBag className="h-4 w-4" /> Administrar Tienda</Link>
               </Button>
               <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10" asChild>
                 <Link href={`/dashboard/clubs/${clubId}/coaches`}><UserRound className="h-4 w-4" /> Staff del Club</Link>
