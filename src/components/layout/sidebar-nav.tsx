@@ -95,6 +95,9 @@ export function SidebarNav() {
   const pendingCount = pendingCallups?.length || 0;
 
   const isPlayer = (role: string | null) => role === 'player' || role === 'admin' || !role;
+  
+  // Determinamos el clubId para el jugador (desde su perfil o desde la URL)
+  const playerClubId = playerInfo?.clubId || clubId;
 
   return (
     <Sidebar>
@@ -111,7 +114,7 @@ export function SidebarNav() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clubs")}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clubs") && !pathname.includes("/shop")}>
                   <Link href="/dashboard/clubs">
                     <Building2 className="h-4 w-4" />
                     <span>Panel de Clubes</span>
@@ -128,10 +131,10 @@ export function SidebarNav() {
               </SidebarMenuItem>
               {clubId && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.includes("/shop")}>
-                    <Link href={`/dashboard/clubs/${clubId}/shop`}>
-                      <ShoppingBag className="h-4 w-4" />
-                      <span>Tienda Club</span>
+                  <SidebarMenuButton asChild isActive={pathname.includes("/shop/admin")}>
+                    <Link href={`/dashboard/clubs/${clubId}/shop/admin`}>
+                      <Settings className="h-4 w-4" />
+                      <span>Admin Tienda</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -174,6 +177,16 @@ export function SidebarNav() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                {playerClubId && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname.includes("/shop") && !pathname.includes("/admin")}>
+                      <Link href={`/dashboard/clubs/${playerClubId}/shop`}>
+                        <ShoppingBag className="h-4 w-4" />
+                        <span>Tienda del Club</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"}>
                     <Link href="/dashboard/player/payments">
