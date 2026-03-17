@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -73,6 +72,7 @@ export default function ClubShopPublicPage() {
             className="pl-10 h-11 border-none shadow-none focus-visible:ring-0"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            suppressHydrationWarning
           />
         </div>
         <div className="h-8 w-px bg-border hidden md:block" />
@@ -125,6 +125,7 @@ export default function ClubShopPublicPage() {
                   className="w-full h-11 font-bold gap-2 bg-foreground hover:bg-primary transition-all shadow-lg hover:shadow-primary/20"
                   onClick={() => handleOrder(p.name)}
                   disabled={p.stock === 0}
+                  suppressHydrationWarning
                 >
                   {p.stock === 0 ? "Sin Stock" : (
                     <>
@@ -157,7 +158,7 @@ export default function ClubShopPublicPage() {
             <p className="text-muted-foreground text-sm">Todos los pedidos se retiran por secretaría del club de Lunes a Viernes de 17:00 a 21:00hs.</p>
           </div>
         </div>
-        <Button variant="outline" className="h-12 px-8 font-bold border-2">Ver mis Reservas</Button>
+        <Button variant="outline" className="h-12 px-8 font-bold border-2" suppressHydrationWarning>Ver mis Reservas</Button>
       </div>
     </div>
   );
