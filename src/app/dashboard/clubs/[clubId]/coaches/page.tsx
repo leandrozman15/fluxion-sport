@@ -61,14 +61,13 @@ export default function ClubCoachesPage() {
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
     { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
-    { title: "Divisiones", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
+    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
   ];
 
   const handleCreateCoach = () => {
-    // Para el MVP generamos un ID aleatorio o usamos el email si no tenemos el UID real de Auth aún
     const coachId = doc(collection(db, "users")).id;
     const coachDoc = doc(db, "users", coachId);
     

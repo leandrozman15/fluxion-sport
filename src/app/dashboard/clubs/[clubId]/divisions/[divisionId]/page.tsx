@@ -70,12 +70,12 @@ export default function SubcategoriesPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-4">
-        <Link href={`/dashboard/clubs/${clubId}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit">
-          <ChevronLeft className="h-4 w-4" /> Volver a divisiones
+        <Link href={`/dashboard/clubs/${clubId}/divisions`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit">
+          <ChevronLeft className="h-4 w-4" /> Volver a categorías
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold font-headline text-foreground">Subcategorías: {division?.name}</h1>
+            <h1 className="text-3xl font-bold font-headline text-foreground">Subniveles: {division?.name}</h1>
             <p className="text-muted-foreground">Categorías específicas por edad (ej. 9na, 8va, Sub 15).</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -87,7 +87,7 @@ export default function SubcategoriesPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Crear Subcategoría</DialogTitle>
-                <DialogDescription>Añade un nivel específico a esta división.</DialogDescription>
+                <DialogDescription>Añade un nivel específico a esta categoría.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">

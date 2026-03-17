@@ -36,7 +36,7 @@ export default function ClubFinancesPage() {
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
     { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
-    { title: "Divisiones", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
+    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
@@ -132,7 +132,7 @@ export default function ClubFinancesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-bold uppercase tracking-widest">Cobranza por División</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase tracking-widest">Cobranza por Categoría</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {[

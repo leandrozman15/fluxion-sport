@@ -81,7 +81,7 @@ export default function InstitutionDetailPage() {
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
     { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
-    { title: "Divisiones", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
+    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
@@ -215,10 +215,10 @@ export default function InstitutionDetailPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Divisiones</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Categorías</CardTitle></CardHeader>
           <CardContent>
             <div className="text-3xl font-black">{divisions?.length || 0}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Ramas deportivas</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Ramas y categorías</p>
           </CardContent>
         </Card>
       </div>

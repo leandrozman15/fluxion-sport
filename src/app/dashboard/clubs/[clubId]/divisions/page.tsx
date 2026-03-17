@@ -45,7 +45,7 @@ export default function ClubDivisionsListPage() {
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
     { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
-    { title: "Divisiones", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
+    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
@@ -87,23 +87,23 @@ export default function ClubDivisionsListPage() {
       <header className="flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold font-headline text-foreground">Divisiones: {club?.name}</h1>
+            <h1 className="text-3xl font-bold font-headline text-foreground">Categorías: {club?.name}</h1>
             <p className="text-muted-foreground">Ramas deportivas y niveles competitivos del club.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Nueva División
+                <Plus className="h-4 w-4" /> Nueva Categoría
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Crear División</DialogTitle>
+                <DialogTitle>Crear Categoría</DialogTitle>
                 <DialogDescription>Añade una rama (ej. Damas, Caballeros, Mami Hockey).</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Nombre de la División</Label>
+                  <Label>Nombre de la Categoría</Label>
                   <Input value={newDiv.name} onChange={e => setNewDiv({...newDiv, name: e.target.value})} placeholder="Ej. Damas" />
                 </div>
                 <div className="space-y-2">
@@ -154,7 +154,7 @@ export default function ClubDivisionsListPage() {
         )}
         {divisions?.length === 0 && !divsLoading && (
           <div className="col-span-full text-center py-12 border-2 border-dashed rounded-xl">
-            <p className="text-muted-foreground">Aún no hay divisiones registradas en {club?.name}.</p>
+            <p className="text-muted-foreground">Aún no hay categorías registradas en {club?.name}.</p>
           </div>
         )}
       </div>
@@ -162,7 +162,7 @@ export default function ClubDivisionsListPage() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar División</DialogTitle>
+            <DialogTitle>Editar Categoría</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
