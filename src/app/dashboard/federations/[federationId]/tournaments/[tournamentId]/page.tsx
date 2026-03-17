@@ -19,7 +19,8 @@ import {
   History,
   CheckCircle2,
   XCircle,
-  UserPlus
+  UserPlus,
+  User
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, getDocs, query, where, deleteDoc } from "firebase/firestore";
@@ -56,7 +57,8 @@ export default function TournamentDetailPage() {
     awayTeamId: "",
     date: "",
     location: "",
-    refereeId: ""
+    refereeId: "",
+    coachId: ""
   });
 
   const tourRef = useMemoFirebase(() => doc(db, "tournaments", tournamentId), [db, tournamentId]);
@@ -70,21 +72,26 @@ export default function TournamentDetailPage() {
 
   const clubsQuery = useMemoFirebase(() => collection(db, "clubs"), [db]);
   const { data: clubs } = useCollection(clubsQuery);
+  
   const [availableTeams, setAvailableTeams] = useState<any[]>([]);
+  const [clubCoaches, setClubCoaches] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchTeams() {
       if (!selectedClubId || !db) return;
+      
+      // Buscamos equipos del club
       const divsSnap = await getDocs(collection(db, "clubs", selectedClubId, "divisions"));
       let teams: any[] = [];
       for (const d of divsSnap.docs) {
-        const subsSnap = await getDocs(collection(db, "clubs", selectedClubId, "divisions", d.id, "subcategories"));
-        for (const s of subsSnap.docs) {
-          const ts = await getDocs(collection(db, "clubs", selectedClubId, "divisions", d.id, "subcategories", s.id, "teams"));
-          ts.forEach(t => teams.push({ ...t.data(), id: t.id, subcatName: s.data().name }));
-        }
+        const ts = await getDocs(collection(db, "clubs", selectedClubId, "divisions", d.id, "teams"));
+        ts.forEach(t => teams.push({ ...t.data(), id: t.id, divName: d.data().name }));
       }
       setAvailableTeams(teams);
+
+      // Buscamos entrenadores del club
+      const coachesSnap = await getDocs(query(collection(db, "users"), where("clubId", "==", selectedClubId), where("role", "==", "coach")));
+      setClubCoaches(coachesSnap.docs.map(d => ({ ...d.data(), id: d.id })));
     }
     fetchTeams();
   }, [selectedClubId, db]);
@@ -120,14 +127,17 @@ export default function TournamentDetailPage() {
     const matchId = doc(collection(db, "tournament_matches")).id;
     const home = clubs?.find(c => c.id === newMatch.homeTeamId);
     const away = clubs?.find(c => c.id === newMatch.awayTeamId);
+    const coach = clubCoaches.find(c => c.id === newMatch.coachId);
 
     setDoc(doc(db, "tournament_matches", matchId), {
       ...newMatch,
       id: matchId,
       tournamentId,
+      tournamentName: tournament?.name,
       categoryId: selectedCatId,
       homeTeamName: home?.name || "Local",
       awayTeamName: away?.name || "Visitante",
+      coachName: coach?.name || "No asignado",
       status: "scheduled",
       createdAt: new Date().toISOString()
     });
@@ -200,9 +210,9 @@ export default function TournamentDetailPage() {
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2"><Flag className="h-4 w-4" /> Programar Partido</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader><DialogTitle>Nuevo Encuentro</DialogTitle></DialogHeader>
-                <div className="space-y-4 py-4">
+              <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>Nuevo Encuentro de Torneo</DialogTitle></DialogHeader>
+                <div className="space-y-6 py-4">
                   <div className="space-y-2">
                     <Label>Categoría</Label>
                     <Select value={selectedCatId} onValueChange={setSelectedCatId}>
@@ -212,11 +222,11 @@ export default function TournamentDetailPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 border-t pt-4">
                     <div className="space-y-2">
                       <Label>Equipo Local</Label>
-                      <Select value={newMatch.homeTeamId} onValueChange={v => setNewMatch({...newMatch, homeTeamId: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      <Select value={newMatch.homeTeamId} onValueChange={v => { setNewMatch({...newMatch, homeTeamId: v}); setSelectedClubId(v); }}>
+                        <SelectTrigger><SelectValue placeholder="Club..." /></SelectTrigger>
                         <SelectContent>
                           {clubs?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                         </SelectContent>
@@ -225,23 +235,37 @@ export default function TournamentDetailPage() {
                     <div className="space-y-2">
                       <Label>Equipo Visitante</Label>
                       <Select value={newMatch.awayTeamId} onValueChange={v => setNewMatch({...newMatch, awayTeamId: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Club..." /></SelectTrigger>
                         <SelectContent>
                           {clubs?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
+                  
                   <div className="space-y-2">
-                    <Label>Fecha y Hora</Label>
-                    <Input type="datetime-local" value={newMatch.date} onChange={e => setNewMatch({...newMatch, date: e.target.value})} />
+                    <Label className="flex items-center gap-2"><User className="h-3 w-3" /> Entrenador Local Designado</Label>
+                    <Select value={newMatch.coachId} onValueChange={v => setNewMatch({...newMatch, coachId: v})}>
+                      <SelectTrigger><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
+                      <SelectContent>
+                        {clubCoaches.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {clubCoaches.length === 0 && <SelectItem value="_none" disabled>Selecciona un club local primero</SelectItem>}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Lugar/Cancha</Label>
-                    <Input value={newMatch.location} onChange={e => setNewMatch({...newMatch, location: e.target.value})} />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Fecha y Hora</Label>
+                      <Input type="datetime-local" value={newMatch.date} onChange={e => setNewMatch({...newMatch, date: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Lugar/Cancha</Label>
+                      <Input value={newMatch.location} onChange={e => setNewMatch({...newMatch, location: e.target.value})} placeholder="Sede del Club..." />
+                    </div>
                   </div>
                 </div>
-                <DialogFooter><Button onClick={handleCreateMatch}>Programar</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleCreateMatch} disabled={!newMatch.homeTeamId || !newMatch.awayTeamId || !newMatch.date}>Programar</Button></DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
@@ -250,19 +274,29 @@ export default function TournamentDetailPage() {
             {matches?.map((m: any) => (
               <Card key={m.id} className="overflow-hidden group hover:border-primary/50 transition-all">
                 <div className="flex flex-col md:flex-row items-center p-4 gap-6">
-                  <div className="flex-1 text-right font-bold text-lg">{m.homeTeamName || 'Local'}</div>
+                  <div className="flex-1 text-right">
+                    <p className="font-bold text-lg">{m.homeTeamName}</p>
+                    {m.coachName && <p className="text-[10px] text-muted-foreground italic">DT: {m.coachName}</p>}
+                  </div>
                   <div className="flex flex-col items-center px-6 py-2 bg-muted rounded-lg border">
                     <span className="text-xs font-bold uppercase text-muted-foreground">{new Date(m.date).toLocaleDateString()}</span>
                     <span className="text-xl font-black">VS</span>
                     <span className="text-xs font-bold">{new Date(m.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                   </div>
-                  <div className="flex-1 font-bold text-lg">{m.awayTeamName || 'Visita'}</div>
-                  <div className="flex flex-col gap-2">
-                    <Badge variant={m.status === 'played' ? 'secondary' : 'default'}>{m.status.toUpperCase()}</Badge>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg">{m.awayTeamName}</p>
+                    <p className="text-[10px] text-muted-foreground italic">Visitante</p>
+                  </div>
+                  <div className="flex flex-col gap-2 min-w-[120px]">
+                    <Badge className="justify-center" variant={m.status === 'played' ? 'secondary' : 'default'}>{m.status.toUpperCase()}</Badge>
                     <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => { setSelectedMatch(m); setIsCallupOpen(true); }}>
                       <UserPlus className="h-3 w-3" /> Citación
                     </Button>
                   </div>
+                </div>
+                <div className="bg-muted/30 px-4 py-2 flex items-center gap-4 text-[10px] font-bold text-muted-foreground border-t">
+                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {m.location}</span>
+                  <span className="flex items-center gap-1"><Flag className="h-3 w-3" /> Categoría: {categories?.find(c => c.id === m.categoryId)?.name || 'General'}</span>
                 </div>
               </Card>
             ))}
@@ -295,7 +329,7 @@ export default function TournamentDetailPage() {
               <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar Equipo..." /></SelectTrigger>
                 <SelectContent>
-                  {availableTeams.map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.subcatName})</SelectItem>)}
+                  {availableTeams.map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.divName})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -364,8 +398,6 @@ function MatchCallupManager({ match }: { match: any }) {
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [role, setRole] = useState<any>("starter");
   
-  // En un MVP, asumimos que el administrador elige jugadores de los clubes participantes
-  // Consultamos todos los jugadores de los clubes locales/visitantes para simplificar
   const [roster, setRoster] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -373,7 +405,6 @@ function MatchCallupManager({ match }: { match: any }) {
     async function fetchRoster() {
       if (!db) return;
       try {
-        // En una app real, buscaríamos solo del teamId específico asignado al torneo
         const playersSnap = await getDocs(collection(db, "clubs", match.homeTeamId, "players"));
         setRoster(playersSnap.docs.map(d => ({ ...d.data(), id: d.id })));
       } catch (e) { console.error(e); }
