@@ -1,44 +1,39 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { 
   ChevronLeft, 
   Loader2, 
   Calendar as CalendarIcon,
   MapPin,
-  Users,
-  Trophy,
   Plus,
   Trash2,
-  Tally3,
   Star,
-  Flag,
-  Save,
-  UserCheck,
   Send,
   Lock,
   CheckCircle2,
   XCircle,
-  HelpCircle
+  HelpCircle,
+  Users,
+  BellRing
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, setDoc, query, where, deleteDoc, getDocs } from "firebase/firestore";
+import { doc, collection, setDoc, query, where, deleteDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { Checkbox } from "@/components/ui/checkbox";
+import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 export default function EventAttendancePage() {
   const { clubId, divisionId, teamId, eventId } = useParams() as any;
@@ -48,10 +43,6 @@ export default function EventAttendancePage() {
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [selectedRole, setSelectedRole] = useState("starter");
   const [isCallupOpen, setIsCallupOpen] = useState(false);
-  const [isStatsOpen, setIsStatsOpen] = useState(false);
-  const [newStat, setNewStat] = useState({ playerId: "", goals: 0, assists: 0, yellowCards: 0, redCards: 0, minutesPlayed: 90 });
-  const [matchScore, setMatchScore] = useState({ home: 0, away: 0, finished: false });
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   const eventRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId), [db, clubId, divisionId, teamId, eventId]);
   const { data: event, isLoading: eventLoading } = useDoc(eventRef);
@@ -67,14 +58,6 @@ export default function EventAttendancePage() {
 
   const attendanceQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId, "attendance"), [db, clubId, divisionId, teamId, eventId]);
   const { data: attendanceList } = useCollection(attendanceQuery);
-
-  const handleUpdateScore = () => {
-    updateDocumentNonBlocking(eventRef, {
-      homeScore: Number(matchScore.home),
-      awayScore: Number(matchScore.away),
-      matchFinished: matchScore.finished
-    });
-  };
 
   const handleToggleAttendance = async (playerId: string, playerName: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'going' ? 'not_going' : currentStatus === 'not_going' ? 'unknown' : 'going';
@@ -93,7 +76,7 @@ export default function EventAttendancePage() {
     const player = roster?.find(p => p.playerId === selectedPlayerId);
     if (!player) return;
 
-    const callupId = doc(collection(db, "match_callups")).id;
+    const callupId = `${eventId}_${selectedPlayerId}`;
     const callupDoc = doc(db, "match_callups", callupId);
 
     setDoc(callupDoc, {
@@ -103,12 +86,33 @@ export default function EventAttendancePage() {
       playerId: selectedPlayerId,
       playerName: player.playerName,
       role: selectedRole,
-      status: "confirmed",
+      status: "pending",
+      published: event?.callupsPublished || false,
       createdAt: new Date().toISOString()
     });
 
     setSelectedPlayerId("");
     setIsCallupOpen(false);
+  };
+
+  const handlePublishCallups = () => {
+    if (!event || !callups) return;
+    
+    // 1. Marcar el evento como publicado
+    updateDocumentNonBlocking(eventRef, {
+      callupsPublished: true,
+      callupsPublishedAt: new Date().toISOString()
+    });
+
+    // 2. Marcar cada citación como publicada para que aparezca en la app del jugador
+    callups.forEach(c => {
+      updateDocumentNonBlocking(doc(db, "match_callups", c.id), { published: true });
+    });
+
+    toast({ 
+      title: "Convocatoria Enviada", 
+      description: "Las jugadoras ya pueden ver la citación en su aplicación." 
+    });
   };
 
   const handlePresentLineup = () => {
@@ -117,7 +121,7 @@ export default function EventAttendancePage() {
       lineupSubmitted: true,
       lineupSubmittedAt: new Date().toISOString()
     });
-    toast({ title: "Planilla Presentada", description: "El equipo ha sido enviado al árbitro." });
+    toast({ title: "Planilla Presentada", description: "El equipo ha sido enviado al árbitro oficial." });
   };
 
   if (eventLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
@@ -142,19 +146,22 @@ export default function EventAttendancePage() {
               <span className="flex items-center gap-1 text-sm"><MapPin className="h-4 w-4" /> {event?.location}</span>
             </div>
           </div>
-          {isMatch && (
-            <div className="flex gap-2">
-              {!event.lineupSubmitted ? (
-                <Button onClick={handlePresentLineup} variant="accent" className="gap-2 font-bold">
-                  <Send className="h-4 w-4" /> Presentar Planilla
-                </Button>
-              ) : (
-                <Badge className="bg-green-100 text-green-700 h-10 px-4 gap-2 border-green-200">
-                  <Lock className="h-4 w-4" /> Planilla Oficial Enviada
-                </Badge>
-              )}
-            </div>
-          )}
+          <div className="flex gap-2">
+            {isMatch && !event.callupsPublished && (
+              <Button onClick={handlePublishCallups} variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/5">
+                <BellRing className="h-4 w-4" /> Enviar a Jugadoras
+              </Button>
+            )}
+            {isMatch && !event.lineupSubmitted ? (
+              <Button onClick={handlePresentLineup} variant="default" className="gap-2 font-bold bg-primary hover:bg-primary/90">
+                <Send className="h-4 w-4" /> Presentar Planilla Oficial
+              </Button>
+            ) : isMatch && (
+              <Badge className="bg-green-100 text-green-700 h-10 px-4 gap-2 border-green-200">
+                <Lock className="h-4 w-4" /> Planilla Enviada
+              </Badge>
+            )}
+          </div>
         </div>
       </header>
 
@@ -162,13 +169,13 @@ export default function EventAttendancePage() {
         <TabsList className="mb-4">
           {isTraining && (
             <TabsTrigger value="attendance" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4" /> Control de Asistencia
+              <CheckCircle2 className="h-4 w-4" /> Control de Asistencia
             </TabsTrigger>
           )}
           {isMatch && (
             <>
               <TabsTrigger value="callups" className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4" /> Alineación
+                <Users className="h-4 w-4" /> Convocatoria & Alineación
               </TabsTrigger>
               <TabsTrigger value="stats" className="flex items-center gap-2">
                 <Star className="h-4 w-4" /> Estadísticas
@@ -181,7 +188,7 @@ export default function EventAttendancePage() {
           <Card>
             <CardHeader>
               <CardTitle>Pasar Lista</CardTitle>
-              <CardDescription>Haz clic en el icono para cambiar el estado de asistencia de cada jugadora.</CardDescription>
+              <CardDescription>Control diario de asistencia para entrenamientos.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -216,105 +223,107 @@ export default function EventAttendancePage() {
                 })}
               </div>
             </CardContent>
-            <CardFooter className="bg-muted/10 py-4 flex justify-between items-center">
-              <div className="flex gap-4 text-xs font-bold uppercase tracking-tighter">
-                <span className="flex items-center gap-1 text-green-600"><CheckCircle2 className="h-3 w-3" /> Presentes: {attendanceList?.filter(a => a.status === 'going').length || 0}</span>
-                <span className="flex items-center gap-1 text-red-600"><XCircle className="h-3 w-3" /> Ausentes: {attendanceList?.filter(a => a.status === 'not_going').length || 0}</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground italic">Los cambios se guardan automáticamente.</p>
-            </CardFooter>
           </Card>
         </TabsContent>
 
         <TabsContent value="callups">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg">Citación y Alineación</CardTitle>
-                <CardDescription>
-                  {event?.lineupSubmitted 
-                    ? "La planilla ya fue entregada. No se permiten cambios." 
-                    : "Define titulares y suplentes."}
-                </CardDescription>
-              </div>
-              {!event?.lineupSubmitted && (
-                <Dialog open={isCallupOpen} onOpenChange={setIsCallupOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Añadir Jugadora</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader><DialogTitle>Convocar Jugadora</DialogTitle></DialogHeader>
-                    <div className="py-4 space-y-4">
-                      <div className="space-y-2">
-                        <Label>Jugadora</Label>
-                        <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
-                          <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                          <SelectContent>
-                            {roster?.map((r: any) => <SelectItem key={r.playerId} value={r.playerId}>{r.playerName}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Rol en el Partido</Label>
-                        <Select value={selectedRole} onValueChange={setSelectedRole}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="starter">Titular</SelectItem>
-                            <SelectItem value="substitute">Suplente</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <DialogFooter><Button onClick={handleAddCallup}>Confirmar Citación</Button></DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Card className="lg:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-black text-primary uppercase tracking-widest mb-4">Titulares</h3>
-                  <div className="border rounded-xl divide-y">
+                  <CardTitle>Lista de Seleccionados</CardTitle>
+                  <CardDescription>Titulares y suplentes convocados para el partido.</CardDescription>
+                </div>
+                {!event?.lineupSubmitted && (
+                  <Dialog open={isCallupOpen} onOpenChange={setIsCallupOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Convocar Jugadora</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader><DialogTitle>Nueva Citación</DialogTitle></DialogHeader>
+                      <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                          <Label>Jugadora</Label>
+                          <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
+                            <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                            <SelectContent>
+                              {roster?.map((r: any) => <SelectItem key={r.playerId} value={r.playerId}>{r.playerName}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Rol</Label>
+                          <Select value={selectedRole} onValueChange={setSelectedRole}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="starter">Titular</SelectItem>
+                              <SelectItem value="substitute">Suplente</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter><Button onClick={handleAddCallup}>Confirmar Citación</Button></DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-primary uppercase tracking-widest">Titulares</h3>
+                  <div className="grid grid-cols-1 gap-2">
                     {callups?.filter(c => c.role === 'starter').map((c: any) => (
-                      <div key={c.id} className="flex items-center justify-between p-4 text-sm font-bold">
-                        <span>{c.playerName}</span>
-                        {!event?.lineupSubmitted && (
-                          <Button variant="ghost" size="sm" onClick={() => deleteDoc(doc(db, "match_callups", c.id))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        )}
-                      </div>
+                      <CallupRow key={c.id} callup={c} db={db} readOnly={!!event?.lineupSubmitted} />
                     ))}
                   </div>
                 </div>
-                <div>
-                  <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4">Suplentes</h3>
-                  <div className="border rounded-xl divide-y">
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Suplentes</h3>
+                  <div className="grid grid-cols-1 gap-2">
                     {callups?.filter(c => c.role === 'substitute').map((c: any) => (
-                      <div key={c.id} className="flex items-center justify-between p-4 text-sm font-bold">
-                        <span>{c.playerName}</span>
-                        {!event?.lineupSubmitted && (
-                          <Button variant="ghost" size="sm" onClick={() => deleteDoc(doc(db, "match_callups", c.id))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        )}
-                      </div>
+                      <CallupRow key={c.id} callup={c} db={db} readOnly={!!event?.lineupSubmitted} />
                     ))}
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className={cn("border-l-4", event?.callupsPublished ? "border-l-green-500" : "border-l-orange-500")}>
+                <CardHeader>
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    {event?.callupsPublished ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <HelpCircle className="h-4 w-4 text-orange-500" />}
+                    Estado de Citación
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-4">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Publicada:</span>
+                    <span className="font-bold">{event?.callupsPublished ? 'SÍ' : 'NO'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Confirmadas:</span>
+                    <span className="font-bold text-green-600">{callups?.filter(c => c.status === 'confirmed').length || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Bajas:</span>
+                    <span className="font-bold text-red-600">{callups?.filter(c => c.status === 'unavailable').length || 0}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="stats">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div><CardTitle className="text-lg">Desempeño Individual</CardTitle></div>
-            </CardHeader>
+            <CardHeader><CardTitle>Goleadoras y Desempeño</CardTitle></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Jugadora</TableHead>
                     <TableHead className="text-center">Goles</TableHead>
-                    <TableHead className="text-center">Asist</TableHead>
+                    <TableHead className="text-center">Asistencias</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -325,7 +334,7 @@ export default function EventAttendancePage() {
                       <TableCell className="text-center font-bold text-accent">{s.assists}</TableCell>
                     </TableRow>
                   ))}
-                  {(!stats || stats.length === 0) && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">Sin estadísticas registradas aún.</TableCell></TableRow>}
+                  {(!stats || stats.length === 0) && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground italic">Sin estadísticas cargadas.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
@@ -336,6 +345,27 @@ export default function EventAttendancePage() {
   );
 }
 
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
+function CallupRow({ callup, db, readOnly }: { callup: any, db: any, readOnly: boolean }) {
+  return (
+    <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/5 transition-colors">
+      <div className="flex items-center gap-3">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback>{callup.playerName[0]}</AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col">
+          <span className="text-sm font-bold">{callup.playerName}</span>
+          <span className="text-[10px] text-muted-foreground uppercase">
+            {callup.status === 'confirmed' ? '✅ Confirmada' : 
+             callup.status === 'unavailable' ? '❌ No puede ir' : 
+             '⏳ Pendiente de respuesta'}
+          </span>
+        </div>
+      </div>
+      {!readOnly && (
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => deleteDoc(doc(db, "match_callups", callup.id))}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
 }
