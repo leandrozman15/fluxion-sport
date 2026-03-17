@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { 
   Plus, 
@@ -13,10 +13,15 @@ import {
   UserPlus,
   TrendingUp,
   Activity,
-  Settings2
+  Settings2,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  Timer,
+  AlertCircle
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, query, where, getDocs, limit } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -27,21 +32,83 @@ import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-board";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TeamDetailPage() {
   const { clubId, divisionId, teamId } = useParams() as { clubId: string, divisionId: string, teamId: string };
   const db = useFirestore();
+  const { toast } = useToast();
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [todayEvent, setTodayEvent] = useState<any>(null);
+  const [eventLoading, setEventLoading] = useState(true);
 
+  // Datos básicos del equipo
   const teamRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), [db, clubId, divisionId, teamId]);
   const { data: team, isLoading: teamLoading } = useDoc(teamRef);
 
+  // Todos los jugadores del club (para asignar)
   const allPlayersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
   const { data: allPlayers } = useCollection(allPlayersQuery);
 
+  // Plantilla actual del equipo
   const rosterQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments"), [db, clubId, divisionId, teamId]);
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
+
+  // Buscar si hay un entrenamiento hoy para habilitar modo asistencia
+  useEffect(() => {
+    async function fetchTodayEvent() {
+      if (!db) return;
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const eventsRef = collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events");
+        const q = query(
+          eventsRef, 
+          where("type", "==", "training"),
+          where("date", ">=", today.toISOString()),
+          where("date", "<", tomorrow.toISOString()),
+          limit(1)
+        );
+        
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setTodayEvent({ ...snap.docs[0].data(), id: snap.docs[0].id });
+        }
+      } catch (e) {
+        console.error("Error buscando evento de hoy:", e);
+      } finally {
+        setEventLoading(false);
+      }
+    }
+    fetchTodayEvent();
+  }, [db, clubId, divisionId, teamId]);
+
+  // Obtener la lista de asistencia del evento de hoy si existe
+  const attendanceQuery = useMemoFirebase(() => {
+    if (!db || !todayEvent) return null;
+    return collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", todayEvent.id, "attendance");
+  }, [db, clubId, divisionId, teamId, todayEvent]);
+  
+  const { data: attendanceList } = useCollection(attendanceQuery);
+
+  const handleToggleAttendance = async (playerId: string, playerName: string, currentStatus: string) => {
+    if (!todayEvent) return;
+    
+    const nextStatus = currentStatus === 'going' ? 'not_going' : currentStatus === 'not_going' ? 'unknown' : 'going';
+    const attDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", todayEvent.id, "attendance", playerId);
+    
+    setDoc(attDoc, {
+      playerId,
+      playerName,
+      status: nextStatus,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  };
 
   const handleAssignPlayer = () => {
     if (!selectedPlayerId) return;
@@ -62,6 +129,7 @@ export default function TeamDetailPage() {
     
     setSelectedPlayerId("");
     setIsAssignOpen(false);
+    toast({ title: "Jugadora Asignada", description: `${player?.firstName} ya es parte de la plantilla.` });
   };
 
   const handleUnassignPlayer = (id: string) => {
@@ -127,6 +195,28 @@ export default function TeamDetailPage() {
         </div>
       </header>
 
+      {todayEvent && (
+        <Card className="border-primary bg-primary/5 animate-in slide-in-from-top duration-500">
+          <CardHeader className="py-4 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary p-2 rounded-lg text-primary-foreground">
+                <Timer className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary">Entrenamiento en Curso</CardTitle>
+                <CardDescription className="text-xs font-medium">{todayEvent.title} • {todayEvent.location}</CardDescription>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase text-muted-foreground">Presentes</p>
+              <p className="text-lg font-black text-primary">
+                {attendanceList?.filter(a => a.status === 'going').length || 0} / {roster?.length || 0}
+              </p>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
+
       <Tabs defaultValue="roster" className="w-full">
         <TabsList className="bg-muted/50 p-1 mb-6">
           <TabsTrigger value="roster" className="gap-2 px-6"><Users className="h-4 w-4" /> Plantilla</TabsTrigger>
@@ -136,26 +226,60 @@ export default function TeamDetailPage() {
         <TabsContent value="roster">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Plantilla Oficial</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" /> Plantilla Oficial
+                  </CardTitle>
+                  <CardDescription>
+                    {todayEvent ? "Toma asistencia haciendo clic en los iconos." : "Gestiona las jugadoras asignadas a este equipo."}
+                  </CardDescription>
+                </div>
+                {todayEvent && (
+                  <Badge className="bg-green-100 text-green-700 border-green-200">MODO ASISTENCIA ACTIVO</Badge>
+                )}
               </CardHeader>
               <CardContent>
                 {rosterLoading ? <Loader2 className="animate-spin" /> : (
                   <div className="divide-y">
-                    {roster?.map((member: any) => (
-                      <div key={member.id} className="flex items-center justify-between py-3 group">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 border-2 border-muted">
-                            <AvatarImage src={member.playerPhoto} />
-                            <AvatarFallback>J</AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{member.playerName}</span>
+                    {roster?.map((member: any) => {
+                      const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
+                      return (
+                        <div key={member.id} className="flex items-center justify-between py-3 group">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 border-2 border-muted">
+                              <AvatarImage src={member.playerPhoto} />
+                              <AvatarFallback>{member.playerName[0]}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{member.playerName}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            {todayEvent ? (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleToggleAttendance(member.playerId, member.playerName, status)}
+                                className={cn(
+                                  "h-10 w-10 p-0 rounded-full border transition-all",
+                                  status === 'going' ? "bg-green-100 text-green-600 border-green-200" :
+                                  status === 'not_going' ? "bg-red-100 text-red-600 border-red-200" :
+                                  "bg-muted text-muted-foreground border-transparent"
+                                )}
+                              >
+                                {status === 'going' ? <CheckCircle2 className="h-5 w-5" /> : 
+                                 status === 'not_going' ? <XCircle className="h-5 w-5" /> : 
+                                 <HelpCircle className="h-5 w-5" />}
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleUnassignPlayer(member.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleUnassignPlayer(member.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {(!roster || roster.length === 0) && (
                       <div className="py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">
                         No hay jugadoras asignadas. Usa el botón "Asignar Jugadora".
@@ -174,6 +298,14 @@ export default function TeamDetailPage() {
                     <span className="text-muted-foreground">Total Jugadoras</span>
                     <span className="font-bold text-lg">{roster?.length || 0}</span>
                   </div>
+                  {!todayEvent && (
+                    <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5 shrink-0" />
+                      <p className="text-[10px] text-orange-700 leading-tight">
+                        No hay entrenamientos programados para hoy. Para tomar asistencia, programa una sesión en la pestaña <strong>Calendario</strong>.
+                      </p>
+                    </div>
+                  )}
                   <Button asChild variant="outline" className="w-full text-xs">
                     <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>Ver Rankings de Goleadoras</Link>
                   </Button>
