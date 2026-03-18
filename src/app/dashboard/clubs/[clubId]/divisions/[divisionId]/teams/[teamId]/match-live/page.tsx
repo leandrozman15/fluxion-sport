@@ -33,6 +33,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PositionSlot {
   id: string;
@@ -65,6 +66,7 @@ export default function MatchLiveTrackerPage() {
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
   const [opponentName, setOpponentName] = useState("Rival");
+  const [sport, setSport] = useState<'hockey' | 'rugby'>('hockey');
   
   // Estados de Pizarra
   const [playerCount, setPlayerCount] = useState(11);
@@ -111,24 +113,36 @@ export default function MatchLiveTrackerPage() {
   // Inicializar posiciones de la pizarra
   useEffect(() => {
     const newPositions: PositionSlot[] = [];
-    newPositions.push({ id: 'pos-gk', x: 50, y: 90, label: 'GK', assignedPlayerId: null });
+    
+    if (sport === 'hockey') {
+      newPositions.push({ id: 'pos-gk', x: 50, y: 90, label: 'GK', assignedPlayerId: null });
+      const remaining = playerCount - 1;
+      const defCount = Math.ceil(remaining * 0.35);
+      const midCount = Math.ceil(remaining * 0.35);
+      const fwdCount = Math.max(0, remaining - defCount - midCount);
 
-    const remaining = playerCount - 1;
-    const defCount = Math.ceil(remaining * 0.35);
-    const midCount = Math.ceil(remaining * 0.35);
-    const fwdCount = remaining - defCount - midCount;
-
-    for (let i = 0; i < defCount; i++) {
-      newPositions.push({ id: `pos-df-${i}`, x: (100 / (defCount + 1)) * (i + 1), y: 70, label: 'DF', assignedPlayerId: null });
-    }
-    for (let i = 0; i < midCount; i++) {
-      newPositions.push({ id: `pos-md-${i}`, x: (100 / (midCount + 1)) * (i + 1), y: 45, label: 'MF', assignedPlayerId: null });
-    }
-    for (let i = 0; i < fwdCount; i++) {
-      newPositions.push({ id: `pos-fw-${i}`, x: (100 / (fwdCount + 1)) * (i + 1), y: 20, label: 'FW', assignedPlayerId: null });
+      for (let i = 0; i < defCount; i++) {
+        newPositions.push({ id: `pos-df-${i}`, x: (100 / (defCount + 1)) * (i + 1), y: 70, label: 'DF', assignedPlayerId: null });
+      }
+      for (let i = 0; i < midCount; i++) {
+        newPositions.push({ id: `pos-md-${i}`, x: (100 / (midCount + 1)) * (i + 1), y: 45, label: 'MF', assignedPlayerId: null });
+      }
+      for (let i = 0; i < fwdCount; i++) {
+        newPositions.push({ id: `pos-fw-${i}`, x: (100 / (fwdCount + 1)) * (i + 1), y: 20, label: 'FW', assignedPlayerId: null });
+      }
+    } else {
+      // Rugby positions
+      const fwds = Math.ceil(playerCount * 0.5);
+      const backs = playerCount - fwds;
+      for (let i = 0; i < fwds; i++) {
+        newPositions.push({ id: `pos-rug-f-${i}`, x: (100 / (fwds + 1)) * (i + 1), y: 60, label: 'F', assignedPlayerId: null });
+      }
+      for (let i = 0; i < backs; i++) {
+        newPositions.push({ id: `pos-rug-b-${i}`, x: (100 / (backs + 1)) * (i + 1), y: 35, label: 'B', assignedPlayerId: null });
+      }
     }
     setPositions(newPositions);
-  }, [playerCount]);
+  }, [playerCount, sport]);
 
   // Lógica del Cronómetro y Tiempo de Juego
   useEffect(() => {
@@ -136,10 +150,7 @@ export default function MatchLiveTrackerPage() {
     if (isActive) {
       interval = setInterval(() => {
         setSeconds(prev => prev + 1);
-        
-        // Identificar quiénes están en cancha (asignados a un slot)
         const activeIds = positions.map(p => p.assignedPlayerId).filter(id => id !== null);
-        
         setPlayerStats(prev => {
           const updated = { ...prev };
           activeIds.forEach(id => {
@@ -162,7 +173,6 @@ export default function MatchLiveTrackerPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Manejo de movimiento de fichas
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!draggingPosId || !fieldRef.current) return;
     const rect = fieldRef.current.getBoundingClientRect();
@@ -173,7 +183,6 @@ export default function MatchLiveTrackerPage() {
     ));
   };
 
-  // Drag & Drop para asignar jugadores
   const onDragStartPlayer = (e: React.DragEvent, playerId: string) => {
     e.dataTransfer.setData("playerId", playerId);
   };
@@ -182,11 +191,8 @@ export default function MatchLiveTrackerPage() {
     e.preventDefault();
     const playerId = e.dataTransfer.getData("playerId");
     if (!playerId) return;
-
     setPositions(prev => {
-      // Quitar de cualquier otro slot (cambio)
       const cleaned = prev.map(p => p.assignedPlayerId === playerId ? { ...p, assignedPlayerId: null } : p);
-      // Asignar al nuevo slot
       return cleaned.map(p => p.id === slotId ? { ...p, assignedPlayerId: playerId } : p);
     });
   };
@@ -208,28 +214,22 @@ export default function MatchLiveTrackerPage() {
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
 
-    // 1. Registrar evento en la lista de incidencias
     setMatchEvents(prev => [newEvent, ...prev]);
 
-    // 2. Actualizar marcador si es gol (Separado para evitar doble incremento)
     if (type === 'goal') {
       setHomeScore(s => s + 1);
     }
 
-    // 3. Actualizar estadísticas individuales de la jugadora
     setPlayerStats(prev => {
       const p = prev[playerId];
       if (!p) return prev;
-      
       const updated = { ...p };
       if (type === 'goal') updated.goals += 1;
       if (type === 'yellow') updated.yellowCards += 1;
       if (type === 'red') updated.redCards += 1;
-      
       return { ...prev, [playerId]: updated };
     });
 
-    // 4. Si es roja, remover del campo automáticamente
     if (type === 'red') {
       setPositions(pos => pos.map(slot => slot.assignedPlayerId === playerId ? { ...slot, assignedPlayerId: null } : slot));
     }
@@ -240,7 +240,6 @@ export default function MatchLiveTrackerPage() {
   const handleFinalizeMatch = async () => {
     setIsActive(false);
     const matchId = `live_${Date.now()}`;
-    
     try {
       const eventDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", matchId);
       await setDoc(eventDoc, {
@@ -277,7 +276,6 @@ export default function MatchLiveTrackerPage() {
           });
         }
       }
-
       toast({ title: "Partido Guardado", description: "Estadísticas procesadas correctamente." });
       router.push(`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}`);
     } catch (e) {
@@ -313,11 +311,9 @@ export default function MatchLiveTrackerPage() {
         </div>
       </header>
 
-      {/* Marcador y Reloj Principal */}
       <Card className="bg-slate-900 text-white border-none shadow-xl overflow-hidden">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-            {/* Local */}
             <div className="text-center space-y-2">
               <Badge className="bg-primary text-white border-none uppercase text-[10px] tracking-widest px-3">Local</Badge>
               <h2 className="text-xl font-black truncate">{team?.name || "Mi Equipo"}</h2>
@@ -330,7 +326,6 @@ export default function MatchLiveTrackerPage() {
               </div>
             </div>
 
-            {/* Cronómetro */}
             <div className="flex flex-col items-center justify-center p-4 bg-white/5 rounded-2xl border border-white/10">
               <div className="text-5xl font-black font-mono tracking-tighter tabular-nums text-primary">
                 {formatTime(seconds)}
@@ -344,12 +339,8 @@ export default function MatchLiveTrackerPage() {
                   {isActive ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current" />}
                 </Button>
               </div>
-              <p className="mt-2 text-[10px] font-bold opacity-50 uppercase tracking-widest">
-                {isActive ? "Tiempo de Juego" : "Pausado"}
-              </p>
             </div>
 
-            {/* Visitante */}
             <div className="text-center space-y-2">
               <Badge className="bg-slate-700 text-white border-none uppercase text-[10px] tracking-widest px-3">Visitante</Badge>
               <Input 
@@ -371,21 +362,32 @@ export default function MatchLiveTrackerPage() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Pizarra del Campo */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-primary" /> Campo de Juego
             </h3>
-            <div className="flex items-center gap-4 bg-white p-2 rounded-lg border shadow-sm">
-              <Label className="text-[10px] font-bold uppercase">Sistema:</Label>
-              <Badge variant="secondary" className="font-black">{playerCount} vs {playerCount}</Badge>
-              <Slider 
-                className="w-32"
-                value={[playerCount]} 
-                min={5} max={11} step={1} 
-                onValueChange={(v) => setPlayerCount(v[0])}
-              />
+            <div className="flex items-center gap-4 bg-white p-2 rounded-xl border shadow-sm">
+              <Tabs value={sport} onValueChange={(v: any) => {
+                setSport(v);
+                if (v === 'hockey' && playerCount > 11) setPlayerCount(11);
+              }}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="hockey" className="text-[10px] uppercase font-bold">Hockey</TabsTrigger>
+                  <TabsTrigger value="rugby" className="text-[10px] uppercase font-bold">Rugby</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <div className="h-6 w-px bg-border" />
+              <div className="flex items-center gap-2">
+                <Label className="text-[10px] font-bold uppercase">Jugadores:</Label>
+                <Badge variant="secondary" className="font-black h-5">{playerCount}</Badge>
+                <Slider 
+                  className="w-24 md:w-32"
+                  value={[playerCount]} 
+                  min={5} max={sport === 'rugby' ? 15 : 11} step={1} 
+                  onValueChange={(v) => setPlayerCount(v[0])}
+                />
+              </div>
             </div>
           </div>
           
@@ -393,15 +395,25 @@ export default function MatchLiveTrackerPage() {
             ref={fieldRef}
             className="relative w-full aspect-[2/3] max-w-lg mx-auto bg-[#244d1f] rounded-2xl border-[6px] border-white shadow-2xl overflow-hidden cursor-crosshair"
           >
-            {/* Marcado de Cancha (SVG) */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50" viewBox="0 0 100 150">
-              <line x1="0" y1="75" x2="100" y2="75" stroke="white" strokeWidth="0.8" />
-              <circle cx="50" cy="75" r="10" fill="none" stroke="white" strokeWidth="0.8" />
-              <path d="M 15 0 Q 15 30 50 30 Q 85 30 85 0" fill="none" stroke="white" strokeWidth="0.8" />
-              <path d="M 15 150 Q 15 120 50 120 Q 85 120 85 150" fill="none" stroke="white" strokeWidth="0.8" />
+              {sport === 'hockey' ? (
+                <>
+                  <line x1="0" y1="75" x2="100" y2="75" stroke="white" strokeWidth="0.8" />
+                  <circle cx="50" cy="75" r="10" fill="none" stroke="white" strokeWidth="0.8" />
+                  <path d="M 15 0 Q 15 30 50 30 Q 85 30 85 0" fill="none" stroke="white" strokeWidth="0.8" />
+                  <path d="M 15 150 Q 15 120 50 120 Q 85 120 85 150" fill="none" stroke="white" strokeWidth="0.8" />
+                </>
+              ) : (
+                <>
+                  <line x1="0" y1="15" x2="100" y2="15" stroke="white" strokeWidth="1" />
+                  <line x1="0" y1="135" x2="100" y2="135" stroke="white" strokeWidth="1" />
+                  <line x1="0" y1="40" x2="100" y2="40" stroke="white" strokeWidth="0.5" strokeDasharray="2,2" />
+                  <line x1="0" y1="110" x2="100" y2="110" stroke="white" strokeWidth="0.5" strokeDasharray="2,2" />
+                  <line x1="0" y1="75" x2="100" y2="75" stroke="white" strokeWidth="1.2" />
+                </>
+              )}
             </svg>
             
-            {/* Fichas de Jugadoras */}
             {positions.map((p) => {
               const stats = p.assignedPlayerId ? playerStats[p.assignedPlayerId] : null;
               return (
@@ -425,7 +437,6 @@ export default function MatchLiveTrackerPage() {
                         <AvatarImage src={stats?.playerPhoto} />
                         <AvatarFallback className="text-[10px] font-black opacity-50">{p.label}</AvatarFallback>
                       </Avatar>
-                      
                       {stats && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleUnassign(p.id); }}
@@ -434,8 +445,6 @@ export default function MatchLiveTrackerPage() {
                           <X className="h-3 w-3" />
                         </button>
                       )}
-
-                      {/* Botones de acción rápidos al hover */}
                       {stats && (
                         <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 z-50">
                           <Button size="icon" className="h-7 w-7 rounded-full bg-primary" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'goal'); }}>⚽</Button>
@@ -444,10 +453,9 @@ export default function MatchLiveTrackerPage() {
                         </div>
                       )}
                     </div>
-                    
                     {stats && (
                       <div className="mt-1 flex flex-col items-center">
-                        <span className="px-2 py-0.5 bg-black/80 backdrop-blur-sm rounded-full text-[9px] font-bold text-white whitespace-nowrap shadow-sm">
+                        <span className="px-2 py-0.5 bg-black/80 backdrop-blur-sm rounded-full text-[9px] font-bold text-white shadow-sm">
                           {stats.playerName.split(' ')[0]}
                         </span>
                         <span className="text-[8px] font-black text-primary bg-white/90 px-1 rounded mt-0.5">
@@ -462,14 +470,12 @@ export default function MatchLiveTrackerPage() {
           </div>
         </div>
 
-        {/* Banco de Suplentes */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           <Card className="flex-1 flex flex-col border-none shadow-xl bg-slate-50">
             <CardHeader className="bg-slate-200/50 pb-4">
               <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                 <Users className="h-4 w-4 text-slate-600" /> Banco de Suplentes
               </CardTitle>
-              <CardDescription className="text-[10px] font-bold">Arrastra al campo para realizar el cambio</CardDescription>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-hidden">
               <ScrollArea className="h-[450px]">
@@ -483,7 +489,7 @@ export default function MatchLiveTrackerPage() {
                         draggable={!isAssigned}
                         onDragStart={(e) => onDragStartPlayer(e, p.playerId)}
                         className={cn(
-                          "flex items-center justify-between p-3 rounded-xl border-2 transition-all group",
+                          "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
                           isAssigned 
                             ? "bg-muted/50 opacity-40 border-transparent grayscale" 
                             : "bg-white border-transparent hover:border-primary/30 shadow-sm cursor-grab active:cursor-grabbing"
@@ -502,7 +508,6 @@ export default function MatchLiveTrackerPage() {
                           </div>
                         </div>
                         {!isAssigned && <GripVertical className="h-4 w-4 text-muted-foreground opacity-30" />}
-                        {isAssigned && <RefreshCw className="h-3 w-3 text-primary animate-spin-slow" />}
                       </div>
                     );
                   })}
@@ -511,7 +516,6 @@ export default function MatchLiveTrackerPage() {
             </CardContent>
           </Card>
 
-          {/* Registro de Incidencias */}
           <Card className="h-fit shadow-md border-none bg-slate-900 text-white">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -530,9 +534,6 @@ export default function MatchLiveTrackerPage() {
                       <span className="opacity-60 truncate max-w-[80px]">{ev.playerName.split(' ')[0]}</span>
                     </div>
                   ))}
-                  {matchEvents.length === 0 && (
-                    <p className="text-center py-8 text-[10px] opacity-30 font-bold uppercase">Sin incidencias</p>
-                  )}
                 </div>
               </ScrollArea>
             </CardContent>
