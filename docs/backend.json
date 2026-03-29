@@ -11,7 +11,7 @@
         "email": { "type": "string" },
         "role": { 
           "type": "string", 
-          "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee"],
+          "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee", "coordinator"],
           "description": "Determina el alcance de permisos: global, regional, de club o individual."
         },
         "clubId": { "type": "string" },
