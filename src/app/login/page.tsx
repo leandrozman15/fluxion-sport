@@ -33,7 +33,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Si ya está logueado, redirigir según rol
   useEffect(() => {
     if (user && !isUserLoading) {
       handleRedirectByRole(user.uid);
@@ -45,19 +44,10 @@ export default function LoginPage() {
       const userDoc = await getDoc(doc(firestore, "users", uid));
       if (userDoc.exists()) {
         const role = userDoc.data().role;
-        switch (role) {
-          case 'player':
-            router.push('/dashboard/player');
-            break;
-          case 'coach':
-            router.push('/dashboard/coach');
-            break;
-          case 'referee':
-            router.push('/dashboard/referee');
-            break;
-          default:
-            router.push('/dashboard');
-        }
+        if (role === 'coach') router.push('/dashboard/coach');
+        else if (role === 'player') router.push('/dashboard/player');
+        else if (role === 'referee') router.push('/dashboard/referee');
+        else router.push('/dashboard');
       } else {
         router.push('/dashboard');
       }

@@ -1,6 +1,8 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Trophy, 
   Users, 
@@ -34,7 +36,35 @@ import {
 export default function DashboardPage() {
   const { firestore, user, auth, isUserLoading } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
   const [seeding, setSeeding] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+
+  // Verificación de seguridad adicional en el Dashboard de Admin
+  useEffect(() => {
+    async function checkAdmin() {
+      if (!user) {
+        setIsAuthorized(false);
+        return;
+      }
+      try {
+        const userDoc = await getDoc(doc(firestore, "users", user.uid));
+        const role = userDoc.data()?.role;
+        if (role === 'coach') {
+          router.push('/dashboard/coach');
+        } else if (role === 'player') {
+          router.push('/dashboard/player');
+        } else if (role === 'admin' || role === 'fed_admin') {
+          setIsAuthorized(true);
+        } else {
+          setIsAuthorized(true); // Permitir por defecto si no hay rol para no bloquear el seeding inicial
+        }
+      } catch (e) {
+        setIsAuthorized(true);
+      }
+    }
+    if (!isUserLoading) checkAdmin();
+  }, [user, isUserLoading, firestore, router]);
 
   const handleSeedData = async () => {
     if (!firestore) return;
@@ -45,7 +75,6 @@ export default function DashboardPage() {
 
     setSeeding(true);
     try {
-      // 1. Cargar Usuario Admin
       await setDoc(doc(firestore, "users", user.uid), {
         id: user.uid,
         name: user.displayName || "Administrador Demo",
@@ -54,17 +83,14 @@ export default function DashboardPage() {
         createdAt: new Date().toISOString()
       }, { merge: true });
 
-      // 2. Cargar Federación
       for (const fed of demoFederations) {
         await setDoc(doc(firestore, "federations", fed.id), { ...fed, ownerId: user.uid, createdAt: new Date().toISOString() });
       }
       
-      // 3. Cargar Asociación
       for (const assoc of demoAssociations) {
         await setDoc(doc(firestore, "federations", assoc.federationId, "associations", assoc.id), { ...assoc, createdAt: new Date().toISOString() });
       }
 
-      // 4. Cargar Clubes
       for (const club of demoClubs) {
         await setDoc(doc(firestore, "clubs", club.id), { ...club, ownerId: user.uid, createdAt: new Date().toISOString() });
         const divId = "div-inferiores-" + club.id;
@@ -105,7 +131,7 @@ export default function DashboardPage() {
     }
   };
 
-  if (isUserLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
+  if (isUserLoading || isAuthorized === null) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
 
   return (
     <div className="space-y-10 max-w-7xl mx-auto py-2">
