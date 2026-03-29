@@ -12,7 +12,6 @@ import {
   Flag, 
   ClipboardCheck, 
   Building2,
-  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +29,7 @@ import {
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { useEffect, useState } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -82,14 +82,14 @@ export function SidebarNav() {
   const pendingCount = pendingCallups?.length || 0;
 
   return (
-    <Sidebar className="border-r-0 shadow-sm">
+    <Sidebar className="border-r-0 shadow-sm" collapsible="icon">
       <SidebarHeader className="p-6">
         <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="bg-primary p-2 rounded-xl text-primary-foreground shadow-lg group-hover:scale-110 transition-transform">
+          <div className="bg-primary p-2 rounded-xl text-primary-foreground shadow-lg group-hover:scale-110 transition-transform shrink-0">
             <Trophy className="h-6 w-6" />
           </div>
-          <div className="flex flex-col">
-            <span className="font-headline font-black text-xl tracking-tighter leading-none">SportsManager</span>
+          <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
+            <span className="font-headline font-black text-xl tracking-tighter leading-none truncate">SportsManager</span>
             <span className="text-[10px] font-black uppercase text-accent tracking-[0.2em]">Platform</span>
           </div>
         </Link>
@@ -125,7 +125,7 @@ export function SidebarNav() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"} tooltip="Mi Panel">
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"} tooltip="Panel del Jugador">
                   <Link href="/dashboard/player">
                     <UserCircle className="h-4 w-4" />
                     <span className="font-bold">Panel del Jugador</span>
@@ -146,7 +146,7 @@ export function SidebarNav() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"} tooltip="Mis Pagos">
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"} tooltip="Pagos & Cuotas">
                   <Link href="/dashboard/player/payments">
                     <CreditCard className="h-4 w-4" />
                     <span className="font-bold">Pagos & Cuotas</span>
@@ -178,7 +178,7 @@ export function SidebarNav() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="opacity-60" tooltip="Federaciones Nacionales">
+                <SidebarMenuButton asChild className="opacity-60" tooltip="Federaciones">
                   <Link href="/dashboard/federations">
                     <Globe className="h-4 w-4" />
                     <span className="font-bold">Federaciones</span>
@@ -186,7 +186,7 @@ export function SidebarNav() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="opacity-60" tooltip="Arbitraje & Oficiales">
+                <SidebarMenuButton asChild className="opacity-60" tooltip="Arbitraje">
                   <Link href="/dashboard/referee">
                     <Flag className="h-4 w-4" />
                     <span className="font-bold">Arbitraje</span>
@@ -200,11 +200,11 @@ export function SidebarNav() {
 
       <SidebarFooter className="p-6">
         {user && (
-          <div className="flex items-center gap-3 p-3 bg-white/50 rounded-2xl border border-white shadow-sm overflow-hidden">
-            <Avatar className="h-8 w-8 border-2 border-primary/10">
+          <div className="flex items-center gap-3 p-3 bg-white/50 rounded-2xl border border-white shadow-sm overflow-hidden group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:shadow-none">
+            <Avatar className="h-8 w-8 border-2 border-primary/10 shrink-0">
               <AvatarFallback className="bg-primary/5 text-primary text-[10px] font-black uppercase">{user.email?.[0]}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col min-w-0">
+            <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
               <span className="text-[10px] font-black truncate text-foreground">{user.email}</span>
               <span className="text-[8px] uppercase text-primary font-black tracking-widest">{userRole || 'Socio'}</span>
             </div>
