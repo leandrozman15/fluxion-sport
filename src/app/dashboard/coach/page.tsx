@@ -17,17 +17,17 @@ import {
   Flag,
   BarChart3,
   PlayCircle,
-  UserPlus,
   Timer,
   AlertCircle,
   CheckCircle2,
   XCircle,
-  HelpCircle
+  HelpCircle,
+  ClipboardList
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, getDocs, doc, setDoc, limit } from "firebase/firestore";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,7 +44,6 @@ export default function CoachDashboard() {
   const [loading, setLoading] = useState(true);
   const [todayEvent, setTodayEvent] = useState<any>(null);
 
-  // 1. Buscar el equipo que dirige este entrenador
   useEffect(() => {
     async function fetchMyTeam() {
       if (!user || !firestore) return;
@@ -75,9 +74,30 @@ export default function CoachDashboard() {
           }
           if (foundTeam) break;
         }
+        
+        // Si no encuentra por nombre, buscamos el primer equipo disponible para la demo
+        if (!foundTeam && clubsSnap.docs.length > 0) {
+          const firstClubId = clubsSnap.docs[0].id;
+          const divsSnap = await getDocs(collection(firestore, "clubs", firstClubId, "divisions"));
+          if (!divsSnap.empty) {
+            const firstDivId = divsSnap.docs[0].id;
+            const teamsSnap = await getDocs(collection(firestore, "clubs", firstClubId, "divisions", firstDivId, "teams"));
+            if (!teamsSnap.empty) {
+              const tDoc = teamsSnap.docs[0];
+              foundTeam = {
+                ...tDoc.data(),
+                id: tDoc.id,
+                clubId: firstClubId,
+                divisionId: firstDivId,
+                clubName: clubsSnap.docs[0].data().name,
+                divisionName: divsSnap.docs[0].data().name
+              };
+            }
+          }
+        }
+
         setTeam(foundTeam);
 
-        // Buscar si hay entrenamiento hoy para este equipo
         if (foundTeam) {
           const todayStr = new Date().toISOString().split('T')[0];
           const eventsSnap = await getDocs(query(
@@ -96,7 +116,6 @@ export default function CoachDashboard() {
     fetchMyTeam();
   }, [user, firestore]);
 
-  // 2. Cargar Roster y Asistencia si hay equipo
   const rosterQuery = useMemoFirebase(() => {
     if (!firestore || !team) return null;
     return collection(firestore, "clubs", team.clubId, "divisions", team.divisionId, "teams", team.id, "assignments");
@@ -123,11 +142,10 @@ export default function CoachDashboard() {
   };
 
   const coachNav = [
-    { title: "Gestión Técnica", href: "/dashboard/coach", icon: LayoutDashboard },
-    { title: "Agenda Global", href: "/dashboard/calendar", icon: Calendar },
-    { title: "Padrón Jugadores", href: "/dashboard/player/search", icon: Users },
+    { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
+    { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
+    { title: "Búsqueda Jugadores", href: "/dashboard/player/search", icon: Users },
     { title: "Arbitraje", href: "/dashboard/referee", icon: Flag },
-    { title: "Estadísticas CAH", href: "/dashboard/federations", icon: BarChart3 },
   ];
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
@@ -201,11 +219,15 @@ export default function CoachDashboard() {
           </Card>
         )}
 
-        <Tabs defaultValue="roster" className="w-full">
+        <Tabs defaultValue="tactical" className="w-full">
           <TabsList className="bg-muted/50 p-1 mb-6">
-            <TabsTrigger value="roster" className="gap-2 px-8 font-bold"><Users className="h-4 w-4" /> Plantilla</TabsTrigger>
             <TabsTrigger value="tactical" className="gap-2 px-8 font-bold"><Settings2 className="h-4 w-4" /> Pizarra Táctica</TabsTrigger>
+            <TabsTrigger value="roster" className="gap-2 px-8 font-bold"><Users className="h-4 w-4" /> Plantilla</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="tactical">
+            <HockeyTacticalBoard roster={roster || []} />
+          </TabsContent>
 
           <TabsContent value="roster">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -308,10 +330,6 @@ export default function CoachDashboard() {
                 </Card>
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="tactical">
-            <HockeyTacticalBoard roster={roster || []} />
           </TabsContent>
         </Tabs>
       </div>
