@@ -8,18 +8,16 @@ import {
   Play, 
   Pause, 
   RotateCcw, 
-  UserPlus, 
   Trophy, 
   ChevronLeft,
   Loader2,
   Save,
-  Clock,
   Activity,
   Users,
   ShieldCheck,
-  RefreshCw,
   GripVertical,
-  X
+  X,
+  Target
 } from "lucide-react";
 import { doc, setDoc, collection } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -49,6 +47,9 @@ interface MatchPlayerStats {
   playerPhoto: string;
   timePlayed: number; // en segundos
   goals: number;
+  trys: number;
+  conversions: number;
+  penalties: number;
   yellowCards: number;
   redCards: number;
 }
@@ -102,6 +103,9 @@ export default function MatchLiveTrackerPage() {
           playerPhoto: p.playerPhoto,
           timePlayed: 0,
           goals: 0,
+          trys: 0,
+          conversions: 0,
+          penalties: 0,
           yellowCards: 0,
           redCards: 0
         };
@@ -201,7 +205,7 @@ export default function MatchLiveTrackerPage() {
     setPositions(prev => prev.map(p => p.id === slotId ? { ...p, assignedPlayerId: null } : p));
   };
 
-  const handleEvent = (playerId: string, type: 'goal' | 'yellow' | 'red') => {
+  const handleEvent = (playerId: string, type: 'goal' | 'try' | 'conversion' | 'penalty' | 'yellow' | 'red') => {
     const player = playerStats[playerId];
     if (!player) return;
 
@@ -216,15 +220,20 @@ export default function MatchLiveTrackerPage() {
 
     setMatchEvents(prev => [newEvent, ...prev]);
 
-    if (type === 'goal') {
-      setHomeScore(s => s + 1);
-    }
+    // Actualizar Marcador
+    if (type === 'goal') setHomeScore(s => s + 1);
+    if (type === 'try') setHomeScore(s => s + 5);
+    if (type === 'conversion') setHomeScore(s => s + 2);
+    if (type === 'penalty') setHomeScore(s => s + 3);
 
     setPlayerStats(prev => {
       const p = prev[playerId];
       if (!p) return prev;
       const updated = { ...p };
       if (type === 'goal') updated.goals += 1;
+      if (type === 'try') updated.trys += 1;
+      if (type === 'conversion') updated.conversions += 1;
+      if (type === 'penalty') updated.penalties += 1;
       if (type === 'yellow') updated.yellowCards += 1;
       if (type === 'red') updated.redCards += 1;
       return { ...prev, [playerId]: updated };
@@ -259,7 +268,7 @@ export default function MatchLiveTrackerPage() {
 
       for (const pId in playerStats) {
         const p = playerStats[pId];
-        if (p.timePlayed > 0 || p.goals > 0 || p.yellowCards > 0 || p.redCards > 0) {
+        if (p.timePlayed > 0 || p.goals > 0 || p.trys > 0 || p.yellowCards > 0 || p.redCards > 0) {
           const statId = `${matchId}_${pId}`;
           const statDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", matchId, "stats", statId);
           await setDoc(statDoc, {
@@ -268,6 +277,9 @@ export default function MatchLiveTrackerPage() {
             playerId: pId,
             playerName: p.playerName,
             goals: p.goals,
+            trys: p.trys,
+            conversions: p.conversions,
+            penalties: p.penalties,
             assists: 0,
             yellowCards: p.yellowCards,
             redCards: p.redCards,
@@ -352,8 +364,19 @@ export default function MatchLiveTrackerPage() {
               <div className="flex items-center justify-center gap-4">
                 <div className="text-6xl font-black tabular-nums">{awayScore}</div>
                 <div className="flex flex-col gap-1">
-                  <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 1)} className="h-6 w-6 p-0 text-xs">+</Button>
-                  <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => Math.max(0, s - 1))} className="h-6 w-6 p-0 text-xs">-</Button>
+                  {sport === 'rugby' ? (
+                    <div className="flex gap-1">
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 5)} className="px-2 text-[10px] font-bold">+5</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 3)} className="px-2 text-[10px] font-bold">+3</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 2)} className="px-2 text-[10px] font-bold">+2</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => Math.max(0, s - 1))} className="px-2 text-[10px] font-bold">-1</Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 1)} className="h-6 w-6 p-0 text-xs">+</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => Math.max(0, s - 1))} className="h-6 w-6 p-0 text-xs">-</Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -446,10 +469,18 @@ export default function MatchLiveTrackerPage() {
                         </button>
                       )}
                       {stats && (
-                        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 z-50">
-                          <Button size="icon" className="h-7 w-7 rounded-full bg-primary" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'goal'); }}>⚽</Button>
-                          <Button size="icon" className="h-7 w-7 rounded-full bg-yellow-500" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'yellow'); }}>🟨</Button>
-                          <Button size="icon" className="h-7 w-7 rounded-full bg-red-600" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'red'); }}>🟥</Button>
+                        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 z-50 bg-black/80 p-1.5 rounded-full backdrop-blur-sm">
+                          {sport === 'hockey' ? (
+                            <Button size="icon" className="h-8 w-8 rounded-full bg-primary" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'goal'); }}>⚽</Button>
+                          ) : (
+                            <>
+                              <Button size="icon" className="h-8 w-8 rounded-full bg-orange-600" title="TRY (5pts)" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'try'); }}>🏉</Button>
+                              <Button size="icon" className="h-8 w-8 rounded-full bg-blue-600" title="CONV (2pts)" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'conversion'); }}>🎯</Button>
+                              <Button size="icon" className="h-8 w-8 rounded-full bg-green-600" title="PEN/DROP (3pts)" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'penalty'); }}>👟</Button>
+                            </>
+                          )}
+                          <Button size="icon" className="h-8 w-8 rounded-full bg-yellow-500" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'yellow'); }}>🟨</Button>
+                          <Button size="icon" className="h-8 w-8 rounded-full bg-red-600" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'red'); }}>🟥</Button>
                         </div>
                       )}
                     </div>
@@ -529,7 +560,13 @@ export default function MatchLiveTrackerPage() {
                     <div key={ev.id} className="flex items-center justify-between p-2 rounded bg-white/5 text-[10px] border border-white/5">
                       <div className="flex items-center gap-2">
                         <span className="font-black text-primary">{ev.minute}'</span>
-                        <span className="font-bold">{ev.type === 'goal' ? '⚽ GOL' : ev.type === 'yellow' ? '🟨 AMARILLA' : '🟥 ROJA'}</span>
+                        <span className="font-bold uppercase">
+                          {ev.type === 'goal' ? '⚽ GOL' : 
+                           ev.type === 'try' ? '🏉 TRY' : 
+                           ev.type === 'conversion' ? '🎯 CONV' : 
+                           ev.type === 'penalty' ? '👟 PENAL' : 
+                           ev.type === 'yellow' ? '🟨 AMARILLA' : '🟥 ROJA'}
+                        </span>
                       </div>
                       <span className="opacity-60 truncate max-w-[80px]">{ev.playerName.split(' ')[0]}</span>
                     </div>
