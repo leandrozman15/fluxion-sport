@@ -21,7 +21,9 @@ import {
   Lock,
   Eye,
   EyeOff,
-  UserCog
+  UserCog,
+  Briefcase,
+  Contact2
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
@@ -62,7 +64,6 @@ export default function ClubCoachesPage() {
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
 
-  // Consultamos todos los usuarios vinculados a este club
   const coachesQuery = useMemoFirebase(() => 
     query(collection(db, "users"), where("clubId", "==", clubId)),
     [db, clubId]
@@ -83,9 +84,7 @@ export default function ClubCoachesPage() {
     if (!newCoach.email || !newCoach.password || !newCoach.name) return;
 
     try {
-      // Nota: initiateEmailSignUp registra al usuario en Firebase Auth.
       initiateEmailSignUp(auth, newCoach.email, newCoach.password);
-
       const userId = doc(collection(db, "users")).id;
       const userDoc = doc(db, "users", userId);
       
@@ -103,20 +102,12 @@ export default function ClubCoachesPage() {
         createdAt: new Date().toISOString()
       });
       
-      toast({
-        title: "Miembro Registrado",
-        description: `Se ha creado la cuenta para ${newCoach.name} con el rol de ${newCoach.role}.`,
-      });
-
+      toast({ title: "Miembro Registrado", description: `Cuenta creada para ${newCoach.name}.` });
       setNewCoach({ name: "", email: "", phone: "", password: "", role: "coach", specialty: "", license: "", photoUrl: "" });
       setIsCreateOpen(false);
     } catch (error) {
       console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Error al registrar",
-        description: "No se pudo crear la cuenta de acceso.",
-      });
+      toast({ variant: "destructive", title: "Error al registrar" });
     }
   };
 
@@ -156,159 +147,157 @@ export default function ClubCoachesPage() {
       <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
       
       <div className="flex-1 space-y-8">
-        <header className="flex flex-col gap-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold font-headline text-foreground">Personal del Club: {club?.name}</h1>
-              <p className="text-muted-foreground">Gestión de staff, coordinadores y accesos al sistema.</p>
-            </div>
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-2 shadow-lg">
-                  <Plus className="h-4 w-4" /> Registrar Nuevo Miembro
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Nueva Ficha de Personal</DialogTitle>
-                  <DialogDescription>Añade un miembro y define su contraseña de primer ingreso.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold font-headline text-foreground">Staff Institucional</h1>
+            <p className="text-muted-foreground">Gestión centralizada del personal y accesos del club.</p>
+          </div>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2 shadow-lg h-12 px-6">
+                <Plus className="h-5 w-5" /> Registrar Nuevo Miembro
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Nueva Ficha de Personal</DialogTitle>
+                <DialogDescription>Añade un miembro y define su acceso inicial.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Nombre Completo</Label>
+                  <Input value={newCoach.name} onChange={e => setNewCoach({...newCoach, name: e.target.value})} placeholder="Ej. Camila Entrenadora" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Rol en la Institución</Label>
+                  <Select value={newCoach.role} onValueChange={v => setNewCoach({...newCoach, role: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="coach">Entrenador</SelectItem>
+                      <SelectItem value="coordinator">Coordinador</SelectItem>
+                      <SelectItem value="club_admin">Administrador</SelectItem>
+                      <SelectItem value="player">Jugador (con acceso)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Nombre Completo</Label>
-                    <Input value={newCoach.name} onChange={e => setNewCoach({...newCoach, name: e.target.value})} placeholder="Ej. Camila Entrenadora" />
+                    <Label>Email (Usuario)</Label>
+                    <Input type="email" value={newCoach.email} onChange={e => setNewCoach({...newCoach, email: e.target.value})} placeholder="usuario@club.com" />
                   </div>
-                  
                   <div className="space-y-2">
-                    <Label>Rol en la Institución</Label>
-                    <Select value={newCoach.role} onValueChange={v => setNewCoach({...newCoach, role: v})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar rol..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="coach">Entrenador</SelectItem>
-                        <SelectItem value="coordinator">Coordinador</SelectItem>
-                        <SelectItem value="club_admin">Administrador</SelectItem>
-                        <SelectItem value="player">Jugador (con acceso)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Email (Usuario)</Label>
-                      <Input type="email" value={newCoach.email} onChange={e => setNewCoach({...newCoach, email: e.target.value})} placeholder="camila@club.com" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Contraseña Temporal</Label>
-                      <div className="relative">
-                        <Input 
-                          type={showPassword ? "text" : "password"} 
-                          value={newCoach.password} 
-                          onChange={e => setNewCoach({...newCoach, password: e.target.value})} 
-                          placeholder="Mín. 6 caracteres"
-                        />
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Teléfono</Label>
-                    <Input value={newCoach.phone} onChange={e => setNewCoach({...newCoach, phone: e.target.value})} placeholder="+54..." />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Especialidad / Cargo</Label>
-                      <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. DT Primera" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Licencia / Título</Label>
-                      <Input value={newCoach.license} onChange={e => setNewCoach({...newCoach, license: e.target.value})} placeholder="Ej. Nivel 2 CAH" />
+                    <Label>Contraseña Temporal</Label>
+                    <div className="relative">
+                      <Input type={showPassword ? "text" : "password"} value={newCoach.password} onChange={e => setNewCoach({...newCoach, password: e.target.value})} placeholder="Min. 6 car." />
+                      <Button variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3" onClick={() => setShowPassword(!showPassword)}><Eye className="h-4 w-4" /></Button>
                     </div>
                   </div>
                 </div>
-                <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6 mt-4">
-                  <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreateCoach} disabled={!newCoach.name || !newCoach.email || newCoach.password.length < 6}>
-                    Crear Ficha y Acceso
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+                <div className="space-y-2">
+                  <Label>Teléfono</Label>
+                  <Input value={newCoach.phone} onChange={e => setNewCoach({...newCoach, phone: e.target.value})} placeholder="+54..." />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Especialidad / Cargo</Label>
+                    <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. Hockey Damas" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Licencia / Título</Label>
+                    <Input value={newCoach.license} onChange={e => setNewCoach({...newCoach, license: e.target.value})} placeholder="Ej. Nivel 2 CAH" />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6 mt-4">
+                <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                <Button onClick={handleCreateCoach} disabled={!newCoach.name || !newCoach.email || newCoach.password.length < 6}>Crear Ficha</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
           {coachesLoading ? (
-            <div className="col-span-full flex justify-center p-12"><Loader2 className="animate-spin" /></div>
+            <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>
           ) : (
             coaches?.map((coach: any) => (
-              <Card key={coach.id} className="hover:border-primary transition-all overflow-hidden group border-2">
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <Avatar className="h-14 w-14 border-2 border-primary/10">
-                    <AvatarImage src={coach.photoUrl} />
-                    <AvatarFallback><UserRound /></AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <CardTitle className="text-lg leading-tight">{coach.name}</CardTitle>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-[10px] uppercase font-bold">
-                        {getRoleLabel(coach.role)}
-                      </Badge>
-                      <CardDescription className="font-medium text-primary text-xs truncate max-w-[100px]">{coach.specialty}</CardDescription>
+              <Card key={coach.id} className="hover:border-primary/50 transition-all overflow-hidden border-2 group shadow-sm">
+                <CardContent className="p-0">
+                  <div className="flex flex-col md:flex-row md:items-center">
+                    {/* Perfil */}
+                    <div className="flex items-center gap-4 p-4 md:w-1/4 border-b md:border-b-0 md:border-r bg-muted/5">
+                      <Avatar className="h-12 w-12 border-2 border-primary/10 shadow-sm">
+                        <AvatarImage src={coach.photoUrl} />
+                        <AvatarFallback><UserRound /></AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-base truncate">{coach.name}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-[9px] uppercase font-black px-1.5 h-4">
+                            {getRoleLabel(coach.role)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Info Técnica y Contacto */}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                          <Briefcase className="h-3 w-3" /> {coach.specialty || 'Sin cargo definido'}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3" /> {coach.email}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" /> {coach.phone || 'Sin teléfono'}
+                        </div>
+                        {coach.requiresPasswordChange && (
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-600 uppercase">
+                            <Lock className="h-3 w-3" /> Pendiente Cambio Clave
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="p-4 md:border-l flex items-center justify-between md:justify-end gap-3 bg-muted/5">
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:bg-red-50" onClick={() => handleDeleteCoach(coach.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-primary/5" onClick={() => { setEditingCoach(coach); setIsEditOpen(true); }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {coach.role === 'coach' ? (
+                        <Button variant="outline" size="sm" asChild className="font-bold h-9 gap-2 border-primary text-primary hover:bg-primary hover:text-white transition-all">
+                          <Link href="/dashboard/coach">
+                            Ver Panel <ClipboardCheck className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      ) : coach.role === 'club_admin' ? (
+                        <Badge className="bg-primary text-white gap-1 h-9 px-3"><UserCog className="h-3 w-3" /> Administrador</Badge>
+                      ) : null}
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground pb-4">
-                  <div className="flex items-center gap-2"><Mail className="h-3 w-3" /> {coach.email}</div>
-                  <div className="flex items-center gap-2"><Phone className="h-3 w-3" /> {coach.phone || 'Sin teléfono'}</div>
-                  {coach.requiresPasswordChange && (
-                    <Badge variant="outline" className="mt-2 bg-orange-50 text-orange-700 border-orange-200 gap-1">
-                      <Lock className="h-3 w-3" /> Pendiente Cambio Clave
-                    </Badge>
-                  )}
                 </CardContent>
-                <CardFooter className="flex justify-between border-t bg-muted/10 pt-4">
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDeleteCoach(coach.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditingCoach(coach); setIsEditOpen(true); }}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {coach.role === 'coach' && (
-                    <Button variant="outline" size="sm" asChild className="font-bold">
-                      <Link href="/dashboard/coach">
-                        Ver Panel <ClipboardCheck className="h-4 w-4 ml-2" />
-                      </Link>
-                    </Button>
-                  )}
-                  {coach.role === 'club_admin' && (
-                    <Badge className="bg-primary text-white gap-1"><UserCog className="h-3 w-3" /> Administrador</Badge>
-                  )}
-                </CardFooter>
               </Card>
             ))
           )}
           {coaches?.length === 0 && !coachesLoading && (
-            <div className="col-span-full text-center py-20 border-2 border-dashed rounded-xl bg-muted/20">
+            <div className="text-center py-20 border-2 border-dashed rounded-2xl bg-muted/10">
               <UserRound className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-              <p className="text-muted-foreground">Aún no hay miembros registrados en {club?.name}.</p>
+              <p className="text-muted-foreground font-medium">Aún no hay miembros registrados.</p>
             </div>
           )}
         </div>
       </div>
 
+      {/* Modal de edición */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Editar Perfil</DialogTitle></DialogHeader>
@@ -332,10 +321,6 @@ export default function ClubCoachesPage() {
             <div className="space-y-2">
               <Label>Especialidad</Label>
               <Input value={editingCoach?.specialty || ""} onChange={e => setEditingCoach({...editingCoach, specialty: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={editingCoach?.email || ""} onChange={e => setEditingCoach({...editingCoach, email: e.target.value})} />
             </div>
             <div className="space-y-2">
               <Label>Teléfono</Label>
