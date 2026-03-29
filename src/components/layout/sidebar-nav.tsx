@@ -1,37 +1,18 @@
-
 "use client";
 
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
-  Settings,
-  Trophy,
-  Users,
-  ShieldCheck,
-  Calendar,
-  CreditCard,
-  UserCircle,
-  Activity,
-  Table as TableIcon,
-  Globe,
-  Flag,
-  UserCog,
-  ClipboardCheck,
+  Trophy, 
+  UserCircle, 
+  ShieldCheck, 
+  CreditCard, 
+  Globe, 
+  Flag, 
+  ClipboardCheck, 
   Building2,
-  FileText,
-  BarChart3,
-  CheckCircle2,
-  Bell,
-  Search,
-  UserRound,
-  Layers,
-  ArrowRightLeft,
-  Stethoscope,
-  ShoppingBag,
-  ListOrdered
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -51,8 +32,6 @@ import { doc, getDoc, collection, query, where, getDocs } from "firebase/firesto
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const params = useParams();
-  const clubId = params?.clubId as string;
   const { user, firestore } = useFirebase();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [playerInfo, setPlayerInfo] = useState<any>(null);
@@ -60,9 +39,13 @@ export function SidebarNav() {
   useEffect(() => {
     async function fetchRole() {
       if (!user || !firestore) return;
-      const userDoc = await getDoc(doc(firestore, "users", user.uid));
-      if (userDoc.exists()) {
-        setUserRole(userDoc.data().role);
+      try {
+        const userDoc = await getDoc(doc(firestore, "users", user.uid));
+        if (userDoc.exists()) {
+          setUserRole(userDoc.data().role);
+        }
+      } catch (e) {
+        console.error("Error fetching role:", e);
       }
     }
     fetchRole();
@@ -70,17 +53,19 @@ export function SidebarNav() {
 
   useEffect(() => {
     async function findId() {
-      if (userRole === 'player' || !userRole) {
-        if (!user || !firestore) return;
+      if (!user || !firestore) return;
+      try {
         const q = query(collection(firestore, "all_players_index"), where("email", "==", user.email));
         const snap = await getDocs(q);
         if (!snap.empty) {
           setPlayerInfo(snap.docs[0].data());
         }
+      } catch (e) {
+        console.error("Error finding player info:", e);
       }
     }
     findId();
-  }, [user, firestore, userRole]);
+  }, [user, firestore]);
 
   const pendingCallupsQuery = useMemoFirebase(() => {
     if (!firestore || !playerInfo) return null;
@@ -94,9 +79,6 @@ export function SidebarNav() {
 
   const { data: pendingCallups } = useCollection(pendingCallupsQuery);
   const pendingCount = pendingCallups?.length || 0;
-
-  const isPlayer = userRole === 'player' || !userRole;
-  const playerClubId = playerInfo?.clubId || clubId;
 
   return (
     <Sidebar>
@@ -133,45 +115,43 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Panel del Jugador - Siempre visible para el rol player o si no hay rol (invitado) */}
-        {isPlayer && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"}>
-                    <Link href="/dashboard/player">
-                      <UserCircle className="h-4 w-4" />
-                      <span>Panel del Jugador</span>
-                    </Link>
-                  </SidebarMenuButton>
-                  {pendingCount > 0 && (
-                    <SidebarMenuBadge className="bg-orange-500 text-white font-bold">
-                      {pendingCount}
-                    </SidebarMenuBadge>
-                  )}
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"}>
-                    <Link href="/dashboard/player/id-card">
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>Mi Carnet Digital</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"}>
-                    <Link href="/dashboard/player/payments">
-                      <CreditCard className="h-4 w-4" />
-                      <span>Pagos & Cuotas</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {/* Panel del Jugador - Siempre visible durante el prototipado */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"}>
+                  <Link href="/dashboard/player">
+                    <UserCircle className="h-4 w-4" />
+                    <span>Panel del Jugador</span>
+                  </Link>
+                </SidebarMenuButton>
+                {pendingCount > 0 && (
+                  <SidebarMenuBadge className="bg-orange-500 text-white font-bold">
+                    {pendingCount}
+                  </SidebarMenuBadge>
+                )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"}>
+                  <Link href="/dashboard/player/id-card">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>Mi Carnet Digital</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"}>
+                  <Link href="/dashboard/player/payments">
+                    <CreditCard className="h-4 w-4" />
+                    <span>Pagos & Cuotas</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Staff Técnico */}
         <SidebarGroup>
