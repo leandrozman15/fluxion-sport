@@ -2,14 +2,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Reglas globales para prototipado rápido
-    // Versión: 1.0.2 - Re-desplegando para corregir error de permisos en subcolección de pagos
+    // REGLAS DE ACCESO TOTAL PARA PROTOTIPADO
+    // Versión: 1.0.3 - Forzando permisos globales y específicos para subcolecciones profundas
+    
+    // Permitir todo por defecto en cualquier ruta (lectura y escritura pública)
     match /{document=**} {
       allow read, write: if true;
     }
 
-    // Regla explícita para la ruta de pagos de jugadores
+    // Regla explícita redundante para asegurar acceso a la subcolección de pagos
+    // Esto ayuda en casos donde la propagación de la regla recursiva (**) es lenta en sub-niveles
     match /clubs/{clubId}/players/{playerId}/payments/{paymentId} {
+      allow read, write: if true;
+    }
+    
+    // Asegurar acceso a la colección de índice de búsqueda global
+    match /all_players_index/{playerId} {
+      allow read, write: if true;
+    }
+    
+    // Permitir acceso a la colección de usuarios/perfiles
+    match /users/{userId} {
       allow read, write: if true;
     }
   }
