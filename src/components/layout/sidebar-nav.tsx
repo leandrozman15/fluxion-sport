@@ -87,7 +87,8 @@ export function SidebarNav() {
     return query(
       collection(firestore, "match_callups"), 
       where("playerId", "==", playerInfo.id),
-      where("status", "==", "pending")
+      where("status", "==", "pending"),
+      where("published", "==", true)
     );
   }, [firestore, playerInfo]);
 
@@ -95,7 +96,6 @@ export function SidebarNav() {
   const pendingCount = pendingCallups?.length || 0;
 
   const isPlayer = userRole === 'player' || !userRole;
-  
   const playerClubId = playerInfo?.clubId || clubId;
 
   return (
@@ -108,31 +108,24 @@ export function SidebarNav() {
       </SidebarHeader>
       
       <SidebarContent>
+        {/* Acceso Principal al Dashboard */}
         <SidebarGroup>
-          <SidebarGroupLabel>Mi Institución</SidebarGroupLabel>
+          <SidebarGroupLabel>Administración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
+                  <Link href="/dashboard">
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Inicio Sistema</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clubs") && !pathname.includes("/shop")}>
                   <Link href="/dashboard/clubs">
                     <Building2 className="h-4 w-4" />
-                    <span>Panel de Clubes</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"}>
-                  <Link href="/dashboard/coach">
-                    <ClipboardCheck className="h-4 w-4" />
-                    <span>Cuerpo Técnico</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"}>
-                  <Link href="/dashboard/player/id-card">
-                    <ShieldCheck className="h-4 w-4" />
-                    <span>Carnet Digital</span>
+                    <span>Gestión de Clubes</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -140,6 +133,7 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Panel del Jugador - Siempre visible para el rol player o si no hay rol (invitado) */}
         {isPlayer && (
           <SidebarGroup>
             <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
@@ -149,30 +143,28 @@ export function SidebarNav() {
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"}>
                     <Link href="/dashboard/player">
                       <UserCircle className="h-4 w-4" />
-                      <span>Mi Ficha & Convocatorias</span>
+                      <span>Panel del Jugador</span>
                     </Link>
                   </SidebarMenuButton>
                   {pendingCount > 0 && (
-                    <SidebarMenuBadge className="bg-destructive text-destructive-foreground">
+                    <SidebarMenuBadge className="bg-orange-500 text-white font-bold">
                       {pendingCount}
                     </SidebarMenuBadge>
                   )}
                 </SidebarMenuItem>
-                {playerClubId && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname.includes("/shop") && !pathname.includes("/admin")}>
-                      <Link href={`/dashboard/clubs/${playerClubId}/shop`}>
-                        <ShoppingBag className="h-4 w-4" />
-                        <span>Tienda del Club</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"}>
+                    <Link href="/dashboard/player/id-card">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Mi Carnet Digital</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"}>
                     <Link href="/dashboard/player/payments">
                       <CreditCard className="h-4 w-4" />
-                      <span>Cuotas & Mensualidades</span>
+                      <span>Pagos & Cuotas</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -180,6 +172,23 @@ export function SidebarNav() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
+        {/* Staff Técnico */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Cuerpo Técnico</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"}>
+                  <Link href="/dashboard/coach">
+                    <ClipboardCheck className="h-4 w-4" />
+                    <span>Mis Equipos</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel>Ecosistema Externo</SidebarGroupLabel>
