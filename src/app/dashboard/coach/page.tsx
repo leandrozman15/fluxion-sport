@@ -5,42 +5,52 @@ import { useState, useEffect } from "react";
 import { 
   Users, 
   Loader2, 
-  ChevronRight, 
+  ChevronLeft, 
   Trophy,
   Calendar,
   Activity,
   ClipboardCheck,
-  UserCircle,
   Star,
   TrendingUp,
-  History,
-  LayoutGrid,
-  PlayCircle,
   Settings2,
   LayoutDashboard,
   Flag,
-  BarChart3
+  BarChart3,
+  PlayCircle,
+  UserPlus,
+  Timer,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  HelpCircle
 } from "lucide-react";
 import Link from "next/link";
-import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, limit } from "firebase/firestore";
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, where, getDocs, doc, setDoc, limit } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
+import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-board";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CoachDashboard() {
   const { firestore, user } = useFirebase();
-  const [teams, setTeams] = useState<any[]>([]);
+  const { toast } = useToast();
+  const [team, setTeam] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [todayEvent, setTodayEvent] = useState<any>(null);
 
+  // 1. Buscar el equipo que dirige este entrenador
   useEffect(() => {
-    async function fetchMyTeams() {
+    async function fetchMyTeam() {
       if (!user || !firestore) return;
       try {
         const clubsSnap = await getDocs(collection(firestore, "clubs"));
-        const myTeams: any[] = [];
+        let foundTeam = null;
 
         for (const clubDoc of clubsSnap.docs) {
           const divsSnap = await getDocs(collection(firestore, "clubs", clubDoc.id, "divisions"));
@@ -50,119 +60,260 @@ export default function CoachDashboard() {
               where("coachName", "==", user.displayName || user.email)
             ));
 
-            for (const tDoc of teamsSnap.docs) {
-              const teamData = tDoc.data();
-              const rosterSnap = await getDocs(collection(firestore, "clubs", clubDoc.id, "divisions", divDoc.id, "teams", tDoc.id, "assignments"));
-              const matchesSnap = await getDocs(query(
-                collection(firestore, "clubs", clubDoc.id, "divisions", divDoc.id, "teams", tDoc.id, "events"),
-                where("type", "==", "match"),
-                where("status", "==", "played"),
-                limit(3)
-              ));
-              
-              const results = matchesSnap.docs.map(d => d.data());
-
-              myTeams.push({
-                ...teamData,
+            if (!teamsSnap.empty) {
+              const tDoc = teamsSnap.docs[0];
+              foundTeam = {
+                ...tDoc.data(),
                 id: tDoc.id,
                 clubId: clubDoc.id,
                 divisionId: divDoc.id,
                 clubName: clubDoc.data().name,
-                divisionName: divDoc.data().name,
-                rosterSize: rosterSnap.size,
-                recentResults: results
-              });
+                divisionName: divDoc.data().name
+              };
+              break;
             }
           }
+          if (foundTeam) break;
         }
-        setTeams(myTeams);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
+        setTeam(foundTeam);
+
+        // Buscar si hay entrenamiento hoy para este equipo
+        if (foundTeam) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const eventsSnap = await getDocs(query(
+            collection(firestore, "clubs", foundTeam.clubId, "divisions", foundTeam.divisionId, "teams", foundTeam.id, "events"),
+            where("type", "==", "training")
+          ));
+          const found = eventsSnap.docs.find(d => d.data().date?.startsWith(todayStr));
+          if (found) setTodayEvent({ ...found.data(), id: found.id });
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
     }
-    fetchMyTeams();
+    fetchMyTeam();
   }, [user, firestore]);
 
+  // 2. Cargar Roster y Asistencia si hay equipo
+  const rosterQuery = useMemoFirebase(() => {
+    if (!firestore || !team) return null;
+    return collection(firestore, "clubs", team.clubId, "divisions", team.divisionId, "teams", team.id, "assignments");
+  }, [firestore, team]);
+  const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
+
+  const attendanceQuery = useMemoFirebase(() => {
+    if (!firestore || !team || !todayEvent) return null;
+    return collection(firestore, "clubs", team.clubId, "divisions", team.divisionId, "teams", team.id, "events", todayEvent.id, "attendance");
+  }, [firestore, team, todayEvent]);
+  const { data: attendanceList } = useCollection(attendanceQuery);
+
+  const handleToggleAttendance = async (playerId: string, playerName: string, currentStatus: string) => {
+    if (!todayEvent || !team) return;
+    const nextStatus = currentStatus === 'going' ? 'not_going' : currentStatus === 'not_going' ? 'unknown' : 'going';
+    const attDoc = doc(firestore, "clubs", team.clubId, "divisions", team.divisionId, "teams", team.id, "events", todayEvent.id, "attendance", playerId);
+    
+    setDoc(attDoc, {
+      playerId,
+      playerName,
+      status: nextStatus,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  };
+
   const coachNav = [
-    { title: "Mis Equipos", href: "/dashboard/coach", icon: LayoutDashboard },
+    { title: "Gestión Técnica", href: "/dashboard/coach", icon: LayoutDashboard },
     { title: "Agenda Global", href: "/dashboard/calendar", icon: Calendar },
     { title: "Padrón Jugadores", href: "/dashboard/player/search", icon: Users },
     { title: "Arbitraje", href: "/dashboard/referee", icon: Flag },
-    { title: "Estadísticas", href: "/dashboard/federations", icon: BarChart3 },
+    { title: "Estadísticas CAH", href: "/dashboard/federations", icon: BarChart3 },
   ];
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
+
+  if (!team) return (
+    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6">
+      <div className="bg-muted p-6 rounded-full mb-4">
+        <ClipboardCheck className="h-12 w-12 text-muted-foreground opacity-20" />
+      </div>
+      <h2 className="text-2xl font-black tracking-tight">Sin Equipo Asignado</h2>
+      <p className="text-muted-foreground max-w-sm mt-2">No hemos encontrado un plantel bajo tu dirección técnica. Contacta al administrador del club.</p>
+    </div>
+  );
 
   return (
     <div className="flex gap-8 animate-in fade-in duration-500">
       <SectionNav items={coachNav} basePath="/dashboard/coach" />
       
-      <div className="flex-1 space-y-10 pb-20">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex-1 space-y-8 pb-20">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-black font-headline text-foreground tracking-tight">Centro de Alto Rendimiento</h1>
-            <p className="text-muted-foreground text-lg">Bienvenido, Prof. {user?.displayName || user?.email}</p>
-          </div>
-          <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border shadow-sm">
-            <div className="text-right">
-              <p className="text-[10px] font-black uppercase text-primary leading-none mb-1">Estado de Licencia</p>
-              <p className="text-xs font-bold">Validado por CAH/Federación</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-black font-headline text-foreground">{team.name}</h1>
+              <Badge variant="outline" className="font-bold">{team.season}</Badge>
             </div>
-            <div className="bg-primary/10 p-2 rounded-xl"><ClipboardCheck className="h-6 w-6 text-primary" /></div>
+            <p className="text-muted-foreground font-medium">{team.clubName} • {team.divisionName}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg font-bold gap-2">
+              <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/match-live`}>
+                <PlayCircle className="h-4 w-4" /> Iniciar Partido Live
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="sm">
+              <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/attendance-ranking`}>
+                <Activity className="h-4 w-4 mr-2" /> Asistencia
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="sm">
+              <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/events`}>
+                <Calendar className="h-4 w-4 mr-2" /> Calendario
+              </Link>
+            </Button>
+            <Button variant="outline" asChild size="sm">
+              <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/stats`}>
+                <TrendingUp className="h-4 w-4 mr-2" /> Goleadores
+              </Link>
+            </Button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {teams.map((team) => (
-            <Card key={team.id} className="overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all group flex flex-col bg-card">
-              <div className="bg-slate-900 p-8 text-white relative overflow-hidden">
-                <div className="relative z-10">
-                  <div className="flex justify-between items-start mb-6">
-                    <Badge className="bg-primary text-white border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest">{team.divisionName}</Badge>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50 flex items-center gap-2"><Trophy className="h-3 w-3" /> {team.clubName}</span>
-                  </div>
-                  <h3 className="text-4xl font-black font-headline tracking-tighter leading-none">{team.name}</h3>
-                  <p className="text-white/60 font-bold mt-2 uppercase text-xs tracking-wider">Temporada Oficial {team.season}</p>
+        {todayEvent && (
+          <Card className="border-primary bg-primary/5 animate-in slide-in-from-top duration-500">
+            <CardHeader className="py-4 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary p-2 rounded-lg text-primary-foreground shadow-sm">
+                  <Timer className="h-5 w-5" />
                 </div>
-                <Users className="absolute right-[-20px] bottom-[-20px] h-48 w-48 opacity-5 -rotate-12" />
+                <div>
+                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary">Entrenamiento en Curso</CardTitle>
+                  <CardDescription className="text-xs font-medium">{todayEvent.title} • {todayEvent.location}</CardDescription>
+                </div>
               </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Presentes</p>
+                <p className="text-lg font-black text-primary">
+                  {attendanceList?.filter(a => a.status === 'going').length || 0} / {roster?.length || 0}
+                </p>
+              </div>
+            </CardHeader>
+          </Card>
+        )}
 
-              <CardContent className="p-8 space-y-8 flex-1">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-muted/30 p-4 rounded-2xl text-center border border-transparent hover:border-primary/20 transition-colors">
-                    <Users className="h-5 w-5 mx-auto mb-2 text-primary" /><div className="text-2xl font-black">{team.rosterSize}</div><p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Plantilla</p>
-                  </div>
-                  <div className="bg-muted/30 p-4 rounded-2xl text-center border border-transparent hover:border-accent/20 transition-colors">
-                    <Activity className="h-5 w-5 mx-auto mb-2 text-accent" /><div className="text-2xl font-black">85%</div><p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Asistencia</p>
-                  </div>
-                  <div className="bg-muted/30 p-4 rounded-2xl text-center border border-transparent hover:border-green-200 transition-colors">
-                    <TrendingUp className="h-5 w-5 mx-auto mb-2 text-green-500" /><div className="text-2xl font-black">#3</div><p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Posición</p>
-                  </div>
-                </div>
+        <Tabs defaultValue="roster" className="w-full">
+          <TabsList className="bg-muted/50 p-1 mb-6">
+            <TabsTrigger value="roster" className="gap-2 px-8 font-bold"><Users className="h-4 w-4" /> Plantilla</TabsTrigger>
+            <TabsTrigger value="tactical" className="gap-2 px-8 font-bold"><Settings2 className="h-4 w-4" /> Pizarra Táctica</TabsTrigger>
+          </TabsList>
 
-                <div className="space-y-4 pt-4 border-t border-muted">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><History className="h-3 w-3" /> Últimos Encuentros</h4>
-                  <div className="space-y-2">
-                    {team.recentResults?.map((res: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-muted/20 rounded-xl">
-                        <span className="text-xs font-bold truncate max-w-[150px]">{res.opponent}</span>
-                        <span className={cn("text-xs font-black px-2 py-1 rounded-lg tabular-nums shadow-sm", res.homeScore > res.awayScore ? "bg-green-500 text-white" : "bg-white text-muted-foreground")}>{res.homeScore} - {res.awayScore}</span>
+          <TabsContent value="roster">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card className="lg:col-span-2 border-none shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" /> Plantilla Oficial
+                    </CardTitle>
+                    <CardDescription>
+                      {todayEvent ? "Toma asistencia rápida para la sesión de hoy." : "Gestión de jugadoras y estado del plantel."}
+                    </CardDescription>
+                  </div>
+                  {todayEvent && (
+                    <Badge className="bg-green-100 text-green-700 border-green-200">MODO ASISTENCIA ACTIVO</Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {rosterLoading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div> : (
+                    <div className="divide-y border rounded-xl bg-card overflow-hidden">
+                      {roster?.map((member: any) => {
+                        const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
+                        return (
+                          <div key={member.id} className="flex items-center justify-between p-4 group hover:bg-muted/5 transition-colors">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-12 w-12 border-2 border-muted shadow-sm">
+                                <AvatarImage src={member.playerPhoto} className="object-cover" />
+                                <AvatarFallback className="font-bold">{member.playerName[0]}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-bold text-sm">{member.playerName}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">#{member.jerseyNumber || 'S/N'}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {todayEvent ? (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleToggleAttendance(member.playerId, member.playerName, status)}
+                                  className={cn(
+                                    "h-10 w-10 p-0 rounded-full border transition-all shadow-sm",
+                                    status === 'going' ? "bg-green-100 text-green-600 border-green-200" :
+                                    status === 'not_going' ? "bg-red-100 text-red-600 border-red-200" :
+                                    "bg-muted text-muted-foreground border-transparent"
+                                  )}
+                                >
+                                  {status === 'going' ? <CheckCircle2 className="h-5 w-5" /> : 
+                                   status === 'not_going' ? <XCircle className="h-5 w-5" /> : 
+                                   <HelpCircle className="h-5 w-5" />}
+                                </Button>
+                              ) : (
+                                <Button variant="outline" size="sm" asChild className="h-8 text-[10px] font-bold">
+                                  <Link href={`/dashboard/player/search`}>Ver Ficha</Link>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {(!roster || roster.length === 0) && (
+                        <div className="py-20 text-center text-muted-foreground italic bg-muted/10">
+                          No hay jugadoras asignadas a esta plantilla.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="space-y-6">
+                <Card className="bg-primary text-primary-foreground border-none shadow-xl shadow-primary/20">
+                  <CardHeader><CardTitle className="text-sm font-black uppercase tracking-[0.2em]">Resumen Técnico</CardTitle></CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                      <span className="text-xs font-medium opacity-80 uppercase">Total Jugadoras</span>
+                      <span className="text-3xl font-black">{roster?.length || 0}</span>
+                    </div>
+                    {!todayEvent && (
+                      <div className="p-4 bg-white/10 rounded-xl border border-white/10 flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-white mt-0.5 shrink-0" />
+                        <p className="text-[11px] leading-relaxed font-medium">
+                          No tienes entrenamientos programados para hoy. El modo <strong>asistencia rápida</strong> se activará automáticamente al crear un evento en el calendario.
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
+                    )}
+                    <Button asChild variant="secondary" className="w-full font-black uppercase text-[10px] tracking-widest h-12">
+                      <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/stats`}>Ver Rankings de Goleadoras</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
 
-              <CardFooter className="bg-muted/30 p-6 border-t flex flex-col sm:flex-row gap-4">
-                <Button asChild size="lg" className="flex-1 font-black gap-2 bg-foreground hover:bg-primary transition-all h-14 uppercase tracking-tight">
-                  <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/match-live`}><PlayCircle className="h-5 w-5" /> Iniciar Modo Live</Link>
-                </Button>
-                <Button variant="outline" asChild size="lg" className="font-black gap-2 border-2 h-14 uppercase tracking-tight">
-                  <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}`}><Settings2 className="h-5 w-5" /> Pizarra Táctica</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                <Card className="border-none shadow-sm bg-muted/30">
+                  <CardHeader><CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground">Próximo Partido</CardTitle></CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center py-6 text-center">
+                    <Trophy className="h-10 w-10 text-muted-foreground opacity-20 mb-2" />
+                    <p className="text-xs font-bold text-muted-foreground">Sin encuentros programados en el fixture.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tactical">
+            <HockeyTacticalBoard roster={roster || []} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
