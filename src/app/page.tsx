@@ -28,7 +28,7 @@ export default function Home() {
             else if (role === 'referee') router.push('/dashboard/referee');
             else router.push('/dashboard');
           } else {
-            // Fallback para usuarios sin rol definido (ej. admin inicial)
+            // Si no hay perfil, intentamos ver si es un jugador en el índice global
             router.push('/dashboard');
           }
         } catch (e) {

@@ -59,7 +59,6 @@ export default function LoginPage() {
             router.push('/dashboard');
         }
       } else {
-        // Si no hay perfil, quizá sea un admin por defecto o demo
         router.push('/dashboard');
       }
     } catch (e) {
@@ -174,14 +173,6 @@ export default function LoginPage() {
                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
                 Ingresar al Sistema
               </Button>
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">
-                  ¿Eres un nuevo jugador?{" "}
-                  <Button variant="link" className="px-0 h-auto text-xs font-bold text-primary">
-                    Solicita tu alta aquí
-                  </Button>
-                </p>
-              </div>
             </CardFooter>
           </form>
         </Card>
