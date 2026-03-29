@@ -1,7 +1,8 @@
+
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { 
   LayoutDashboard, 
   Trophy, 
@@ -12,6 +13,8 @@ import {
   Flag, 
   ClipboardCheck, 
   Building2,
+  LogOut,
+  Settings
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,27 +32,34 @@ import {
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { useEffect, useState } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { signOut } from "firebase/auth";
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { user, firestore } = useFirebase();
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const router = useRouter();
+  const { user, auth, firestore } = useFirebase();
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [playerInfo, setPlayerInfo] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    async function fetchRole() {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    async function fetchProfile() {
       if (!user || !firestore) return;
       try {
         const userDoc = await getDoc(doc(firestore, "users", user.uid));
         if (userDoc.exists()) {
-          setUserRole(userDoc.data().role);
+          setUserProfile(userDoc.data());
         }
       } catch (e) {
         console.error("Error fetching role:", e);
       }
     }
-    fetchRole();
+    fetchProfile();
   }, [user, firestore]);
 
   useEffect(() => {
@@ -80,6 +90,17 @@ export function SidebarNav() {
 
   const { data: pendingCallups } = useCollection(pendingCallupsQuery);
   const pendingCount = pendingCallups?.length || 0;
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/login");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  if (!mounted) return null;
 
   return (
     <Sidebar className="border-r-0 shadow-sm" collapsible="icon">
@@ -198,18 +219,29 @@ export function SidebarNav() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-6">
-        {user && (
-          <div className="flex items-center gap-3 p-3 bg-white/50 rounded-2xl border border-white shadow-sm overflow-hidden group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:shadow-none">
-            <Avatar className="h-8 w-8 border-2 border-primary/10 shrink-0">
-              <AvatarFallback className="bg-primary/5 text-primary text-[10px] font-black uppercase">{user.email?.[0]}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-              <span className="text-[10px] font-black truncate text-foreground">{user.email}</span>
-              <span className="text-[8px] uppercase text-primary font-black tracking-widest">{userRole || 'Socio'}</span>
+      <SidebarFooter className="p-4">
+        <div className="flex flex-col gap-2">
+          {user && (
+            <div className="flex items-center gap-3 p-3 bg-white/50 rounded-2xl border border-white shadow-sm overflow-hidden group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:shadow-none">
+              <Avatar className="h-8 w-8 border-2 border-primary/10 shrink-0">
+                <AvatarImage src={userProfile?.photoUrl} />
+                <AvatarFallback className="bg-primary/5 text-primary text-[10px] font-black uppercase">{user.email?.[0]}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
+                <span className="text-[10px] font-black truncate text-foreground">{userProfile?.name || user.email}</span>
+                <span className="text-[8px] uppercase text-primary font-black tracking-widest">{userProfile?.role || 'Socio'}</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={handleLogout} className="text-destructive hover:text-destructive hover:bg-destructive/10" tooltip="Cerrar Sesión">
+                <LogOut className="h-4 w-4" />
+                <span className="font-bold">Cerrar Sesión</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
