@@ -17,7 +17,9 @@ import {
   ShieldCheck,
   GripVertical,
   X,
-  Target
+  Target,
+  AlertCircle,
+  History
 } from "lucide-react";
 import { doc, setDoc, collection } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -45,13 +47,19 @@ interface MatchPlayerStats {
   playerId: string;
   playerName: string;
   playerPhoto: string;
-  timePlayed: number; // en segundos
+  timePlayed: number; 
   goals: number;
   trys: number;
   conversions: number;
   penalties: number;
   yellowCards: number;
   redCards: number;
+}
+
+interface SinBinPlayer {
+  playerId: string;
+  playerName: string;
+  returnTime: number; // match seconds when they can return
 }
 
 export default function MatchLiveTrackerPage() {
@@ -61,7 +69,7 @@ export default function MatchLiveTrackerPage() {
   const router = useRouter();
   const fieldRef = useRef<HTMLDivElement>(null);
 
-  // Estados de Partido
+  // Match States
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [homeScore, setHomeScore] = useState(0);
@@ -69,30 +77,28 @@ export default function MatchLiveTrackerPage() {
   const [opponentName, setOpponentName] = useState("Rival");
   const [sport, setSport] = useState<'hockey' | 'rugby'>('hockey');
   
-  // Estados de Pizarra
+  // Tactical States
   const [playerCount, setPlayerCount] = useState(11);
   const [positions, setPositions] = useState<PositionSlot[]>([]);
   const [draggingPosId, setDragPosId] = useState<string | null>(null);
   
-  // Estadísticas acumuladas
+  // Stats
   const [playerStats, setPlayerStats] = useState<Record<string, MatchPlayerStats>>({});
   const [matchEvents, setMatchEvents] = useState<any[]>([]);
+  const [sinBin, setSinBin] = useState<SinBinPlayer[]>([]);
 
-  // Cargar datos del equipo
   const teamRef = useMemoFirebase(() => 
     doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), 
     [db, clubId, divisionId, teamId]
   );
   const { data: team, isLoading: teamLoading } = useDoc(teamRef);
 
-  // Cargar roster
   const rosterQuery = useMemoFirebase(() => 
     collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments"), 
     [db, clubId, divisionId, teamId]
   );
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
 
-  // Inicializar estadísticas cuando carga el roster
   useEffect(() => {
     if (roster && Object.keys(playerStats).length === 0) {
       const initialStats: Record<string, MatchPlayerStats> = {};
@@ -114,7 +120,6 @@ export default function MatchLiveTrackerPage() {
     }
   }, [roster]);
 
-  // Inicializar posiciones de la pizarra
   useEffect(() => {
     const newPositions: PositionSlot[] = [];
     
@@ -135,7 +140,6 @@ export default function MatchLiveTrackerPage() {
         newPositions.push({ id: `pos-fw-${i}`, x: (100 / (fwdCount + 1)) * (i + 1), y: 20, label: 'FW', assignedPlayerId: null });
       }
     } else {
-      // Rugby positions
       const fwds = Math.ceil(playerCount * 0.5);
       const backs = playerCount - fwds;
       for (let i = 0; i < fwds; i++) {
@@ -148,7 +152,6 @@ export default function MatchLiveTrackerPage() {
     setPositions(newPositions);
   }, [playerCount, sport]);
 
-  // Lógica del Cronómetro y Tiempo de Juego
   useEffect(() => {
     let interval: any = null;
     if (isActive) {
@@ -188,6 +191,11 @@ export default function MatchLiveTrackerPage() {
   };
 
   const onDragStartPlayer = (e: React.DragEvent, playerId: string) => {
+    if (sinBin.some(s => s.playerId === playerId)) {
+      e.preventDefault();
+      toast({ variant: "destructive", title: "Jugadora suspendida", description: "Debe cumplir el tiempo de Sin-Bin." });
+      return;
+    }
     e.dataTransfer.setData("playerId", playerId);
   };
 
@@ -220,7 +228,7 @@ export default function MatchLiveTrackerPage() {
 
     setMatchEvents(prev => [newEvent, ...prev]);
 
-    // Actualizar Marcador
+    // Update Score
     if (type === 'goal') setHomeScore(s => s + 1);
     if (type === 'try') setHomeScore(s => s + 5);
     if (type === 'conversion') setHomeScore(s => s + 2);
@@ -241,6 +249,19 @@ export default function MatchLiveTrackerPage() {
 
     if (type === 'red') {
       setPositions(pos => pos.map(slot => slot.assignedPlayerId === playerId ? { ...slot, assignedPlayerId: null } : slot));
+    }
+
+    if (type === 'yellow' && sport === 'rugby') {
+      // Rugby Sin-Bin Logic (10 minutes)
+      const suspensionSeconds = 10 * 60;
+      setSinBin(prev => [...prev, {
+        playerId,
+        playerName: player.playerName,
+        returnTime: seconds + suspensionSeconds
+      }]);
+      // Remove from field immediately
+      setPositions(pos => pos.map(slot => slot.assignedPlayerId === playerId ? { ...slot, assignedPlayerId: null } : slot));
+      toast({ title: "Sin-Bin Activo", description: `${player.playerName} suspendida por 10 minutos.` });
     }
 
     toast({ title: "Evento Registrado", description: `${type.toUpperCase()} - ${player.playerName} (min ${eventMinute})` });
@@ -310,7 +331,7 @@ export default function MatchLiveTrackerPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold font-headline">Match Live Console</h1>
-            <p className="text-muted-foreground">Pizarra interactiva y control de incidencias.</p>
+            <p className="text-muted-foreground">Pizarra táctica y control de incidencias en tiempo real.</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -359,7 +380,7 @@ export default function MatchLiveTrackerPage() {
                 value={opponentName} 
                 onChange={(e) => setOpponentName(e.target.value)} 
                 className="bg-transparent border-none text-center text-xl font-black text-white focus-visible:ring-0 p-0 h-auto"
-                placeholder="Rival..."
+                placeholder="Nombre del Rival..."
               />
               <div className="flex items-center justify-center gap-4">
                 <div className="text-6xl font-black tabular-nums">{awayScore}</div>
@@ -400,7 +421,7 @@ export default function MatchLiveTrackerPage() {
                   <TabsTrigger value="rugby" className="text-[10px] uppercase font-bold">Rugby</TabsTrigger>
                 </TabsList>
               </Tabs>
-              <div className="h-6 w-px bg-border" />
+              <div className="h-6 w-px bg-border hidden md:block" />
               <div className="flex items-center gap-2">
                 <Label className="text-[10px] font-bold uppercase">Jugadores:</Label>
                 <Badge variant="secondary" className="font-black h-5">{playerCount}</Badge>
@@ -502,6 +523,48 @@ export default function MatchLiveTrackerPage() {
         </div>
 
         <div className="lg:col-span-4 flex flex-col gap-6">
+          {/* Active Suspensions / Sin-Bin */}
+          {sport === 'rugby' && sinBin.length > 0 && (
+            <Card className="border-orange-500 bg-orange-50/50 shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-black uppercase text-orange-700 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 animate-pulse" /> Sin-Bin (Temporada)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {sinBin.map((s) => {
+                  const timeLeft = Math.max(0, s.returnTime - seconds);
+                  const isDone = timeLeft <= 0;
+                  return (
+                    <div key={s.playerId} className={cn(
+                      "flex items-center justify-between p-2 rounded-lg border",
+                      isDone ? "bg-green-100 border-green-300" : "bg-white border-orange-200"
+                    )}>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold">{s.playerName}</span>
+                        <span className="text-[10px] opacity-70">
+                          {isDone ? "¡Puede volver!" : `Tiempo: ${formatTime(timeLeft)}`}
+                        </span>
+                      </div>
+                      {isDone ? (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-7 w-7 p-0 bg-green-500 text-white hover:bg-green-600"
+                          onClick={() => setSinBin(prev => prev.filter(p => p.playerId !== s.playerId))}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Badge variant="outline" className="h-6 font-mono text-[10px] bg-white">🟨</Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="flex-1 flex flex-col border-none shadow-xl bg-slate-50">
             <CardHeader className="bg-slate-200/50 pb-4">
               <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
@@ -514,31 +577,41 @@ export default function MatchLiveTrackerPage() {
                   {roster?.map((p: any) => {
                     const stats = playerStats[p.playerId];
                     const isAssigned = positions.some(pos => pos.assignedPlayerId === p.playerId);
+                    const isSuspended = sinBin.some(s => s.playerId === p.playerId);
+                    
                     return (
                       <div 
                         key={p.id} 
-                        draggable={!isAssigned}
+                        draggable={!isAssigned && !isSuspended}
                         onDragStart={(e) => onDragStartPlayer(e, p.playerId)}
                         className={cn(
                           "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
                           isAssigned 
                             ? "bg-muted/50 opacity-40 border-transparent grayscale" 
+                            : isSuspended
+                            ? "bg-orange-100 border-orange-200 opacity-80 cursor-not-allowed"
                             : "bg-white border-transparent hover:border-primary/30 shadow-sm cursor-grab active:cursor-grabbing"
                         )}
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 border-2 border-slate-100">
-                            <AvatarImage src={p.playerPhoto} />
-                            <AvatarFallback>{p.playerName[0]}</AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="h-10 w-10 border-2 border-slate-100">
+                              <AvatarImage src={p.playerPhoto} />
+                              <AvatarFallback>{p.playerName[0]}</AvatarFallback>
+                            </Avatar>
+                            {isSuspended && (
+                              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-[8px] font-black rounded px-1">BIN</div>
+                            )}
+                          </div>
                           <div className="flex flex-col">
                             <span className="text-xs font-bold leading-none">{p.playerName}</span>
                             <span className="text-[9px] font-medium text-muted-foreground mt-1">
-                              {isAssigned ? "EN CAMPO" : `Jugado: ${Math.floor((stats?.timePlayed || 0) / 60)} min`}
+                              {isAssigned ? "EN CAMPO" : isSuspended ? "SUSPENDIDA" : `Jugado: ${Math.floor((stats?.timePlayed || 0) / 60)} min`}
                             </span>
                           </div>
                         </div>
-                        {!isAssigned && <GripVertical className="h-4 w-4 text-muted-foreground opacity-30" />}
+                        {!isAssigned && !isSuspended && <GripVertical className="h-4 w-4 text-muted-foreground opacity-30" />}
+                        {isSuspended && <Badge variant="outline" className="h-5 text-[8px] font-black border-orange-500 text-orange-700">🟨</Badge>}
                       </div>
                     );
                   })}
@@ -550,7 +623,7 @@ export default function MatchLiveTrackerPage() {
           <Card className="h-fit shadow-md border-none bg-slate-900 text-white">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                <Activity className="h-3 w-3 text-primary" /> Acta del Partido
+                <History className="h-3 w-3 text-primary" /> Acta del Partido
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
