@@ -8,6 +8,8 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
         "email": { "type": "string" },
         "role": { 
           "type": "string", 
@@ -15,10 +17,18 @@
           "description": "Determina el alcance de permisos: global, regional, de club o individual."
         },
         "clubId": { "type": "string" },
+        "dni": { "type": "string", "description": "Documento Nacional de Identidad." },
+        "birthDate": { "type": "string", "format": "date" },
+        "weight": { "type": "number", "description": "Peso en kilogramos." },
+        "height": { "type": "number", "description": "Altura en centímetros." },
+        "address": { "type": "string" },
+        "bloodType": { "type": "string", "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] },
+        "emergencyContact": { "type": "string" },
+        "emergencyPhone": { "type": "string" },
         "parkingActive": { "type": "boolean", "description": "Indica si tiene el plan de estacionamiento en el predio activo." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "name", "email", "role"]
+      "required": ["id", "email", "role"]
     },
     "Club": {
       "title": "Club / Institución",
