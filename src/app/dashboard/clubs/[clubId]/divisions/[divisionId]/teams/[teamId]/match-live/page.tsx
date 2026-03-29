@@ -19,7 +19,10 @@ import {
   X,
   Target,
   AlertCircle,
-  History
+  History,
+  Stethoscope,
+  HeartPulse,
+  UserPlus
 } from "lucide-react";
 import { doc, setDoc, collection } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -34,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface PositionSlot {
   id: string;
@@ -59,7 +63,16 @@ interface MatchPlayerStats {
 interface SinBinPlayer {
   playerId: string;
   playerName: string;
-  returnTime: number; // match seconds when they can return
+  returnTime: number; 
+}
+
+interface HIAPlayer {
+  playerId: string;
+  playerName: string;
+  replacedByPlayerId: string;
+  positionId: string;
+  startTime: number;
+  type: 'blood' | 'hia';
 }
 
 export default function MatchLiveTrackerPage() {
@@ -86,6 +99,10 @@ export default function MatchLiveTrackerPage() {
   const [playerStats, setPlayerStats] = useState<Record<string, MatchPlayerStats>>({});
   const [matchEvents, setMatchEvents] = useState<any[]>([]);
   const [sinBin, setSinBin] = useState<SinBinPlayer[]>([]);
+  const [hiaList, setHiaList] = useState<HIAPlayer[]>([]);
+  
+  // HIA Dialog State
+  const [medicalModal, setMedicalModal] = useState<{ isOpen: boolean, playerId: string, positionId: string } | null>(null);
 
   const teamRef = useMemoFirebase(() => 
     doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), 
@@ -196,6 +213,11 @@ export default function MatchLiveTrackerPage() {
       toast({ variant: "destructive", title: "Jugadora suspendida", description: "Debe cumplir el tiempo de Sin-Bin." });
       return;
     }
+    if (hiaList.some(h => h.playerId === playerId)) {
+      e.preventDefault();
+      toast({ variant: "destructive", title: "Evaluación Médica", description: "La jugadora está bajo revisión HIA/Sangre." });
+      return;
+    }
     e.dataTransfer.setData("playerId", playerId);
   };
 
@@ -218,12 +240,13 @@ export default function MatchLiveTrackerPage() {
     if (!player) return;
 
     const eventMinute = Math.floor(seconds / 60);
+    const newEventId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newEvent = {
       type,
       playerId,
       playerName: player.playerName,
       minute: eventMinute,
-      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      id: newEventId
     };
 
     setMatchEvents(prev => [newEvent, ...prev]);
@@ -252,19 +275,54 @@ export default function MatchLiveTrackerPage() {
     }
 
     if (type === 'yellow' && sport === 'rugby') {
-      // Rugby Sin-Bin Logic (10 minutes)
       const suspensionSeconds = 10 * 60;
       setSinBin(prev => [...prev, {
         playerId,
         playerName: player.playerName,
         returnTime: seconds + suspensionSeconds
       }]);
-      // Remove from field immediately
       setPositions(pos => pos.map(slot => slot.assignedPlayerId === playerId ? { ...slot, assignedPlayerId: null } : slot));
       toast({ title: "Sin-Bin Activo", description: `${player.playerName} suspendida por 10 minutos.` });
     }
 
     toast({ title: "Evento Registrado", description: `${type.toUpperCase()} - ${player.playerName} (min ${eventMinute})` });
+  };
+
+  const handleMedicalSustitution = (subPlayerId: string, type: 'blood' | 'hia') => {
+    if (!medicalModal) return;
+    
+    const originalPlayerId = medicalModal.playerId;
+    const posId = medicalModal.positionId;
+    const player = playerStats[originalPlayerId];
+
+    // 1. Añadir a la lista HIA
+    setHiaList(prev => [...prev, {
+      playerId: originalPlayerId,
+      playerName: player.playerName,
+      replacedByPlayerId: subPlayerId,
+      positionId: posId,
+      startTime: seconds,
+      type
+    }]);
+
+    // 2. Realizar el cambio en el campo
+    setPositions(prev => prev.map(p => p.id === posId ? { ...p, assignedPlayerId: subPlayerId } : p));
+
+    setMedicalModal(null);
+    toast({ title: `Cambio por ${type.toUpperCase()}`, description: `${player.playerName} sale para evaluación.` });
+  };
+
+  const handleMedicalReturn = (hia: HIAPlayer) => {
+    // La jugadora original vuelve al campo, el suplente vuelve al banco
+    setPositions(prev => {
+      // Primero sacamos al suplente de donde esté
+      const cleaned = prev.map(p => p.assignedPlayerId === hia.replacedByPlayerId ? { ...p, assignedPlayerId: null } : p);
+      // Ponemos a la original en su posición guardada
+      return cleaned.map(p => p.id === hia.positionId ? { ...p, assignedPlayerId: hia.playerId } : p);
+    });
+
+    setHiaList(prev => prev.filter(h => h.playerId !== hia.playerId));
+    toast({ title: "Jugadora Recuperada", description: `${hia.playerName} reingresa al campo.` });
   };
 
   const handleFinalizeMatch = async () => {
@@ -490,7 +548,7 @@ export default function MatchLiveTrackerPage() {
                         </button>
                       )}
                       {stats && (
-                        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 z-50 bg-black/80 p-1.5 rounded-full backdrop-blur-sm">
+                        <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 z-50 bg-black/80 p-1.5 rounded-full backdrop-blur-sm">
                           {sport === 'hockey' ? (
                             <Button size="icon" className="h-8 w-8 rounded-full bg-primary" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'goal'); }}>⚽</Button>
                           ) : (
@@ -498,6 +556,9 @@ export default function MatchLiveTrackerPage() {
                               <Button size="icon" className="h-8 w-8 rounded-full bg-orange-600" title="TRY (5pts)" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'try'); }}>🏉</Button>
                               <Button size="icon" className="h-8 w-8 rounded-full bg-blue-600" title="CONV (2pts)" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'conversion'); }}>🎯</Button>
                               <Button size="icon" className="h-8 w-8 rounded-full bg-green-600" title="PEN/DROP (3pts)" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'penalty'); }}>👟</Button>
+                              <Button size="icon" className="h-8 w-8 rounded-full bg-red-500" title="HIA / Sangre" onClick={(e) => { e.stopPropagation(); setMedicalModal({ isOpen: true, playerId: stats.playerId, positionId: p.id }); }}>
+                                <Stethoscope className="h-4 w-4" />
+                              </Button>
                             </>
                           )}
                           <Button size="icon" className="h-8 w-8 rounded-full bg-yellow-500" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'yellow'); }}>🟨</Button>
@@ -523,6 +584,40 @@ export default function MatchLiveTrackerPage() {
         </div>
 
         <div className="lg:col-span-4 flex flex-col gap-6">
+          {/* Medical / HIA List */}
+          {hiaList.length > 0 && (
+            <Card className="border-red-500 bg-red-50/50 shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-black uppercase text-red-700 flex items-center gap-2">
+                  <HeartPulse className="h-4 w-4 animate-pulse" /> Evaluación Médica
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {hiaList.map((h) => {
+                  const evalTime = seconds - h.startTime;
+                  return (
+                    <div key={h.playerId} className="flex items-center justify-between p-2 rounded-lg border bg-white border-red-200">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold">{h.playerName}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {h.type.toUpperCase()} • T. Evaluación: {formatTime(evalTime)}
+                        </span>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 text-[9px] font-bold gap-1 border-green-500 text-green-700 hover:bg-green-50"
+                        onClick={() => handleMedicalReturn(h)}
+                      >
+                        <UserPlus className="h-3 w-3" /> RETORNO
+                      </Button>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Active Suspensions / Sin-Bin */}
           {sport === 'rugby' && sinBin.length > 0 && (
             <Card className="border-orange-500 bg-orange-50/50 shadow-lg">
@@ -578,18 +673,19 @@ export default function MatchLiveTrackerPage() {
                     const stats = playerStats[p.playerId];
                     const isAssigned = positions.some(pos => pos.assignedPlayerId === p.playerId);
                     const isSuspended = sinBin.some(s => s.playerId === p.playerId);
+                    const isMedical = hiaList.some(h => h.playerId === p.playerId);
                     
                     return (
                       <div 
                         key={p.id} 
-                        draggable={!isAssigned && !isSuspended}
+                        draggable={!isAssigned && !isSuspended && !isMedical}
                         onDragStart={(e) => onDragStartPlayer(e, p.playerId)}
                         className={cn(
                           "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
                           isAssigned 
                             ? "bg-muted/50 opacity-40 border-transparent grayscale" 
-                            : isSuspended
-                            ? "bg-orange-100 border-orange-200 opacity-80 cursor-not-allowed"
+                            : isSuspended || isMedical
+                            ? "bg-red-50 border-red-100 opacity-80 cursor-not-allowed"
                             : "bg-white border-transparent hover:border-primary/30 shadow-sm cursor-grab active:cursor-grabbing"
                         )}
                       >
@@ -602,16 +698,19 @@ export default function MatchLiveTrackerPage() {
                             {isSuspended && (
                               <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-[8px] font-black rounded px-1">BIN</div>
                             )}
+                            {isMedical && (
+                              <div className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black rounded px-1">MED</div>
+                            )}
                           </div>
                           <div className="flex flex-col">
                             <span className="text-xs font-bold leading-none">{p.playerName}</span>
                             <span className="text-[9px] font-medium text-muted-foreground mt-1">
-                              {isAssigned ? "EN CAMPO" : isSuspended ? "SUSPENDIDA" : `Jugado: ${Math.floor((stats?.timePlayed || 0) / 60)} min`}
+                              {isAssigned ? "EN CAMPO" : isSuspended ? "SUSPENDIDA" : isMedical ? "EN REVISIÓN" : `Jugado: ${Math.floor((stats?.timePlayed || 0) / 60)} min`}
                             </span>
                           </div>
                         </div>
-                        {!isAssigned && !isSuspended && <GripVertical className="h-4 w-4 text-muted-foreground opacity-30" />}
-                        {isSuspended && <Badge variant="outline" className="h-5 text-[8px] font-black border-orange-500 text-orange-700">🟨</Badge>}
+                        {!isAssigned && !isSuspended && !isMedical && <GripVertical className="h-4 w-4 text-muted-foreground opacity-30" />}
+                        {isMedical && <HeartPulse className="h-4 w-4 text-red-500 animate-pulse" />}
                       </div>
                     );
                   })}
@@ -650,6 +749,56 @@ export default function MatchLiveTrackerPage() {
           </Card>
         </div>
       </div>
+
+      {/* Medical Sub Modal */}
+      <Dialog open={!!medicalModal} onOpenChange={(open) => !open && setMedicalModal(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HeartPulse className="h-5 w-5 text-red-600" /> Protocolo de Sustitución Médica
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona el motivo y el suplente que ingresará temporalmente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label>Jugadora a Evaluar</Label>
+              <div className="p-3 bg-muted rounded-lg font-bold">
+                {playerStats[medicalModal?.playerId || ""]?.playerName}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Suplente que Ingresa</Label>
+              <ScrollArea className="h-40 border rounded-md">
+                <div className="p-2 space-y-1">
+                  {roster?.filter(p => !positions.some(pos => pos.assignedPlayerId === p.playerId) && !sinBin.some(s => s.playerId === p.playerId) && !hiaList.some(h => h.playerId === p.playerId)).map(p => (
+                    <Button 
+                      key={p.playerId} 
+                      variant="ghost" 
+                      className="w-full justify-start gap-3 h-12"
+                      onClick={() => handleMedicalSustitution(p.playerId, 'hia')}
+                    >
+                      <Avatar className="h-8 w-8"><AvatarImage src={p.playerPhoto} /><AvatarFallback>{p.playerName[0]}</AvatarFallback></Avatar>
+                      <span className="font-bold">{p.playerName}</span>
+                    </Button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Button variant="outline" className="h-12 border-red-200 text-red-700 gap-2" onClick={() => handleMedicalSustitution(roster?.find(p => !positions.some(pos => pos.assignedPlayerId === p.playerId))?.playerId, 'blood')}>
+                <HeartPulse className="h-4 w-4" /> Sangre
+              </Button>
+              <Button variant="destructive" className="h-12 gap-2" onClick={() => handleMedicalSustitution(roster?.find(p => !positions.some(pos => pos.assignedPlayerId === p.playerId))?.playerId, 'hia')}>
+                <Activity className="h-4 w-4" /> Protocolo HIA
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
