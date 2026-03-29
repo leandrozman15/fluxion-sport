@@ -2,7 +2,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Permitimos acceso total durante desarrollo para evitar bloqueos en el prototipado
+    // Reglas globales para prototipado rápido
+    // Versión: 1.0.1 - Forzando despliegue para subcolecciones de jugadores
     match /{document=**} {
       allow read, write: if true;
     }

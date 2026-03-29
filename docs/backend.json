@@ -52,6 +52,22 @@
           }
         }
       }
+    },
+    "Payment": {
+      "title": "Pago de Cuota",
+      "description": "Registro de pago mensual de un deportista.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "month": { "type": "integer" },
+        "year": { "type": "integer" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["paid", "pending", "overdue"] },
+        "paymentMethod": { "type": "string" },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["month", "year", "amount", "status"]
     }
   },
   "auth": {
@@ -69,6 +85,14 @@
     "/clubs/{clubId}/players/{playerId}": {
       "schema": "#/backend/entities/UserProfile",
       "description": "Fichas de jugadores por club."
+    },
+    "/clubs/{clubId}/players/{playerId}/payments/{paymentId}": {
+      "schema": "#/backend/entities/Payment",
+      "description": "Historial de pagos del jugador."
+    },
+    "/clubs/{clubId}/divisions/{divisionId}": {
+      "schema": "#/backend/entities/Division",
+      "description": "Categorías del club."
     }
   }
 }
