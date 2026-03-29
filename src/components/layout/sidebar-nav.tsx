@@ -15,7 +15,8 @@ import {
   Building2,
   LogOut,
   Settings,
-  Users
+  Users,
+  Search
 } from "lucide-react";
 import {
   Sidebar,
@@ -103,36 +104,37 @@ export function SidebarNav() {
 
   if (!mounted) return null;
 
-  const isCoach = userProfile?.role === 'coach';
+  // Lógica de Acceso: El Admin es el "Desarrollador" y ve TODO.
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'fed_admin';
+  const isCoach = userProfile?.role === 'coach';
   const isPlayer = userProfile?.role === 'player' || (!isAdmin && !isCoach && playerInfo);
 
   return (
     <Sidebar className="border-r-0 shadow-sm" collapsible="icon">
       <SidebarHeader className="p-6">
-        <Link href={isCoach ? "/dashboard/coach" : "/dashboard"} className="flex items-center gap-3 group">
+        <Link href={isAdmin ? "/dashboard" : isCoach ? "/dashboard/coach" : "/dashboard/player"} className="flex items-center gap-3 group">
           <div className="bg-primary p-2 rounded-xl text-primary-foreground shadow-lg group-hover:scale-110 transition-transform shrink-0">
             <Trophy className="h-6 w-6" />
           </div>
           <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-            <span className="font-headline font-black text-xl tracking-tighter leading-none truncate">SportsManager</span>
+            <span className="font-headline font-black text-xl tracking-tighter leading-none truncate text-foreground">SportsManager</span>
             <span className="text-[10px] font-black uppercase text-accent tracking-[0.2em]">Platform</span>
           </div>
         </Link>
       </SidebarHeader>
       
       <SidebarContent className="px-2">
-        {/* SECCIÓN ADMIN: Solo para Administradores */}
+        {/* SECCIÓN ADMIN: Visibilidad total para Administradores/Desarrolladores */}
         {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Administración</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard"} tooltip="Dashboard Principal">
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard"} tooltip="Dashboard Global">
                     <Link href="/dashboard">
                       <LayoutDashboard className="h-4 w-4" />
-                      <span className="font-bold">Inicio Sistema</span>
+                      <span className="font-bold">Dashboard Admin</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -149,17 +151,44 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
-        {/* SECCIÓN DEPORTISTA: Solo para Jugadores o Admins */}
+        {/* SECCIÓN STAFF: Para Entrenadores y Admins */}
+        {(isCoach || isAdmin) && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Staff Técnico</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"} tooltip="Mis Equipos">
+                    <Link href="/dashboard/coach">
+                      <ClipboardCheck className="h-4 w-4" />
+                      <span className="font-bold">Pizarra Técnica</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/search"} tooltip="Búsqueda Jugadoras">
+                    <Link href="/dashboard/player/search">
+                      <Users className="h-4 w-4" />
+                      <span className="font-bold">Base de Jugadoras</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* SECCIÓN DEPORTISTA: Para Jugadores y Admins */}
         {(isPlayer || isAdmin) && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Deportista</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"} tooltip="Panel del Jugador">
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"} tooltip="Hub del Jugador">
                     <Link href="/dashboard/player">
                       <UserCircle className="h-4 w-4" />
-                      <span className="font-bold">Panel del Jugador</span>
+                      <span className="font-bold">Panel de Jugador</span>
                     </Link>
                   </SidebarMenuButton>
                   {pendingCount > 0 && (
@@ -181,34 +210,6 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
-        {/* SECCIÓN STAFF: Para Entrenadores, Coaches y Admins */}
-        {(isCoach || isAdmin) && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Staff Técnico</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"} tooltip="Mis Equipos">
-                    <Link href="/dashboard/coach">
-                      <ClipboardCheck className="h-4 w-4" />
-                      <span className="font-bold">Panel de Entrenamiento</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                {/* Herramientas adicionales permitidas para coach */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/search"} tooltip="Búsqueda Jugadoras">
-                    <Link href="/dashboard/player/search">
-                      <Users className="h-4 w-4" />
-                      <span className="font-bold">Base de Jugadoras</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
         {/* SECCIÓN ECOSISTEMA: Solo Admins */}
         {isAdmin && (
           <SidebarGroup>
@@ -216,7 +217,7 @@ export function SidebarNav() {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="opacity-60" tooltip="Federaciones">
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/federations")} tooltip="Federaciones">
                     <Link href="/dashboard/federations">
                       <Globe className="h-4 w-4" />
                       <span className="font-bold">Federaciones</span>
@@ -224,7 +225,7 @@ export function SidebarNav() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="opacity-60" tooltip="Arbitraje">
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/referee")} tooltip="Arbitraje">
                     <Link href="/dashboard/referee">
                       <Flag className="h-4 w-4" />
                       <span className="font-bold">Arbitraje</span>
@@ -247,7 +248,7 @@ export function SidebarNav() {
               </Avatar>
               <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
                 <span className="text-[10px] font-black truncate text-foreground">{userProfile?.name || user.email}</span>
-                <span className="text-[8px] uppercase text-primary font-black tracking-widest">{userProfile?.role || 'Socio'}</span>
+                <span className="text-[8px] uppercase text-primary font-black tracking-widest">{userProfile?.role || 'Desarrollador'}</span>
               </div>
             </div>
           )}

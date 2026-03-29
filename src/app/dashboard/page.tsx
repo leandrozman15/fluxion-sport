@@ -40,45 +40,51 @@ export default function DashboardPage() {
   const [seeding, setSeeding] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
-  // Verificación de seguridad adicional en el Dashboard de Admin
   useEffect(() => {
-    async function checkAdmin() {
+    async function checkRoleAndRedirect() {
       if (!user) {
         setIsAuthorized(false);
         return;
       }
       try {
         const userDoc = await getDoc(doc(firestore, "users", user.uid));
-        const role = userDoc.data()?.role;
-        if (role === 'coach') {
-          router.push('/dashboard/coach');
-        } else if (role === 'player') {
-          router.push('/dashboard/player');
-        } else if (role === 'admin' || role === 'fed_admin') {
+        if (userDoc.exists()) {
+          const role = userDoc.data().role;
+          // El Administrador se queda aquí (Dashboard Global)
+          // El Entrenador y el Jugador son movidos a sus áreas específicas
+          if (role === 'coach') {
+            router.replace('/dashboard/coach');
+            return;
+          }
+          if (role === 'player') {
+            router.replace('/dashboard/player');
+            return;
+          }
           setIsAuthorized(true);
         } else {
-          setIsAuthorized(true); // Permitir por defecto si no hay rol para no bloquear el seeding inicial
+          // Si no hay perfil, permitimos que se quede para hacer el Seeding inicial
+          setIsAuthorized(true);
         }
       } catch (e) {
         setIsAuthorized(true);
       }
     }
-    if (!isUserLoading) checkAdmin();
+    if (!isUserLoading) checkRoleAndRedirect();
   }, [user, isUserLoading, firestore, router]);
 
   const handleSeedData = async () => {
-    if (!firestore) return;
-    if (!user) {
+    if (!firestore || !user) {
       initiateAnonymousSignIn(auth);
       return;
     }
 
     setSeeding(true);
     try {
+      // Al poblar datos, el usuario actual se convierte en el ADMIN (Desarrollador)
       await setDoc(doc(firestore, "users", user.uid), {
         id: user.uid,
-        name: user.displayName || "Administrador Demo",
-        email: user.email || "demo@ejemplo.com",
+        name: user.displayName || "Administrador SportsManager",
+        email: user.email || "admin@sportsmanager.app",
         role: "admin",
         createdAt: new Date().toISOString()
       }, { merge: true });
@@ -97,14 +103,18 @@ export default function DashboardPage() {
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId), { id: divId, clubId: club.id, name: "Divisiones Inferiores", createdAt: new Date().toISOString() });
         
         const teamId = "team-a-" + club.id;
-        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "teams", teamId), { id: teamId, name: club.name + " A", coachName: "Coach " + club.name, season: "2025", createdAt: new Date().toISOString() });
+        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "teams", teamId), { 
+          id: teamId, 
+          name: club.name + " A", 
+          coachName: "Camila Entrenadora", // Vinculamos a la coach de demo
+          season: "2025", 
+          createdAt: new Date().toISOString() 
+        });
 
         if (club.id === "club-lomas") {
-          let isFirst = true;
           for (const player of demoPlayers) {
             const pId = doc(collection(firestore, "clubs", club.id, "players")).id;
-            const pEmail = isFirst ? (user.email || "demo-player@example.com") : player.email;
-            const pData = { ...player, id: pId, clubId: club.id, email: pEmail, clubName: club.name, createdAt: new Date().toISOString() };
+            const pData = { ...player, id: pId, clubId: club.id, clubName: club.name, createdAt: new Date().toISOString() };
             await setDoc(doc(firestore, "clubs", club.id, "players", pId), pData);
             
             await setDoc(doc(firestore, "all_players_index", pId), {
@@ -114,14 +124,13 @@ export default function DashboardPage() {
               photoUrl: player.photoUrl, 
               clubName: club.name, 
               clubId: club.id,
-              email: pEmail
+              email: player.email
             });
-            isFirst = false;
           }
         }
       }
 
-      toast({ title: "¡Ecosistema Poblado!", description: "Se han cargado los datos de prueba exitosamente." });
+      toast({ title: "¡Ecosistema Creado!", description: "Se han cargado los datos nacionales y tu perfil de Administrador." });
       window.location.reload(); 
     } catch (e) {
       console.error(e);
@@ -134,23 +143,23 @@ export default function DashboardPage() {
   if (isUserLoading || isAuthorized === null) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
 
   return (
-    <div className="space-y-10 max-w-7xl mx-auto py-2">
+    <div className="space-y-10 max-w-7xl mx-auto py-2 animate-in fade-in duration-700">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black tracking-tight text-foreground flex items-center gap-3">
             SportsManager <Sparkles className="h-6 w-6 text-accent" />
           </h1>
-          <p className="text-muted-foreground text-lg">Plataforma integral para federaciones y clubes deportivos.</p>
+          <p className="text-muted-foreground text-lg">Consola de Administración Central y Desarrollo.</p>
         </div>
         <div className="flex items-center gap-3">
           {!user ? (
             <Button size="lg" onClick={() => initiateAnonymousSignIn(auth)} className="font-bold shadow-lg shadow-primary/20">
-              <ShieldCheck className="mr-2 h-5 w-5" /> Iniciar Sesión de Prueba
+              <ShieldCheck className="mr-2 h-5 w-5" /> Acceso Desarrollador
             </Button>
           ) : (
             <Button variant="outline" size="lg" onClick={handleSeedData} disabled={seeding} className="border-2 font-bold hover:bg-primary/5 text-primary border-primary/20">
               {seeding ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Database className="h-5 w-5 mr-2" />}
-              Poblar Datos Nacionales
+              Poblar Ecosistema Completo
             </Button>
           )}
         </div>
@@ -161,7 +170,7 @@ export default function DashboardPage() {
           { title: "Nivel Nacional", desc: "CAH / Reglamentos", icon: Database, href: "/dashboard/cah", color: "bg-blue-500" },
           { title: "Regiones", desc: "Federaciones & Ligas", icon: Globe, href: "/dashboard/federations", color: "bg-accent" },
           { title: "Clubes", desc: "Gestión Institucional", icon: Building2, href: "/dashboard/clubs", color: "bg-primary" },
-          { title: "Padrón", desc: "Búsqueda de Jugadores", icon: UserRoundSearch, href: "/dashboard/player/search", color: "bg-slate-600" },
+          { title: "Base Nacional", desc: "Padrón de Jugadores", icon: UserRoundSearch, href: "/dashboard/player/search", color: "bg-slate-600" },
         ].map((item, i) => (
           <Link key={i} href={item.href} className="group">
             <Card className="border-none shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full">
@@ -174,7 +183,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardFooter className="pt-0">
                 <div className="text-primary text-xs font-black uppercase tracking-widest flex items-center gap-1 group-hover:gap-2 transition-all">
-                  Explorar <ArrowRight className="h-3 w-3" />
+                  Acceder <ArrowRight className="h-3 w-3" />
                 </div>
               </CardFooter>
             </Card>
@@ -186,9 +195,9 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2 border-none shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-              <Activity className="h-6 w-6 text-primary" /> Actividad del Sistema
+              <Activity className="h-6 w-6 text-primary" /> Monitoreo del Sistema
             </CardTitle>
-            <CardDescription>Resumen de movimientos globales detectados en la plataforma.</CardDescription>
+            <CardDescription>Resumen de actividad en tiempo real a través de todos los niveles.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {[
@@ -215,14 +224,14 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <Card className="bg-primary text-primary-foreground border-none shadow-lg shadow-primary/20 relative overflow-hidden">
             <CardHeader className="relative z-10">
-              <CardTitle className="text-lg font-bold">Guía de Arquitectura</CardTitle>
+              <CardTitle className="text-lg font-bold">Resumen de Acceso</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm opacity-90 leading-relaxed relative z-10">
-              <p>Modelo Federal Descentralizado:</p>
+              <p>Tu perfil actual tiene privilegios de Desarrollador:</p>
               <ul className="space-y-3">
-                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">1</Badge> <strong>Nacional:</strong> CAH define reglas.</li>
-                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">2</Badge> <strong>Regional:</strong> Ligas y Federaciones.</li>
-                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">3</Badge> <strong>Local:</strong> Clubes autogestionados.</li>
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">✓</Badge> Visibilidad de Pizarra Táctica.</li>
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">✓</Badge> Gestión de Clubes y Tiendas.</li>
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">✓</Badge> Acceso a Carnets de Jugadores.</li>
               </ul>
             </CardContent>
             <div className="absolute right-[-20px] bottom-[-20px] opacity-10">
@@ -233,12 +242,12 @@ export default function DashboardPage() {
           <Card className="border-accent border-2 bg-accent/5">
             <CardHeader>
               <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent-foreground flex items-center gap-2">
-                <Sparkles className="h-4 w-4" /> Próximamente
+                <Sparkles className="h-4 w-4" /> Consola de Control
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground font-medium italic">
-                Integración con cámaras de IA para análisis de video automático y estadísticas avanzadas por jugadora.
+                Usa el menú lateral para saltar entre las vistas de Entrenador, Administrador o Jugador sin cambiar de cuenta.
               </p>
             </CardContent>
           </Card>
