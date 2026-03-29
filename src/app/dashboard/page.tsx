@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,53 +5,36 @@ import {
   Trophy, 
   Users, 
   Calendar as CalendarIcon, 
-  TrendingUp, 
   Activity,
-  ArrowUpRight,
-  Zap,
   Database,
   Loader2,
-  CheckCircle2,
   ShieldCheck,
   Globe,
   Building2,
   Flag,
-  UserRoundSearch
+  UserRoundSearch,
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useFirebase } from "@/firebase";
-import { doc, setDoc, collection, getDocs, getDoc } from "firebase/firestore";
+import { doc, setDoc, collection, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 import { 
   demoFederations, 
   demoAssociations, 
   demoClubs, 
-  demoPlayers, 
-  demoTournaments, 
-  demoStandings,
-  demoMatches
+  demoPlayers 
 } from "@/lib/mock-data";
 
 export default function DashboardPage() {
   const { firestore, user, auth, isUserLoading } = useFirebase();
   const { toast } = useToast();
   const [seeding, setSeeding] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchRole() {
-      if (!user || !firestore) return;
-      const userDoc = await getDoc(doc(firestore, "users", user.uid));
-      if (userDoc.exists()) {
-        setUserRole(userDoc.data().role);
-      }
-    }
-    fetchRole();
-  }, [user, firestore]);
 
   const handleSeedData = async () => {
     if (!firestore) return;
@@ -63,7 +45,7 @@ export default function DashboardPage() {
 
     setSeeding(true);
     try {
-      // 1. Cargar Usuario Admin (Tú)
+      // 1. Cargar Usuario Admin
       await setDoc(doc(firestore, "users", user.uid), {
         id: user.uid,
         name: user.displayName || "Administrador Demo",
@@ -87,13 +69,10 @@ export default function DashboardPage() {
         await setDoc(doc(firestore, "clubs", club.id), { ...club, ownerId: user.uid, createdAt: new Date().toISOString() });
         const divId = "div-inferiores-" + club.id;
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId), { id: divId, clubId: club.id, name: "Divisiones Inferiores", createdAt: new Date().toISOString() });
-        const subId = "sub-7ma-" + club.id;
-        // Ahora asignamos directamente equipos bajo la categoría
+        
         const teamId = "team-a-" + club.id;
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "teams", teamId), { id: teamId, name: club.name + " A", coachName: "Coach " + club.name, season: "2025", createdAt: new Date().toISOString() });
 
-        // 5. Cargar Jugadores e índice global (incluyendo email para notificaciones)
-        // Usamos el primer club de la lista (Lomas) para los jugadores de prueba
         if (club.id === "club-lomas") {
           let isFirst = true;
           for (const player of demoPlayers) {
@@ -102,7 +81,6 @@ export default function DashboardPage() {
             const pData = { ...player, id: pId, clubId: club.id, email: pEmail, clubName: club.name, createdAt: new Date().toISOString() };
             await setDoc(doc(firestore, "clubs", club.id, "players", pId), pData);
             
-            // Índice global para la "Puerta Jugadores" y notificaciones
             await setDoc(doc(firestore, "all_players_index", pId), {
               id: pId, 
               firstName: player.firstName, 
@@ -112,13 +90,12 @@ export default function DashboardPage() {
               clubId: club.id,
               email: pEmail
             });
-
             isFirst = false;
           }
         }
       }
 
-      toast({ title: "¡Ecosistema Poblado!", description: "Se han cargado las 4 capas del sistema. Explora el Sidebar." });
+      toast({ title: "¡Ecosistema Poblado!", description: "Se han cargado los datos de prueba exitosamente." });
       window.location.reload(); 
     } catch (e) {
       console.error(e);
@@ -128,92 +105,81 @@ export default function DashboardPage() {
     }
   };
 
-  if (isUserLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
+  if (isUserLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-headline text-foreground">SportsManager Platform</h1>
-          <p className="text-muted-foreground">Sistema Integral de Gestión Federativa y de Clubes.</p>
+    <div className="space-y-10 max-w-7xl mx-auto py-2">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-black tracking-tight text-foreground flex items-center gap-3">
+            SportsManager <Sparkles className="h-6 w-6 text-accent" />
+          </h1>
+          <p className="text-muted-foreground text-lg">Plataforma integral para federaciones y clubes deportivos.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
           {!user ? (
-            <Button onClick={() => initiateAnonymousSignIn(auth)} className="gap-2">
-              <ShieldCheck className="h-4 w-4" /> Iniciar Sesión para Probar
+            <Button size="lg" onClick={() => initiateAnonymousSignIn(auth)} className="font-bold shadow-lg shadow-primary/20">
+              <ShieldCheck className="mr-2 h-5 w-5" /> Iniciar Sesión de Prueba
             </Button>
           ) : (
-            <Button variant="outline" onClick={handleSeedData} disabled={seeding} className="border-primary text-primary hover:bg-primary/5">
-              {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Database className="h-4 w-4 mr-2" />}
-              Poblar Ecosistema Nacional
+            <Button variant="outline" size="lg" onClick={handleSeedData} disabled={seeding} className="border-2 font-bold hover:bg-primary/5 text-primary border-primary/20">
+              {seeding ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Database className="h-5 w-5 mr-2" />}
+              Poblar Datos Nacionales
             </Button>
           )}
         </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Link href="/dashboard/cah" className="group">
-          <Card className="hover:border-primary transition-all cursor-pointer h-full bg-primary/5">
-            <CardHeader className="pb-2">
-              <Database className="h-8 w-8 text-primary mb-2 group-hover:scale-110 transition-transform" />
-              <CardTitle className="text-lg">CAH / Sistema</CardTitle>
-              <CardDescription>Control nacional y reglamentación.</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-
-        <Link href="/dashboard/federations" className="group">
-          <Card className="hover:border-primary transition-all cursor-pointer h-full bg-accent/5">
-            <CardHeader className="pb-2">
-              <Globe className="h-8 w-8 text-accent mb-2 group-hover:scale-110 transition-transform" />
-              <CardTitle className="text-lg">Federaciones</CardTitle>
-              <CardDescription>Gestión regional y asociaciones.</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-
-        <Link href="/dashboard/clubs" className="group">
-          <Card className="hover:border-primary transition-all cursor-pointer h-full">
-            <CardHeader className="pb-2">
-              <Building2 className="h-8 w-8 text-primary mb-2 group-hover:scale-110 transition-transform" />
-              <CardTitle className="text-lg">Instituciones</CardTitle>
-              <CardDescription>Administración de clubes y equipos.</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-
-        <Link href="/dashboard/player/search" className="group">
-          <Card className="hover:border-primary transition-all cursor-pointer h-full">
-            <CardHeader className="pb-2">
-              <UserRoundSearch className="h-8 w-8 text-muted-foreground mb-2 group-hover:scale-110 transition-transform" />
-              <CardTitle className="text-lg">Jugadores</CardTitle>
-              <CardDescription>Base de datos nacional y pases.</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
+        {[
+          { title: "Nivel Nacional", desc: "CAH / Reglamentos", icon: Database, href: "/dashboard/cah", color: "bg-blue-500" },
+          { title: "Regiones", desc: "Federaciones & Ligas", icon: Globe, href: "/dashboard/federations", color: "bg-accent" },
+          { title: "Clubes", desc: "Gestión Institucional", icon: Building2, href: "/dashboard/clubs", color: "bg-primary" },
+          { title: "Padrón", desc: "Búsqueda de Jugadores", icon: UserRoundSearch, href: "/dashboard/player/search", color: "bg-slate-600" },
+        ].map((item, i) => (
+          <Link key={i} href={item.href} className="group">
+            <Card className="border-none shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full">
+              <CardHeader>
+                <div className={`${item.color} w-12 h-12 rounded-xl flex items-center justify-center text-white mb-2 shadow-inner group-hover:scale-110 transition-transform`}>
+                  <item.icon className="h-6 w-6" />
+                </div>
+                <CardTitle className="text-xl font-bold">{item.title}</CardTitle>
+                <CardDescription>{item.desc}</CardDescription>
+              </CardHeader>
+              <CardFooter className="pt-0">
+                <div className="text-primary text-xs font-black uppercase tracking-widest flex items-center gap-1 group-hover:gap-2 transition-all">
+                  Explorar <ArrowRight className="h-3 w-3" />
+                </div>
+              </CardFooter>
+            </Card>
+          </Link>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 border-none shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" /> Actividad del Sistema
+            <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+              <Activity className="h-6 w-6 text-primary" /> Actividad del Sistema
             </CardTitle>
-            <CardDescription>Movimientos globales detectados recientemente.</CardDescription>
+            <CardDescription>Resumen de movimientos globales detectados en la plataforma.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {[
-              { label: "Validación de Carnet", desc: "Federación Buenos Aires validó 45 nuevos jugadores", icon: ShieldCheck },
-              { label: "Designación Arbitral", desc: "18 árbitros asignados para la Fecha 5 del Metropolitano", icon: Flag },
-              { label: "Resultado Oficial", desc: "Lomas 2-1 Mitre (Validado por CAH)", icon: Trophy },
+              { label: "Validación de Carnet", desc: "Federación Buenos Aires validó 45 nuevos jugadores", icon: ShieldCheck, time: "Hace 10m" },
+              { label: "Designación Arbitral", desc: "18 árbitros asignados para la Fecha 5 del Metropolitano", icon: Flag, time: "Hace 1h" },
+              { label: "Resultado Oficial", desc: "Lomas 2-1 Mitre (Validado por CAH)", icon: Trophy, time: "Hace 2h" },
             ].map((item, i) => (
-              <div key={i} className="flex items-start gap-4 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
-                <div className="bg-primary/10 p-2 rounded-full mt-1">
-                  <item.icon className="h-4 w-4 text-primary" />
+              <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-muted/30 border border-transparent hover:border-primary/10 transition-all">
+                <div className="bg-white p-2 rounded-lg shadow-sm">
+                  <item.icon className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm font-bold block">{item.label}</span>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-black uppercase tracking-tight">{item.label}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{item.time}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -221,18 +187,33 @@ export default function DashboardPage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold">Guía de Arquitectura</CardTitle>
+          <Card className="bg-primary text-primary-foreground border-none shadow-lg shadow-primary/20 relative overflow-hidden">
+            <CardHeader className="relative z-10">
+              <CardTitle className="text-lg font-bold">Guía de Arquitectura</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-xs opacity-90 leading-relaxed">
-              <p>Este sistema replica un <strong>Modelo Federal Descentralizado</strong>:</p>
-              <ul className="space-y-2 list-disc pl-4">
-                <li><strong>Nacional:</strong> CAH define reglas.</li>
-                <li><strong>Regional:</strong> Federaciones gestionan ligas.</li>
-                <li><strong>Local:</strong> Clubes autogestionan planteles.</li>
-                <li><strong>Individual:</strong> Jugadores construyen su historia.</li>
+            <CardContent className="space-y-4 text-sm opacity-90 leading-relaxed relative z-10">
+              <p>Modelo Federal Descentralizado:</p>
+              <ul className="space-y-3">
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">1</Badge> <strong>Nacional:</strong> CAH define reglas.</li>
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">2</Badge> <strong>Regional:</strong> Ligas y Federaciones.</li>
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">3</Badge> <strong>Local:</strong> Clubes autogestionados.</li>
               </ul>
+            </CardContent>
+            <div className="absolute right-[-20px] bottom-[-20px] opacity-10">
+              <Building2 className="h-40 w-40 rotate-12" />
+            </div>
+          </Card>
+
+          <Card className="border-accent border-2 bg-accent/5">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent-foreground flex items-center gap-2">
+                <Sparkles className="h-4 w-4" /> Próximamente
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground font-medium italic">
+                Integración con cámaras de IA para análisis de video automático y estadísticas avanzadas por jugadora.
+              </p>
             </CardContent>
           </Card>
         </div>

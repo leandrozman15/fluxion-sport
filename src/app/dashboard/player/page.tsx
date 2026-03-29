@@ -1,30 +1,27 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { 
   Trophy, 
-  Users, 
   Calendar as CalendarIcon, 
-  CheckCircle2, 
-  Clock, 
+  Loader2, 
+  Bell, 
+  UserCircle, 
+  ShieldCheck, 
+  CreditCard, 
+  ShoppingBag, 
+  Table as TableIcon, 
+  ChevronRight, 
+  Star, 
+  BellRing,
+  Clock,
   MapPin,
-  Loader2,
-  Bell,
-  UserCircle,
-  ShieldCheck,
-  CreditCard,
-  Target,
-  ShoppingBag,
-  Table as TableIcon,
-  ChevronRight,
-  Star,
-  BellRing
+  Sparkles
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, doc, getDocs, limit, orderBy } from "firebase/firestore";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -41,14 +38,12 @@ export default function PlayerDashboardHub() {
       if (!user || !firestore) return;
       
       try {
-        // 1. Buscar al jugador en el índice global
         const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", user.email)));
         
         if (!playerSnap.empty) {
           const pData = playerSnap.docs[0].data();
           setPlayerInfo(pData);
           
-          // 2. Buscar su equipo actual
           const divSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions"));
           for (const dDoc of divSnap.docs) {
             const teamsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "teams"));
@@ -66,7 +61,6 @@ export default function PlayerDashboardHub() {
                   divisionId: dDoc.id
                 });
 
-                // 3. Buscar próximo evento del equipo
                 const eventsSnap = await getDocs(query(
                   collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "teams", tDoc.id, "events"),
                   where("date", ">=", new Date().toISOString()),
@@ -83,7 +77,7 @@ export default function PlayerDashboardHub() {
           }
         }
       } catch (e) {
-        console.error("Error cargando dashboard de jugador:", e);
+        console.error("Error cargando dashboard:", e);
       } finally {
         setLoading(false);
       }
@@ -91,7 +85,6 @@ export default function PlayerDashboardHub() {
     fetchPlayerData();
   }, [user, firestore, teamInfo]);
 
-  // Consultar convocatorias pendientes para el badge
   const callupsQuery = useMemoFirebase(() => {
     if (!firestore || !playerInfo) return null;
     return query(
@@ -105,159 +98,117 @@ export default function PlayerDashboardHub() {
   const { data: pendingCallups } = useCollection(callupsQuery);
   const pendingCount = pendingCallups?.length || 0;
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
+  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
 
   if (!playerInfo) return (
-    <div className="flex flex-col items-center justify-center text-center py-20 px-4">
-      <UserCircle className="h-20 w-20 text-muted-foreground opacity-20 mb-6" />
-      <h2 className="text-2xl font-bold font-headline">Perfil no vinculado</h2>
-      <p className="text-muted-foreground max-w-sm mx-auto mt-2">
-        Tu correo <span className="font-semibold text-foreground">{user?.email}</span> no está asociado a ninguna ficha activa. Contacta con tu club para el alta.
-      </p>
+    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6 space-y-4">
+      <UserCircle className="h-20 w-20 text-muted-foreground/20" />
+      <h2 className="text-2xl font-black text-foreground tracking-tight">Sin Perfil Vinculado</h2>
+      <p className="text-muted-foreground max-w-sm">Contacta con tu club para que vinculen tu email con tu ficha oficial de deportista.</p>
     </div>
   );
 
   const menuItems = [
-    { 
-      title: "Mi Carnet", 
-      desc: "Identificación oficial", 
-      icon: ShieldCheck, 
-      href: "/dashboard/player/id-card",
-      color: "text-blue-600",
-      bg: "bg-blue-50"
-    },
-    { 
-      title: "Convocatorias", 
-      desc: "Partidos confirmados", 
-      icon: Bell, 
-      href: "/dashboard/player", // El dashboard viejo tenía la lógica de tabs, ahora movemos convocatorias a una subvista si es necesario, por ahora dejamos el hub
-      badge: pendingCount,
-      color: "text-orange-600",
-      bg: "bg-orange-50"
-    },
-    { 
-      title: "Estadísticas", 
-      desc: "Mi historial deportivo", 
-      icon: Star, 
-      href: "/dashboard/player/stats",
-      color: "text-yellow-600",
-      bg: "bg-yellow-50"
-    },
-    { 
-      title: "Posiciones", 
-      desc: "Ranking del torneo", 
-      icon: TableIcon, 
-      href: "/dashboard/player/standings",
-      color: "text-primary",
-      bg: "bg-primary/10"
-    },
-    { 
-      title: "Mis Pagos", 
-      desc: "Cuotas y mensualidades", 
-      icon: CreditCard, 
-      href: "/dashboard/player/payments",
-      color: "text-green-600",
-      bg: "bg-green-50"
-    },
-    { 
-      title: "Tienda Club", 
-      desc: "Indumentaria oficial", 
-      icon: ShoppingBag, 
-      href: teamInfo ? `/dashboard/clubs/${teamInfo.clubId}/shop` : "#",
-      color: "text-purple-600",
-      bg: "bg-purple-50"
-    },
+    { title: "Mi Carnet", desc: "ID oficial del club", icon: ShieldCheck, href: "/dashboard/player/id-card", color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Convocatorias", desc: "Asistencia a partidos", icon: Bell, href: "/dashboard/player", badge: pendingCount, color: "text-orange-600", bg: "bg-orange-50" },
+    { title: "Estadísticas", desc: "Goles y minutos", icon: Star, href: "/dashboard/player/stats", color: "text-yellow-600", bg: "bg-yellow-50" },
+    { title: "Torneos", desc: "Tabla de posiciones", icon: TableIcon, href: "/dashboard/player/standings", color: "text-primary", bg: "bg-primary/10" },
+    { title: "Cuotas", desc: "Control de mensualidades", icon: CreditCard, href: "/dashboard/player/payments", color: "text-green-600", bg: "bg-green-50" },
+    { title: "Tienda", desc: "Indumentaria oficial", icon: ShoppingBag, href: teamInfo ? `/dashboard/clubs/${teamInfo.clubId}/shop` : "#", color: "text-purple-600", bg: "bg-purple-50" },
   ];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
-      {/* Header del Jugador */}
-      <header className="flex items-center gap-4 bg-white p-6 rounded-2xl border shadow-sm">
+    <div className="max-w-3xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20">
+      <header className="flex items-center gap-6 bg-card p-8 rounded-3xl shadow-sm border border-white/50">
         <div className="relative">
-          <Avatar className="h-20 w-20 border-4 border-primary/10">
+          <Avatar className="h-24 w-24 border-4 border-primary/10 shadow-inner">
             <AvatarImage src={playerInfo.photoUrl} className="object-cover" />
-            <AvatarFallback className="text-2xl font-bold">{playerInfo.firstName[0]}</AvatarFallback>
+            <AvatarFallback className="text-3xl font-black">{playerInfo.firstName[0]}</AvatarFallback>
           </Avatar>
-          <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[10px] font-black h-6 w-6 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+          <div className="absolute -bottom-1 -right-1 bg-primary text-white text-xs font-black h-8 w-8 rounded-full flex items-center justify-center border-4 border-card shadow-lg">
             #{playerInfo.jerseyNumber || "•"}
           </div>
         </div>
-        <div className="flex-1">
-          <h1 className="text-2xl font-black font-headline leading-tight">{playerInfo.firstName} {playerInfo.lastName}</h1>
-          <p className="text-muted-foreground text-sm font-medium">{playerInfo.clubName || "Club Federado"}</p>
+        <div className="flex-1 space-y-1">
+          <h1 className="text-3xl font-black font-headline tracking-tight">{playerInfo.firstName} {playerInfo.lastName}</h1>
+          <p className="text-muted-foreground font-semibold flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" /> {playerInfo.clubName}
+          </p>
           {teamInfo && (
-            <Badge variant="secondary" className="mt-2 text-[10px] font-black uppercase tracking-tighter">
-              {teamInfo.name} • {teamInfo.divisionName}
-            </Badge>
+            <div className="flex gap-2 pt-1">
+              <Badge variant="secondary" className="text-[10px] font-black uppercase tracking-widest">{teamInfo.divisionName}</Badge>
+              <Badge className="bg-accent/20 text-accent-foreground border-none text-[10px] font-black uppercase tracking-widest">{teamInfo.name}</Badge>
+            </div>
           )}
         </div>
       </header>
 
-      {/* Alerta de Convocatorias Pendientes */}
       {pendingCount > 0 && (
-        <Link href="/dashboard/player" className="block">
-          <div className="bg-orange-500 text-white p-4 rounded-xl shadow-lg shadow-orange-200 flex items-center justify-between group animate-pulse">
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                <BellRing className="h-5 w-5" />
+        <Link href="/dashboard/player" className="block hover:scale-[1.02] transition-transform">
+          <div className="bg-orange-500 text-white p-5 rounded-2xl shadow-xl shadow-orange-500/20 flex items-center justify-between group">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-xl animate-pulse">
+                <BellRing className="h-6 w-6" />
               </div>
-              <div>
-                <p className="font-black text-sm uppercase tracking-widest">Tienes {pendingCount} Convocatorias</p>
-                <p className="text-xs opacity-90">Confirma tu asistencia ahora</p>
+              <div className="space-y-0.5">
+                <p className="font-black text-lg uppercase tracking-tight">Tienes {pendingCount} Convocatorias</p>
+                <p className="text-sm opacity-90 font-medium">Confirma tu asistencia antes de que cierre la planilla.</p>
               </div>
             </div>
-            <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            <ChevronRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
           </div>
         </Link>
       )}
 
-      {/* Próximo Evento / Agenda */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">Próximo Compromiso</h2>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Próximo Compromiso</h2>
+          <Badge variant="outline" className="text-[9px] font-black uppercase opacity-50">Calendario Oficial</Badge>
+        </div>
         {nextEvent ? (
-          <Card className="border-l-4 border-l-primary overflow-hidden shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="bg-primary/10 p-3 rounded-xl text-primary">
-                  {nextEvent.type === 'match' ? <Trophy className="h-6 w-6" /> : <CalendarIcon className="h-6 w-6" />}
+          <Card className="border-none shadow-sm overflow-hidden hover:shadow-md transition-shadow group cursor-pointer">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div className="flex items-center gap-5">
+                <div className="bg-primary/10 p-4 rounded-2xl text-primary group-hover:scale-110 transition-transform">
+                  {nextEvent.type === 'match' ? <Trophy className="h-8 w-8" /> : <CalendarIcon className="h-8 w-8" />}
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-primary uppercase tracking-widest leading-none mb-1">
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-primary uppercase tracking-widest leading-none">
                     {nextEvent.type === 'match' ? 'PARTIDO OFICIAL' : 'ENTRENAMIENTO'}
                   </p>
-                  <h3 className="font-black text-lg leading-tight">{nextEvent.title}</h3>
-                  <div className="flex items-center gap-3 mt-1 text-muted-foreground">
-                    <span className="text-xs flex items-center gap-1 font-bold"><Clock className="h-3 w-3" /> {new Date(nextEvent.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs</span>
-                    <span className="text-xs flex items-center gap-1 font-bold"><MapPin className="h-3 w-3" /> {nextEvent.location}</span>
+                  <h3 className="font-black text-xl leading-tight">{nextEvent.title}</h3>
+                  <div className="flex items-center gap-4 mt-2 text-muted-foreground">
+                    <span className="text-xs flex items-center gap-1.5 font-bold"><Clock className="h-3.5 w-3.5" /> {new Date(nextEvent.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs</span>
+                    <span className="text-xs flex items-center gap-1.5 font-bold"><MapPin className="h-3.5 w-3.5" /> {nextEvent.location}</span>
                   </div>
                 </div>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground opacity-30" />
+              <ChevronRight className="h-6 w-6 text-muted-foreground opacity-20 group-hover:opacity-100 transition-opacity" />
             </CardContent>
           </Card>
         ) : (
-          <Card className="border-dashed py-6 flex flex-col items-center justify-center opacity-50">
-            <p className="text-xs font-bold text-muted-foreground italic">Sin eventos programados esta semana</p>
+          <Card className="border-dashed border-2 bg-transparent py-10 flex flex-col items-center justify-center opacity-40">
+            <CalendarIcon className="h-8 w-8 mb-2" />
+            <p className="text-xs font-black uppercase tracking-widest">Sin eventos programados</p>
           </Card>
         )}
       </section>
 
-      {/* Menú de Funciones */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">Menú del Deportista</h2>
+      <section className="space-y-4">
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Menú del Deportista</h2>
         <div className="grid grid-cols-2 gap-4">
           {menuItems.map((item, idx) => (
             <Link key={idx} href={item.href}>
-              <Card className="h-full hover:border-primary/50 transition-all active:scale-95 cursor-pointer shadow-sm group">
-                <CardContent className="p-5 flex flex-col gap-3">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", item.bg, item.color)}>
-                    <item.icon className="h-5 w-5" />
+              <Card className="h-full border-none shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 active:scale-95 group">
+                <CardContent className="p-6 flex flex-col gap-4">
+                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner transition-colors", item.bg, item.color)}>
+                    <item.icon className="h-6 w-6" />
                   </div>
                   <div className="relative">
-                    <h3 className="font-bold text-sm group-hover:text-primary transition-colors">{item.title}</h3>
-                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{item.desc}</p>
+                    <h3 className="font-black text-base group-hover:text-primary transition-colors leading-none mb-1">{item.title}</h3>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">{item.desc}</p>
                     {item.badge !== undefined && item.badge > 0 && (
-                      <div className="absolute -top-12 -right-1 bg-destructive text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+                      <div className="absolute -top-14 -right-1 bg-destructive text-white text-[10px] font-black h-6 w-6 rounded-full flex items-center justify-center shadow-lg border-4 border-card">
                         {item.badge}
                       </div>
                     )}
@@ -269,10 +220,10 @@ export default function PlayerDashboardHub() {
         </div>
       </section>
 
-      {/* Frase Motivacional o Info Extra */}
-      <footer className="text-center pt-4 opacity-40">
-        <Trophy className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em]">SportsManager Platform v2.0</p>
+      <footer className="text-center pt-10 opacity-30 flex flex-col items-center gap-2">
+        <div className="h-px w-20 bg-muted-foreground mb-4" />
+        <Trophy className="h-8 w-8 text-muted-foreground" />
+        <p className="text-[10px] font-black uppercase tracking-[0.3em]">SportsManager Platform • 2026</p>
       </footer>
     </div>
   );

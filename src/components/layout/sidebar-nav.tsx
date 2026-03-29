@@ -12,6 +12,7 @@ import {
   Flag, 
   ClipboardCheck, 
   Building2,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -81,33 +82,37 @@ export function SidebarNav() {
   const pendingCount = pendingCallups?.length || 0;
 
   return (
-    <Sidebar>
-      <SidebarHeader className="p-4 flex flex-row items-center gap-2">
-        <div className="bg-primary p-2 rounded-lg text-primary-foreground">
-          <Trophy className="h-5 w-5" />
-        </div>
-        <span className="font-headline font-bold text-xl tracking-tight">SportsManager</span>
+    <Sidebar className="border-r-0 shadow-sm">
+      <SidebarHeader className="p-6">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
+          <div className="bg-primary p-2 rounded-xl text-primary-foreground shadow-lg group-hover:scale-110 transition-transform">
+            <Trophy className="h-6 w-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-headline font-black text-xl tracking-tighter leading-none">SportsManager</span>
+            <span className="text-[10px] font-black uppercase text-accent tracking-[0.2em]">Platform</span>
+          </div>
+        </Link>
       </SidebarHeader>
       
-      <SidebarContent>
-        {/* Acceso Principal al Dashboard */}
+      <SidebarContent className="px-2">
         <SidebarGroup>
-          <SidebarGroupLabel>Administración</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Administración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard"}>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard"} tooltip="Dashboard Principal">
                   <Link href="/dashboard">
                     <LayoutDashboard className="h-4 w-4" />
-                    <span>Inicio Sistema</span>
+                    <span className="font-bold">Inicio Sistema</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clubs") && !pathname.includes("/shop")}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clubs") && !pathname.includes("/shop")} tooltip="Gestión de Clubes">
                   <Link href="/dashboard/clubs">
                     <Building2 className="h-4 w-4" />
-                    <span>Gestión de Clubes</span>
+                    <span className="font-bold">Clubes & Sedes</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -115,37 +120,36 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Panel del Jugador - Siempre visible durante el prototipado */}
         <SidebarGroup>
-          <SidebarGroupLabel>Mi Perfil Deportivo</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Deportista</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"}>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"} tooltip="Mi Panel">
                   <Link href="/dashboard/player">
                     <UserCircle className="h-4 w-4" />
-                    <span>Panel del Jugador</span>
+                    <span className="font-bold">Panel del Jugador</span>
                   </Link>
                 </SidebarMenuButton>
                 {pendingCount > 0 && (
-                  <SidebarMenuBadge className="bg-orange-500 text-white font-bold">
+                  <SidebarMenuBadge className="bg-orange-500 text-white font-black text-[10px] h-5 min-w-[20px] rounded-full">
                     {pendingCount}
                   </SidebarMenuBadge>
                 )}
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"}>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"} tooltip="Carnet Digital">
                   <Link href="/dashboard/player/id-card">
                     <ShieldCheck className="h-4 w-4" />
-                    <span>Mi Carnet Digital</span>
+                    <span className="font-bold">Carnet Digital</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"}>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/payments"} tooltip="Mis Pagos">
                   <Link href="/dashboard/player/payments">
                     <CreditCard className="h-4 w-4" />
-                    <span>Pagos & Cuotas</span>
+                    <span className="font-bold">Pagos & Cuotas</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -153,16 +157,15 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Staff Técnico */}
         <SidebarGroup>
-          <SidebarGroupLabel>Cuerpo Técnico</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Staff</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"}>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"} tooltip="Mis Equipos">
                   <Link href="/dashboard/coach">
                     <ClipboardCheck className="h-4 w-4" />
-                    <span>Mis Equipos</span>
+                    <span className="font-bold">Mis Equipos</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -171,22 +174,22 @@ export function SidebarNav() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Ecosistema Externo</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Ecosistema</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="opacity-60">
+                <SidebarMenuButton asChild className="opacity-60" tooltip="Federaciones Nacionales">
                   <Link href="/dashboard/federations">
                     <Globe className="h-4 w-4" />
-                    <span>CAH & Federaciones</span>
+                    <span className="font-bold">Federaciones</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="opacity-60">
+                <SidebarMenuButton asChild className="opacity-60" tooltip="Arbitraje & Oficiales">
                   <Link href="/dashboard/referee">
                     <Flag className="h-4 w-4" />
-                    <span>Arbitraje & Ligas</span>
+                    <span className="font-bold">Arbitraje</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -195,18 +198,18 @@ export function SidebarNav() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <div className="flex flex-col gap-2">
-          {user && (
-            <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 rounded-lg">
-              <UserCircle className="h-4 w-4 text-primary" />
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold truncate max-w-[120px]">{user.email}</span>
-                <span className="text-[8px] uppercase text-primary font-black">{userRole || 'Socio'}</span>
-              </div>
+      <SidebarFooter className="p-6">
+        {user && (
+          <div className="flex items-center gap-3 p-3 bg-white/50 rounded-2xl border border-white shadow-sm overflow-hidden">
+            <Avatar className="h-8 w-8 border-2 border-primary/10">
+              <AvatarFallback className="bg-primary/5 text-primary text-[10px] font-black uppercase">{user.email?.[0]}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] font-black truncate text-foreground">{user.email}</span>
+              <span className="text-[8px] uppercase text-primary font-black tracking-widest">{userRole || 'Socio'}</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
