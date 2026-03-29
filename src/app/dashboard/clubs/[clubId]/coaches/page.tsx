@@ -18,7 +18,8 @@ import {
   CreditCard,
   Pencil,
   ClipboardCheck,
-  GraduationCap
+  GraduationCap,
+  ShoppingBag
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
@@ -51,7 +52,6 @@ export default function ClubCoachesPage() {
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
 
-  // Consultamos los entrenadores asociados a este club
   const coachesQuery = useMemoFirebase(() => 
     query(collection(db, "users"), where("clubId", "==", clubId), where("role", "==", "coach")),
     [db, clubId]
@@ -63,6 +63,7 @@ export default function ClubCoachesPage() {
     { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
     { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
+    { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
   ];
@@ -104,107 +105,110 @@ export default function ClubCoachesPage() {
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold font-headline text-foreground">Staff Técnico: {club?.name}</h1>
-            <p className="text-muted-foreground">Gestión de entrenadores, preparadores físicos y coordinadores.</p>
-          </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Registrar Entrenador
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Nueva Ficha de Staff</DialogTitle>
-                <DialogDescription>Añade un miembro al cuerpo técnico de la institución.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Nombre Completo</Label>
-                  <Input value={newCoach.name} onChange={e => setNewCoach({...newCoach, name: e.target.value})} placeholder="Ej. Camila Entrenadora" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input type="email" value={newCoach.email} onChange={e => setNewCoach({...newCoach, email: e.target.value})} placeholder="camila@club.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Teléfono</Label>
-                    <Input value={newCoach.phone} onChange={e => setNewCoach({...newCoach, phone: e.target.value})} placeholder="+54..." />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Especialidad / Cargo</Label>
-                  <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. DT Primera Damas" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Licencia / Título</Label>
-                  <Input value={newCoach.license} onChange={e => setNewCoach({...newCoach, license: e.target.value})} placeholder="Ej. Nivel 2 CAH" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreateCoach} disabled={!newCoach.name || !newCoach.email}>Guardar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-        <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {coachesLoading ? (
-          <div className="col-span-full flex justify-center p-12"><Loader2 className="animate-spin" /></div>
-        ) : (
-          coaches?.map((coach: any) => (
-            <Card key={coach.id} className="hover:border-primary transition-all overflow-hidden group">
-              <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar className="h-14 w-14 border-2 border-primary/10">
-                  <AvatarImage src={coach.photoUrl} />
-                  <AvatarFallback><UserRound /></AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <CardTitle className="text-lg leading-tight">{coach.name}</CardTitle>
-                  <CardDescription className="font-medium text-primary text-xs mt-1">{coach.specialty}</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground pb-4">
-                <div className="flex items-center gap-2"><Mail className="h-3 w-3" /> {coach.email}</div>
-                <div className="flex items-center gap-2"><Phone className="h-3 w-3" /> {coach.phone || 'Sin teléfono'}</div>
-                {coach.license && (
-                  <div className="mt-3 flex items-center gap-2 bg-muted/50 p-2 rounded-lg text-[10px] font-bold text-foreground">
-                    <GraduationCap className="h-3 w-3 text-primary" /> {coach.license}
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter className="flex justify-between border-t bg-muted/10 pt-4">
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDeleteCoach(coach.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditingCoach(coach); setIsEditOpen(true); }}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/dashboard/coach">
-                    Ver Panel <ClipboardCheck className="h-4 w-4 ml-2" />
-                  </Link>
+    <div className="flex gap-8 animate-in fade-in duration-500">
+      <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
+      
+      <div className="flex-1 space-y-8">
+        <header className="flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold font-headline text-foreground">Staff Técnico: {club?.name}</h1>
+              <p className="text-muted-foreground">Gestión de entrenadores, preparadores físicos y coordinadores.</p>
+            </div>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" /> Registrar Entrenador
                 </Button>
-              </CardFooter>
-            </Card>
-          ))
-        )}
-        {coaches?.length === 0 && !coachesLoading && (
-          <div className="col-span-full text-center py-20 border-2 border-dashed rounded-xl bg-muted/20">
-            <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-            <p className="text-muted-foreground">Aún no hay entrenadores registrados en {club?.name}.</p>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Nueva Ficha de Staff</DialogTitle>
+                  <DialogDescription>Añade un miembro al cuerpo técnico de la institución.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Nombre Completo</Label>
+                    <Input value={newCoach.name} onChange={e => setNewCoach({...newCoach, name: e.target.value})} placeholder="Ej. Camila Entrenadora" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input type="email" value={newCoach.email} onChange={e => setNewCoach({...newCoach, email: e.target.value})} placeholder="camila@club.com" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Teléfono</Label>
+                      <Input value={newCoach.phone} onChange={e => setNewCoach({...newCoach, phone: e.target.value})} placeholder="+54..." />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Especialidad / Cargo</Label>
+                    <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. DT Primera Damas" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Licencia / Título</Label>
+                    <Input value={newCoach.license} onChange={e => setNewCoach({...newCoach, license: e.target.value})} placeholder="Ej. Nivel 2 CAH" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleCreateCoach} disabled={!newCoach.name || !newCoach.email}>Guardar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
-        )}
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {coachesLoading ? (
+            <div className="col-span-full flex justify-center p-12"><Loader2 className="animate-spin" /></div>
+          ) : (
+            coaches?.map((coach: any) => (
+              <Card key={coach.id} className="hover:border-primary transition-all overflow-hidden group">
+                <CardHeader className="flex flex-row items-center gap-4">
+                  <Avatar className="h-14 w-14 border-2 border-primary/10">
+                    <AvatarImage src={coach.photoUrl} />
+                    <AvatarFallback><UserRound /></AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <CardTitle className="text-lg leading-tight">{coach.name}</CardTitle>
+                    <CardDescription className="font-medium text-primary text-xs mt-1">{coach.specialty}</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm text-muted-foreground pb-4">
+                  <div className="flex items-center gap-2"><Mail className="h-3 w-3" /> {coach.email}</div>
+                  <div className="flex items-center gap-2"><Phone className="h-3 w-3" /> {coach.phone || 'Sin teléfono'}</div>
+                  {coach.license && (
+                    <div className="mt-3 flex items-center gap-2 bg-muted/50 p-2 rounded-lg text-[10px] font-bold text-foreground">
+                      <GraduationCap className="h-3 w-3 text-primary" /> {coach.license}
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="flex justify-between border-t bg-muted/10 pt-4">
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0" onClick={() => handleDeleteCoach(coach.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditingCoach(coach); setIsEditOpen(true); }}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/dashboard/coach">
+                      Ver Panel <ClipboardCheck className="h-4 w-4 ml-2" />
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))
+          )}
+          {coaches?.length === 0 && !coachesLoading && (
+            <div className="col-span-full text-center py-20 border-2 border-dashed rounded-xl bg-muted/20">
+              <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
+              <p className="text-muted-foreground">Aún no hay entrenadores registrados en {club?.name}.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
