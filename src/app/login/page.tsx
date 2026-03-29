@@ -11,11 +11,12 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  ShieldCheck
+  ShieldCheck,
+  Zap
 } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { useFirebase } from "@/firebase";
+import { useFirebase, initiateAnonymousSignIn } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,8 @@ export default function LoginPage() {
         else if (role === 'referee') router.push('/dashboard/referee');
         else router.push('/dashboard');
       } else {
+        // Si es un usuario nuevo (o anónimo de desarrollador) que aún no tiene perfil,
+        // lo enviamos al dashboard para que pueda "Poblar Datos" y crearse el perfil admin.
         router.push('/dashboard');
       }
     } catch (e) {
@@ -77,6 +80,14 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeveloperAccess = () => {
+    initiateAnonymousSignIn(auth);
+    toast({
+      title: "Modo Desarrollador",
+      description: "Iniciando sesión temporal para configuración de ecosistema.",
+    });
   };
 
   if (isUserLoading) {
@@ -162,6 +173,21 @@ export default function LoginPage() {
               <Button type="submit" className="w-full h-12 text-lg font-bold gap-2" disabled={loading}>
                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
                 Ingresar al Sistema
+              </Button>
+              
+              <div className="relative w-full py-2">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground font-bold">O también</span></div>
+              </div>
+
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full h-12 border-2 font-black uppercase text-[10px] tracking-widest gap-2 hover:bg-accent hover:text-accent-foreground transition-all"
+                onClick={handleDeveloperAccess}
+              >
+                <Zap className="h-4 w-4 text-accent fill-current" />
+                Acceso Desarrollador (SuperAdmin)
               </Button>
             </CardFooter>
           </form>

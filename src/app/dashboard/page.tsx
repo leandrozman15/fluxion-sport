@@ -16,16 +16,16 @@ import {
   Flag,
   UserRoundSearch,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { useFirebase } from "@/firebase";
+import { useFirebase, initiateAnonymousSignIn } from "@/firebase";
 import { doc, setDoc, collection, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 import { 
   demoFederations, 
   demoAssociations, 
@@ -62,7 +62,8 @@ export default function DashboardPage() {
           }
           setIsAuthorized(true);
         } else {
-          // Si no hay perfil, permitimos que se quede para hacer el Seeding inicial
+          // Si no hay perfil, es un usuario recién logueado (anónimo o nuevo).
+          // Le permitimos quedarse para que use el botón de SEED y se convierta en Admin.
           setIsAuthorized(true);
         }
       } catch (e) {
@@ -83,7 +84,7 @@ export default function DashboardPage() {
       // Al poblar datos, el usuario actual se convierte en el ADMIN (Desarrollador)
       await setDoc(doc(firestore, "users", user.uid), {
         id: user.uid,
-        name: user.displayName || "Administrador SportsManager",
+        name: user.displayName || "SuperAdmin SportsManager",
         email: user.email || "admin@sportsmanager.app",
         role: "admin",
         createdAt: new Date().toISOString()
@@ -130,7 +131,7 @@ export default function DashboardPage() {
         }
       }
 
-      toast({ title: "¡Ecosistema Creado!", description: "Se han cargado los datos nacionales y tu perfil de Administrador." });
+      toast({ title: "¡Ecosistema Creado!", description: "Ahora tienes perfil de SuperAdmin y acceso a todas las funciones." });
       window.location.reload(); 
     } catch (e) {
       console.error(e);
@@ -152,16 +153,16 @@ export default function DashboardPage() {
           <p className="text-muted-foreground text-lg">Consola de Administración Central y Desarrollo.</p>
         </div>
         <div className="flex items-center gap-3">
-          {!user ? (
-            <Button size="lg" onClick={() => initiateAnonymousSignIn(auth)} className="font-bold shadow-lg shadow-primary/20">
-              <ShieldCheck className="mr-2 h-5 w-5" /> Acceso Desarrollador
-            </Button>
-          ) : (
-            <Button variant="outline" size="lg" onClick={handleSeedData} disabled={seeding} className="border-2 font-bold hover:bg-primary/5 text-primary border-primary/20">
-              {seeding ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Database className="h-5 w-5 mr-2" />}
-              Poblar Ecosistema Completo
-            </Button>
-          )}
+          <Button 
+            variant={seeding ? "secondary" : "default"} 
+            size="lg" 
+            onClick={handleSeedData} 
+            disabled={seeding} 
+            className="font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-2 h-14 px-8 bg-primary hover:bg-primary/90"
+          >
+            {seeding ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current text-accent" />}
+            Poblar Ecosistema Completo
+          </Button>
         </div>
       </header>
 
@@ -227,7 +228,7 @@ export default function DashboardPage() {
               <CardTitle className="text-lg font-bold">Resumen de Acceso</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm opacity-90 leading-relaxed relative z-10">
-              <p>Tu perfil actual tiene privilegios de Desarrollador:</p>
+              <p>Tu perfil actual tiene privilegios de SuperAdmin:</p>
               <ul className="space-y-3">
                 <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">✓</Badge> Visibilidad de Pizarra Táctica.</li>
                 <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">✓</Badge> Gestión de Clubes y Tiendas.</li>
