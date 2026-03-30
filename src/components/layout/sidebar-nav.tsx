@@ -12,7 +12,9 @@ import {
   CreditCard,
   ShoppingBag,
   UserRound,
-  LayoutDashboard
+  LayoutDashboard,
+  ShieldAlert,
+  Settings
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,7 +30,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useFirebase } from "@/firebase";
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 
 export function SidebarNav() {
@@ -44,11 +46,15 @@ export function SidebarNav() {
     async function fetchProfile() {
       if (!user || !firestore) return;
       try {
-        const email = user.email?.toLowerCase().trim() || "";
-        const q = query(collection(firestore, "users"), where("email", "==", email));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          setUserProfile(snap.docs[0].data());
+        const docRef = doc(firestore, "users", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setUserProfile(docSnap.data());
+        } else {
+          // Fallback por email para registros no vinculados por UID
+          const q = query(collection(firestore, "users"), where("email", "==", user.email?.toLowerCase().trim()));
+          const snap = await getDocs(q);
+          if (!snap.empty) setUserProfile(snap.docs[0].data());
         }
       } catch (e) { console.error("Error en sidebar:", e); }
     }
@@ -63,6 +69,7 @@ export function SidebarNav() {
   if (!mounted) return null;
 
   const clubId = userProfile?.clubId;
+  const isSuperAdmin = userProfile?.role === 'admin';
 
   return (
     <Sidebar className="border-r-0 shadow-sm" collapsible="icon">
@@ -79,8 +86,26 @@ export function SidebarNav() {
       </SidebarHeader>
       
       <SidebarContent className="px-2">
+        {isSuperAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-red-600">Sistema Global</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/superadmin"} tooltip="Super Admin">
+                    <Link href="/dashboard/superadmin">
+                      <ShieldAlert className="h-4 w-4 text-red-600" />
+                      <span className="font-bold text-red-600">Alta de Clientes</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Consola Club</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Gestión Club</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
