@@ -22,7 +22,8 @@ import {
   EyeOff,
   UserCog,
   Briefcase,
-  KeyRound
+  KeyRound,
+  AlertCircle
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
