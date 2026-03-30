@@ -1,4 +1,3 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -14,7 +13,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // La imagen está en la carpeta public, por lo que se accede con /hockey.jpg
+  // Ruta a la imagen solicitada en la carpeta public
   const hockeyBgUrl = "/hockey.jpg";
 
   return (
@@ -27,17 +26,17 @@ export default function RootLayout({
       <body className="font-body antialiased text-foreground min-h-screen relative">
         <FirebaseClientProvider>
           {/* Capa de fondo fija detras de todo */}
-          <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none">
+          <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-slate-950">
             <div 
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
               style={{ 
                 backgroundImage: `url(${hockeyBgUrl})`,
                 opacity: 0.5 
               }}
               data-ai-hint="field hockey"
             />
-            {/* Velo de color temático semi-transparente para legibilidad */}
-            <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/60 to-background/80" />
+            {/* Velo de color negro semi-transparente para legibilidad extrema */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/60" />
           </div>
 
           {/* Contenido principal con fondo transparente para dejar ver el fondo global */}

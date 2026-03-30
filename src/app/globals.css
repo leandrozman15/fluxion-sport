@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -64,15 +63,15 @@
     @apply border-border;
   }
   body {
-    /* Fondo base transparente para dejar ver el div de imagen de RootLayout */
+    /* Cuerpo transparente para mostrar la imagen de fondo de RootLayout */
     @apply text-foreground font-body antialiased selection:bg-primary/20 bg-transparent;
   }
 }
 
-/* Transparencias sutiles para tarjetas y secciones para dejar ver el fondo */
+/* Transparencias sutiles para tarjetas y secciones */
 .bg-card {
   background-color: hsl(var(--card) / 0.85);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
 
 .bg-muted\/30 {
