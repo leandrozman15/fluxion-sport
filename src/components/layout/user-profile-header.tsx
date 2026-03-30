@@ -23,7 +23,6 @@ export function UserProfileHeader() {
         const email = user.email?.toLowerCase().trim() || "";
         let finalProfile = null;
 
-        // Buscamos por Email (método más robusto para vincular login con perfil)
         const qStaff = query(collection(firestore, "users"), where("email", "==", email));
         const staffSnap = await getDocs(qStaff);
         

@@ -5,15 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
   Trophy, 
-  UserCircle, 
-  ShieldCheck, 
-  ClipboardCheck, 
   Building2,
   LogOut,
   Layers,
   Users,
   CreditCard,
-  ShoppingBag
+  ShoppingBag,
+  UserRound
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,7 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useFirebase } from "@/firebase";
 import { useEffect, useState } from "react";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 
 export function SidebarNav() {
@@ -63,7 +61,6 @@ export function SidebarNav() {
 
   if (!mounted) return null;
 
-  const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'club_admin';
   const clubId = userProfile?.clubId;
 
   return (
@@ -81,13 +78,12 @@ export function SidebarNav() {
       </SidebarHeader>
       
       <SidebarContent className="px-2">
-        {/* GESTIÓN INSTITUCIONAL */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Gestión Club</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Gestión del Club</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname.includes(`/clubs/${clubId}`)} tooltip="Panel Club">
+                <SidebarMenuButton asChild isActive={pathname === `/dashboard/clubs/${clubId}`} tooltip="Dashboard">
                   <Link href={clubId ? `/dashboard/clubs/${clubId}` : "/dashboard"}>
                     <Building2 className="h-4 w-4" />
                     <span className="font-bold">Panel Principal</span>
@@ -98,7 +94,7 @@ export function SidebarNav() {
                 <SidebarMenuButton asChild isActive={pathname.includes("/divisions")} tooltip="Categorías">
                   <Link href={clubId ? `/dashboard/clubs/${clubId}/divisions` : "/dashboard"}>
                     <Layers className="h-4 w-4" />
-                    <span className="font-bold">Categorías y Ramas</span>
+                    <span className="font-bold">Categorías</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -111,10 +107,26 @@ export function SidebarNav() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.includes("/coaches")} tooltip="Staff">
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/coaches` : "/dashboard"}>
+                    <UserRound className="h-4 w-4" />
+                    <span className="font-bold">Staff Técnico</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.includes("/finances")} tooltip="Tesorería">
                   <Link href={clubId ? `/dashboard/clubs/${clubId}/finances` : "/dashboard"}>
                     <CreditCard className="h-4 w-4" />
                     <span className="font-bold">Tesorería</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.includes("/shop")} tooltip="Tienda">
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/shop/admin` : "/dashboard"}>
+                    <ShoppingBag className="h-4 w-4" />
+                    <span className="font-bold">Tienda Oficial</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

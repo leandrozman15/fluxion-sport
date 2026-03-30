@@ -19,7 +19,6 @@ export function DynamicBackground() {
     if (!email) return;
 
     // Buscamos el deporte del usuario por su email para asegurar que el fondo sea el correcto
-    // (Incluso si el ID del documento no coincide con el UID de Auth)
     const qStaff = query(collection(firestore, "users"), where("email", "==", email));
     const unsubStaff = onSnapshot(qStaff, (snap) => {
       if (!snap.empty) {
@@ -41,7 +40,8 @@ export function DynamicBackground() {
     return () => unsubStaff();
   }, [user, firestore]);
 
-  const bgUrl = sport === 'rugby' ? "/rugby.png" : "/hockey.jpg";
+  // Usamos .jpg para ambos fondos para asegurar consistencia con el pedido del usuario
+  const bgUrl = sport === 'rugby' ? "/rugby.jpg" : "/hockey.jpg";
 
   return (
     <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-slate-950">
@@ -49,12 +49,12 @@ export function DynamicBackground() {
         className="absolute inset-0 bg-center bg-no-repeat transition-all duration-1000"
         style={{ 
           backgroundImage: `url(${bgUrl})`,
-          backgroundSize: '75%',
-          opacity: 0.5 
+          backgroundSize: 'cover',
+          opacity: 0.4 
         }}
         data-ai-hint={sport === 'rugby' ? "rugby field" : "field hockey"}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-black/30" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
     </div>
   );
 }

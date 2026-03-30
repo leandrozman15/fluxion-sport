@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useFirebase } from "@/firebase";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { Loader2, Trophy } from "lucide-react";
 
 export default function Home() {
@@ -23,14 +23,12 @@ export default function Home() {
           let role = null;
           let clubId = null;
 
-          // Búsqueda robusta por Email en Staff
           const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
           if (!staffSnap.empty) {
             const data = staffSnap.docs[0].data();
             role = data.role;
             clubId = data.clubId;
           } else {
-            // Búsqueda en Jugadores
             const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
             if (!playerSnap.empty) {
               role = 'player';
@@ -38,7 +36,6 @@ export default function Home() {
             }
           }
 
-          // REDIRECCIÓN DIRECTA POR ROL INSTITUCIONAL
           if (role === 'coach') {
             router.replace('/dashboard/coach');
           } else if (role === 'player') {
