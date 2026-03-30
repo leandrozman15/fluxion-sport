@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -80,8 +79,8 @@ export default function InstitutionDetailPage() {
       
       <div className="flex-1 space-y-8">
         <header className="flex flex-col gap-4">
-          <Link href="/dashboard/clubs" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit">
-            <ChevronLeft className="h-4 w-4" /> Volver a Instituciones
+          <Link href="/dashboard/clubs" className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors w-fit group">
+            <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver a Instituciones
           </Link>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-xl border shadow-sm">
             <div className="flex items-center gap-4">
@@ -90,8 +89,8 @@ export default function InstitutionDetailPage() {
                 <AvatarFallback><Building2 /></AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-3xl font-bold font-headline">{club?.name}</h1>
-                <p className="text-muted-foreground text-sm">{club?.address || "Sede oficial"}</p>
+                <h1 className="text-3xl font-bold font-headline text-slate-900">{club?.name}</h1>
+                <p className="text-slate-500 text-sm font-medium">{club?.address || "Sede oficial"}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -115,31 +114,31 @@ export default function InstitutionDetailPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="bg-primary/5 border-primary/10">
-            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Padrón Total</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-slate-500">Padrón Total</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-3xl font-black">{players?.length || 0}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Jugadores activos</p>
+              <div className="text-3xl font-black text-slate-900">{players?.length || 0}</div>
+              <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Jugadores activos</p>
             </CardContent>
           </Card>
           <Card className="bg-green-50">
-            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Cobranza Mayo</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-green-800/60">Cobranza Mayo</CardTitle></CardHeader>
             <CardContent>
               <div className="text-3xl font-black text-green-600">82%</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Efectividad de pago</p>
+              <p className="text-[10px] text-green-600 font-bold uppercase mt-1">Efectividad de pago</p>
             </CardContent>
           </Card>
           <Card className="bg-red-50">
-            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Legajos Médicos</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-red-800/60">Legajos Médicos</CardTitle></CardHeader>
             <CardContent>
               <div className="text-3xl font-black text-red-600">12</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Vencidos o faltantes</p>
+              <p className="text-[10px] text-red-600 font-bold uppercase mt-1">Vencidos o faltantes</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Categorías</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-slate-500">Categorías</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-3xl font-black">{categories?.length || 0}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Ramas y categorías</p>
+              <div className="text-3xl font-black text-slate-900">{categories?.length || 0}</div>
+              <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Ramas y categorías</p>
             </CardContent>
           </Card>
         </div>
@@ -147,7 +146,7 @@ export default function InstitutionDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
                 <Clock className="h-5 w-5 text-primary" /> Actividad Reciente del Club
               </CardTitle>
               <CardDescription>Resumen de movimientos administrativos y deportivos.</CardDescription>
@@ -165,50 +164,50 @@ export default function InstitutionDetailPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-bold">{item.label}</span>
-                      <span className="text-[10px] text-muted-foreground">{item.time}</span>
+                      <span className="text-sm font-bold text-slate-900">{item.label}</span>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase">{item.time}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                    <p className="text-xs text-slate-500">{item.desc}</p>
                   </div>
                 </div>
               ))}
             </CardContent>
             <CardFooter className="bg-muted/10 border-t pt-4">
-              <Button variant="link" className="w-full text-xs text-muted-foreground">Ver historial completo</Button>
+              <Button variant="link" className="w-full text-xs text-slate-500 font-bold uppercase">Ver historial completo</Button>
             </CardFooter>
           </Card>
 
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-slate-900">
                   <AlertCircle className="h-4 w-4 text-orange-500" /> Alertas Críticas
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg text-xs">
                   <p className="font-bold text-orange-800 mb-1">Pases Pendientes</p>
-                  <p className="text-orange-700">3 jugadoras esperando validación de asociación regional.</p>
+                  <p className="text-orange-700 font-medium">3 jugadoras esperando validación de asociación regional.</p>
                 </div>
                 <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-xs">
                   <p className="font-bold text-red-800 mb-1">Seguro Médico</p>
-                  <p className="text-red-700">La póliza colectiva vence en 15 días.</p>
+                  <p className="text-red-700 font-medium">La póliza colectiva vence en 15 días.</p>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-none shadow-lg">
               <CardHeader>
-                <CardTitle className="text-lg">Acceso Rápido</CardTitle>
+                <CardTitle className="text-lg font-black uppercase tracking-tight">Acceso Rápido</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-2">
-                <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10" asChild>
+                <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10 font-bold" asChild>
                   <Link href={`/dashboard/clubs/${clubId}/players`}><FileText className="h-4 w-4" /> Legajos Médicos</Link>
                 </Button>
-                <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10" asChild>
+                <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10 font-bold" asChild>
                   <Link href={`/dashboard/clubs/${clubId}/shop/admin`}><ShoppingBag className="h-4 w-4" /> Administrar Tienda</Link>
                 </Button>
-                <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10" asChild>
+                <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-10 font-bold" asChild>
                   <Link href={`/dashboard/clubs/${clubId}/coaches`}><UserRound className="h-4 w-4" /> Staff del Club</Link>
                 </Button>
               </CardContent>

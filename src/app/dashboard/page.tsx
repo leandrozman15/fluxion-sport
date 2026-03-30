@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -50,8 +49,6 @@ export default function DashboardPage() {
         const userDoc = await getDoc(doc(firestore, "users", user.uid));
         if (userDoc.exists()) {
           const role = userDoc.data().role;
-          // El Administrador se queda aquí (Dashboard Global)
-          // El Entrenador y el Jugador son movidos a sus áreas específicas
           if (role === 'coach') {
             router.replace('/dashboard/coach');
             return;
@@ -60,10 +57,12 @@ export default function DashboardPage() {
             router.replace('/dashboard/player');
             return;
           }
+          if (role === 'coordinator') {
+            router.replace('/dashboard/coordinator');
+            return;
+          }
           setIsAuthorized(true);
         } else {
-          // Si no hay perfil, es un usuario recién logueado (anónimo o nuevo).
-          // Le permitimos quedarse para que use el botón de SEED y se convierta en Admin.
           setIsAuthorized(true);
         }
       } catch (e) {
@@ -81,7 +80,6 @@ export default function DashboardPage() {
 
     setSeeding(true);
     try {
-      // Al poblar datos, el usuario actual se convierte en el ADMIN (Desarrollador)
       await setDoc(doc(firestore, "users", user.uid), {
         id: user.uid,
         name: user.displayName || "SuperAdmin Fluxion Sport",
@@ -107,7 +105,7 @@ export default function DashboardPage() {
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "teams", teamId), { 
           id: teamId, 
           name: club.name + " A", 
-          coachName: "Camila Entrenadora", // Vinculamos a la coach de demo
+          coachName: "Camila Entrenadora", 
           season: "2025", 
           createdAt: new Date().toISOString() 
         });
@@ -147,10 +145,10 @@ export default function DashboardPage() {
     <div className="space-y-10 max-w-7xl mx-auto py-2 animate-in fade-in duration-700">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-black tracking-tight text-foreground flex items-center gap-3">
+          <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-md flex items-center gap-3">
             Fluxion Sport <Sparkles className="h-6 w-6 text-accent" />
           </h1>
-          <p className="text-muted-foreground text-lg">Consola de Administración Central y Desarrollo.</p>
+          <p className="text-white/80 font-bold text-lg">Consola de Administración Central y Desarrollo.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button 
@@ -158,7 +156,7 @@ export default function DashboardPage() {
             size="lg" 
             onClick={handleSeedData} 
             disabled={seeding} 
-            className="font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-2 h-14 px-8 bg-primary hover:bg-primary/90"
+            className="font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 gap-2 h-14 px-8 bg-primary hover:bg-primary/90 text-white"
           >
             {seeding ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current text-accent" />}
             Poblar Ecosistema Completo
@@ -174,13 +172,13 @@ export default function DashboardPage() {
           { title: "Base Nacional", desc: "Padrón de Jugadores", icon: UserRoundSearch, href: "/dashboard/player/search", color: "bg-slate-600" },
         ].map((item, i) => (
           <Link key={i} href={item.href} className="group">
-            <Card className="border-none shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full">
+            <Card className="border-none shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full bg-white/95">
               <CardHeader>
                 <div className={`${item.color} w-12 h-12 rounded-xl flex items-center justify-center text-white mb-2 shadow-inner group-hover:scale-110 transition-transform`}>
                   <item.icon className="h-6 w-6" />
                 </div>
-                <CardTitle className="text-xl font-bold">{item.title}</CardTitle>
-                <CardDescription>{item.desc}</CardDescription>
+                <CardTitle className="text-xl font-black text-slate-900">{item.title}</CardTitle>
+                <CardDescription className="font-medium text-slate-500">{item.desc}</CardDescription>
               </CardHeader>
               <CardFooter className="pt-0">
                 <div className="text-primary text-xs font-black uppercase tracking-widest flex items-center gap-1 group-hover:gap-2 transition-all">
@@ -193,12 +191,12 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 border-none shadow-sm">
+        <Card className="lg:col-span-2 border-none shadow-sm bg-white/95">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl font-bold">
+            <CardTitle className="flex items-center gap-2 text-2xl font-black text-slate-900">
               <Activity className="h-6 w-6 text-primary" /> Monitoreo del Sistema
             </CardTitle>
-            <CardDescription>Resumen de actividad en tiempo real a través de todos los niveles.</CardDescription>
+            <CardDescription className="font-medium">Resumen de actividad en tiempo real a través de todos los niveles.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {[
@@ -212,10 +210,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-black uppercase tracking-tight">{item.label}</span>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{item.time}</span>
+                    <span className="text-sm font-black uppercase tracking-tight text-slate-900">{item.label}</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase">{item.time}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{item.desc}</p>
+                  <p className="text-sm text-slate-500 font-medium">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -223,16 +221,16 @@ export default function DashboardPage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="bg-primary text-primary-foreground border-none shadow-lg shadow-primary/20 relative overflow-hidden">
+          <Card className="bg-primary text-primary-foreground border-none shadow-xl shadow-primary/20 relative overflow-hidden">
             <CardHeader className="relative z-10">
-              <CardTitle className="text-lg font-bold">Resumen de Acceso</CardTitle>
+              <CardTitle className="text-lg font-black uppercase tracking-tight">Resumen de Acceso</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm opacity-90 leading-relaxed relative z-10">
+            <CardContent className="space-y-4 text-sm opacity-90 leading-relaxed relative z-10 font-medium">
               <p>Tu perfil actual tiene privilegios de SuperAdmin:</p>
               <ul className="space-y-3">
-                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">✓</Badge> Visibilidad de Pizarra Táctica.</li>
-                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">✓</Badge> Gestión de Clubes y Tiendas.</li>
-                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none">✓</Badge> Acceso a Carnets de Jugadores.</li>
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none font-bold">✓</Badge> Visibilidad de Pizarra Táctica.</li>
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none font-bold">✓</Badge> Gestión de Clubes y Tiendas.</li>
+                <li className="flex gap-2 items-center"><Badge className="bg-white/20 hover:bg-white/30 border-none font-bold">✓</Badge> Acceso a Carnets de Jugadores.</li>
               </ul>
             </CardContent>
             <div className="absolute right-[-20px] bottom-[-20px] opacity-10">
@@ -240,15 +238,15 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          <Card className="border-accent border-2 bg-accent/5">
+          <Card className="border-accent/30 border-2 bg-accent/5">
             <CardHeader>
-              <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent-foreground flex items-center gap-2">
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-accent-foreground flex items-center gap-2">
                 <Sparkles className="h-4 w-4" /> Consola de Control
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground font-medium italic">
-                Usa el menú lateral para saltar entre las vistas de Entrenador, Administrador o Jugador sin cambiar de cuenta.
+              <p className="text-xs text-white/80 font-bold italic leading-relaxed">
+                Usa el menú lateral para saltar entre las vistas de Entrenador, Coordinador o Jugador sin cambiar de cuenta.
               </p>
             </CardContent>
           </Card>

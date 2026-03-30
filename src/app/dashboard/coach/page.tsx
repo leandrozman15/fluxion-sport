@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -155,8 +154,8 @@ export default function CoachDashboard() {
       <div className="bg-muted p-6 rounded-full mb-4">
         <ClipboardCheck className="h-12 w-12 text-muted-foreground opacity-20" />
       </div>
-      <h2 className="text-2xl font-black tracking-tight">Sin Equipo Asignado</h2>
-      <p className="text-muted-foreground max-w-sm mt-2">No hemos encontrado un plantel bajo tu dirección técnica. Contacta al administrador del club.</p>
+      <h2 className="text-2xl font-black tracking-tight text-white">Sin Equipo Asignado</h2>
+      <p className="text-white/70 max-w-sm mt-2 font-medium">No hemos encontrado un plantel bajo tu dirección técnica. Contacta al administrador del club.</p>
     </div>
   );
 
@@ -168,30 +167,25 @@ export default function CoachDashboard() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-black font-headline text-foreground">{team.name}</h1>
-              <Badge variant="outline" className="font-bold">{team.season}</Badge>
+              <h1 className="text-3xl font-black font-headline text-white drop-shadow-sm">{team.name}</h1>
+              <Badge variant="outline" className="font-bold border-white/30 text-white bg-white/10">{team.season}</Badge>
             </div>
-            <p className="text-muted-foreground font-medium">{team.clubName} • {team.divisionName}</p>
+            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{team.clubName} • {team.divisionName}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg font-bold gap-2">
+            <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg font-black uppercase text-[10px] tracking-widest h-11 gap-2">
               <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/match-live`}>
                 <PlayCircle className="h-4 w-4" /> Iniciar Partido Live
               </Link>
             </Button>
-            <Button variant="outline" asChild size="sm">
+            <Button variant="outline" asChild className="font-bold border-white/30 text-white bg-white/5 hover:bg-white/10 h-11">
               <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/attendance-ranking`}>
                 <Activity className="h-4 w-4 mr-2" /> Asistencia
               </Link>
             </Button>
-            <Button variant="outline" asChild size="sm">
+            <Button variant="outline" asChild className="font-bold border-white/30 text-white bg-white/5 hover:bg-white/10 h-11">
               <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/events`}>
                 <Calendar className="h-4 w-4 mr-2" /> Calendario
-              </Link>
-            </Button>
-            <Button variant="outline" asChild size="sm">
-              <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/stats`}>
-                <TrendingUp className="h-4 w-4 mr-2" /> Goleadores
               </Link>
             </Button>
           </div>
@@ -205,13 +199,13 @@ export default function CoachDashboard() {
                   <Timer className="h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary">Entrenamiento en Curso</CardTitle>
-                  <CardDescription className="text-xs font-medium">{todayEvent.title} • {todayEvent.location}</CardDescription>
+                  <CardTitle className="text-sm font-black uppercase tracking-widest text-primary">Entrenamiento en Curso</CardTitle>
+                  <CardDescription className="text-xs font-bold text-slate-500">{todayEvent.title} • {todayEvent.location}</CardDescription>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-muted-foreground">Presentes</p>
-                <p className="text-lg font-black text-primary">
+                <p className="text-[10px] font-black uppercase text-slate-400">Presentes</p>
+                <p className="text-2xl font-black text-primary">
                   {attendanceList?.filter(a => a.status === 'going').length || 0} / {roster?.length || 0}
                 </p>
               </div>
@@ -220,9 +214,9 @@ export default function CoachDashboard() {
         )}
 
         <Tabs defaultValue="tactical" className="w-full">
-          <TabsList className="bg-muted/50 p-1 mb-6">
-            <TabsTrigger value="tactical" className="gap-2 px-8 font-bold"><Settings2 className="h-4 w-4" /> Pizarra Táctica</TabsTrigger>
-            <TabsTrigger value="roster" className="gap-2 px-8 font-bold"><Users className="h-4 w-4" /> Plantilla</TabsTrigger>
+          <TabsList className="bg-white/10 backdrop-blur-md p-1 mb-6 border border-white/20">
+            <TabsTrigger value="tactical" className="gap-2 px-8 font-black uppercase text-[10px] tracking-widest text-white data-[state=active]:bg-primary data-[state=active]:text-white"><Settings2 className="h-4 w-4" /> Pizarra Táctica</TabsTrigger>
+            <TabsTrigger value="roster" className="gap-2 px-8 font-black uppercase text-[10px] tracking-widest text-white data-[state=active]:bg-primary data-[state=active]:text-white"><Users className="h-4 w-4" /> Plantilla</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tactical">
@@ -231,10 +225,10 @@ export default function CoachDashboard() {
 
           <TabsContent value="roster">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <Card className="lg:col-span-2 border-none shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between">
+              <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between bg-card">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-slate-900">
                       <Users className="h-5 w-5 text-primary" /> Plantilla Oficial
                     </CardTitle>
                     <CardDescription>
@@ -242,12 +236,12 @@ export default function CoachDashboard() {
                     </CardDescription>
                   </div>
                   {todayEvent && (
-                    <Badge className="bg-green-100 text-green-700 border-green-200">MODO ASISTENCIA ACTIVO</Badge>
+                    <Badge className="bg-green-100 text-green-700 border-green-200 font-bold">MODO ASISTENCIA ACTIVO</Badge>
                   )}
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {rosterLoading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div> : (
-                    <div className="divide-y border rounded-xl bg-card overflow-hidden">
+                    <div className="divide-y border-t bg-card">
                       {roster?.map((member: any) => {
                         const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
                         return (
@@ -255,11 +249,11 @@ export default function CoachDashboard() {
                             <div className="flex items-center gap-4">
                               <Avatar className="h-12 w-12 border-2 border-muted shadow-sm">
                                 <AvatarImage src={member.playerPhoto} className="object-cover" />
-                                <AvatarFallback className="font-bold">{member.playerName[0]}</AvatarFallback>
+                                <AvatarFallback className="font-bold text-slate-400">{member.playerName[0]}</AvatarFallback>
                               </Avatar>
                               <div>
-                                <p className="font-bold text-sm">{member.playerName}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">#{member.jerseyNumber || 'S/N'}</p>
+                                <p className="font-bold text-sm text-slate-900">{member.playerName}</p>
+                                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">#{member.jerseyNumber || 'S/N'}</p>
                               </div>
                             </div>
                             
@@ -281,7 +275,7 @@ export default function CoachDashboard() {
                                    <HelpCircle className="h-5 w-5" />}
                                 </Button>
                               ) : (
-                                <Button variant="outline" size="sm" asChild className="h-8 text-[10px] font-bold">
+                                <Button variant="outline" size="sm" asChild className="h-8 text-[10px] font-black uppercase tracking-tight border-primary text-primary hover:bg-primary/5">
                                   <Link href={`/dashboard/player/search`}>Ver Ficha</Link>
                                 </Button>
                               )}
@@ -290,7 +284,7 @@ export default function CoachDashboard() {
                         );
                       })}
                       {(!roster || roster.length === 0) && (
-                        <div className="py-20 text-center text-muted-foreground italic bg-muted/10">
+                        <div className="py-20 text-center text-slate-400 font-medium italic bg-muted/5">
                           No hay jugadoras asignadas a esta plantilla.
                         </div>
                       )}
@@ -304,28 +298,28 @@ export default function CoachDashboard() {
                   <CardHeader><CardTitle className="text-sm font-black uppercase tracking-[0.2em]">Resumen Técnico</CardTitle></CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex justify-between items-center border-b border-white/10 pb-4">
-                      <span className="text-xs font-medium opacity-80 uppercase">Total Jugadoras</span>
-                      <span className="text-3xl font-black">{roster?.length || 0}</span>
+                      <span className="text-xs font-bold opacity-80 uppercase tracking-widest">Total Jugadoras</span>
+                      <span className="text-4xl font-black">{roster?.length || 0}</span>
                     </div>
                     {!todayEvent && (
                       <div className="p-4 bg-white/10 rounded-xl border border-white/10 flex items-start gap-3">
                         <AlertCircle className="h-5 w-5 text-white mt-0.5 shrink-0" />
-                        <p className="text-[11px] leading-relaxed font-medium">
-                          No tienes entrenamientos programados para hoy. El modo <strong>asistencia rápida</strong> se activará automáticamente al crear un evento en el calendario.
+                        <p className="text-[11px] leading-relaxed font-bold">
+                          No tienes entrenamientos hoy. El modo asistencia se activa al crear eventos en el calendario.
                         </p>
                       </div>
                     )}
-                    <Button asChild variant="secondary" className="w-full font-black uppercase text-[10px] tracking-widest h-12">
+                    <Button asChild variant="secondary" className="w-full font-black uppercase text-[10px] tracking-widest h-12 shadow-lg">
                       <Link href={`/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/stats`}>Ver Rankings de Goleadoras</Link>
                     </Button>
                   </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-sm bg-muted/30">
-                  <CardHeader><CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground">Próximo Partido</CardTitle></CardHeader>
+                <Card className="border-none shadow-sm bg-white/95">
+                  <CardHeader><CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500">Próximo Partido</CardTitle></CardHeader>
                   <CardContent className="flex flex-col items-center justify-center py-6 text-center">
-                    <Trophy className="h-10 w-10 text-muted-foreground opacity-20 mb-2" />
-                    <p className="text-xs font-bold text-muted-foreground">Sin encuentros programados en el fixture.</p>
+                    <Trophy className="h-10 w-10 text-slate-200 mb-2" />
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Sin fixture cargado</p>
                   </CardContent>
                 </Card>
               </div>

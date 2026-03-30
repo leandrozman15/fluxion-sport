@@ -1,30 +1,29 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Paleta Fluxion Sport: Azul profesional y Claridad cristalina */
-    --background: 210 20% 98%;
-    --foreground: 210 25% 10%;
+    /* Paleta Fluxion Sport: Optimizada para legibilidad sobre fondo deportivo */
+    --background: 210 25% 5%;
+    --foreground: 210 10% 98%; /* Texto principal ahora es blanco para el fondo */
     --card: 0 0% 100%;
-    --card-foreground: 210 25% 10%;
+    --card-foreground: 210 25% 10%; /* Texto en tarjetas sigue siendo oscuro */
     --popover: 0 0% 100%;
     --popover-foreground: 210 25% 10%;
-    --primary: 210 85% 40%; /* Un azul más vibrante y claro */
+    --primary: 210 85% 45%; 
     --primary-foreground: 210 10% 98%;
     --secondary: 210 20% 95%;
     --secondary-foreground: 210 65% 25%;
-    --muted: 210 15% 90%;
-    --muted-foreground: 210 10% 35%;
-    --accent: 185 90% 50%; /* Cian deportivo claro */
+    --muted: 210 15% 15%;
+    --muted-foreground: 210 10% 80%; /* Gris muy claro para descripciones ambientales */
+    --accent: 185 90% 50%;
     --accent-foreground: 185 90% 10%;
-    --destructive: 0 84% 50%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 15% 90%;
-    --input: 210 15% 90%;
-    --ring: 210 85% 40%;
+    --border: 210 15% 20%;
+    --input: 210 15% 20%;
+    --ring: 210 85% 45%;
     --radius: 1rem;
     --sidebar-background: 210 20% 98%;
     --sidebar-foreground: 210 25% 15%;
@@ -34,28 +33,6 @@
     --sidebar-accent-foreground: 210 85% 40%;
     --sidebar-border: 210 15% 92%;
     --sidebar-ring: 210 85% 40%;
-  }
-
-  .dark {
-    --background: 210 25% 5%;
-    --foreground: 210 10% 95%;
-    --card: 210 25% 8%;
-    --card-foreground: 210 10% 95%;
-    --popover: 210 25% 8%;
-    --popover-foreground: 210 10% 95%;
-    --primary: 210 85% 55%;
-    --primary-foreground: 210 10% 5%;
-    --secondary: 210 25% 15%;
-    --secondary-foreground: 210 65% 85%;
-    --muted: 210 25% 15%;
-    --muted-foreground: 210 10% 65%;
-    --accent: 185 90% 50%;
-    --accent-foreground: 185 90% 10%;
-    --destructive: 0 62% 35%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 210 25% 15%;
-    --input: 210 25% 15%;
-    --ring: 210 85% 55%;
   }
 }
 
@@ -75,8 +52,13 @@
   @apply shadow-xl border-white/50;
 }
 
-.bg-muted\/30 {
-  background-color: hsl(var(--muted) / 0.2);
+/* Clases de utilidad para forzar texto brillante en fondos oscuros */
+.text-ambient {
+  @apply text-white drop-shadow-sm;
+}
+
+.text-ambient-muted {
+  @apply text-white/70;
 }
 
 /* Tipografías con más fuerza */
@@ -93,8 +75,8 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full;
+  @apply bg-slate-300/30 rounded-full;
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400;
+  @apply bg-slate-300/50;
 }

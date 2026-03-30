@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,7 +14,8 @@ import {
   ArrowRight,
   ShieldCheck,
   CreditCard,
-  ShoppingBag
+  ShoppingBag,
+  Settings
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -69,21 +69,21 @@ export default function CoordinatorDashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-2xl shadow-sm border border-white/50">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border-2 border-primary/10">
             <AvatarImage src={club?.logoUrl} />
             <AvatarFallback><Building2 /></AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-black font-headline text-foreground">{club?.name}</h1>
-            <p className="text-muted-foreground font-bold flex items-center gap-2">
+            <h1 className="text-3xl font-black font-headline text-slate-900">{club?.name}</h1>
+            <p className="text-slate-500 font-bold flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-orange-600" /> Consola de Coordinación Deportiva
             </p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild size="sm">
+          <Button variant="outline" asChild size="sm" className="font-bold border-primary text-primary hover:bg-primary/5">
             <Link href={`/dashboard/clubs/${club?.id}/settings`}><Settings className="h-4 w-4 mr-2" /> Configurar Sede</Link>
           </Button>
         </div>
@@ -91,31 +91,31 @@ export default function CoordinatorDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-orange-50 border-orange-100">
-          <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-orange-800">Categorías</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-orange-800/60">Categorías</CardTitle></CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-orange-700">{divisions?.length || 0}</div>
-            <p className="text-[10px] text-orange-600 font-bold mt-1">Ramas activas</p>
+            <p className="text-[10px] text-orange-600 font-bold uppercase mt-1">Ramas activas</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-muted-foreground">Staff Técnico</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-slate-500">Staff Técnico</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-3xl font-black">{staff?.length || 0}</div>
-            <p className="text-[10px] text-muted-foreground font-bold mt-1">Profesores y staff</p>
+            <div className="text-3xl font-black text-slate-900">{staff?.length || 0}</div>
+            <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Profesores y staff</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-muted-foreground">Cobranza</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase text-slate-500">Cobranza</CardTitle></CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-green-600">85%</div>
-            <p className="text-[10px] text-green-600 font-bold mt-1">Meta del mes</p>
+            <p className="text-[10px] text-green-600 font-bold uppercase mt-1">Meta del mes</p>
           </CardContent>
         </Card>
-        <Card className="bg-primary text-primary-foreground border-none">
+        <Card className="bg-primary text-primary-foreground border-none shadow-xl shadow-primary/20">
           <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase opacity-80">Próximos Partidos</CardTitle></CardHeader>
           <CardContent>
             <div className="text-3xl font-black">12</div>
-            <p className="text-[10px] opacity-80 font-bold mt-1">Este fin de semana</p>
+            <p className="text-[10px] opacity-80 font-bold uppercase mt-1">Este fin de semana</p>
           </CardContent>
         </Card>
       </div>
@@ -123,34 +123,34 @@ export default function CoordinatorDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-slate-900">
               <Layers className="h-5 w-5 text-orange-600" /> Supervisión por Categoría
             </CardTitle>
             <CardDescription>Estado de cada rama deportiva del club.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {divisions?.map((div: any) => (
-              <Link key={div.id} href={`/dashboard/clubs/${club.id}/divisions/${div.id}`} className="block">
-                <div className="flex items-center justify-between p-4 rounded-xl border hover:border-primary transition-colors group">
+              <Link key={div.id} href={`/dashboard/clubs/${club.id}/divisions`} className="block">
+                <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-primary transition-colors group">
                   <div className="flex items-center gap-4">
                     <div className="bg-muted p-2 rounded-lg group-hover:bg-primary/10 transition-colors">
-                      <Trophy className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                      <Trophy className="h-5 w-5 text-slate-400 group-hover:text-primary" />
                     </div>
                     <div>
-                      <p className="font-black">{div.name}</p>
-                      <p className="text-xs text-muted-foreground">{div.description || "Gestión de equipos."}</p>
+                      <p className="font-black text-slate-900">{div.name}</p>
+                      <p className="text-xs text-slate-500 font-medium">{div.description || "Gestión de equipos."}</p>
                     </div>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                  <ArrowRight className="h-4 w-4 text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                 </div>
               </Link>
             ))}
             {(!divisions || divisions.length === 0) && (
-              <div className="text-center py-10 opacity-50 italic">No hay categorías configuradas.</div>
+              <div className="text-center py-10 text-slate-400 font-medium italic">No hay categorías configuradas.</div>
             )}
           </CardContent>
           <CardFooter className="border-t bg-muted/5">
-            <Button variant="link" asChild className="w-full text-xs font-black uppercase tracking-widest">
+            <Button variant="link" asChild className="w-full text-xs font-black uppercase tracking-widest text-slate-500 hover:text-primary">
               <Link href={`/dashboard/clubs/${club?.id}/divisions`}>Administrar Categorías</Link>
             </Button>
           </CardFooter>
@@ -158,33 +158,33 @@ export default function CoordinatorDashboard() {
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Acceso Rápido</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest text-slate-500">Acceso Rápido</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 gap-2">
-              <Button variant="outline" className="justify-start gap-3 h-12" asChild>
+              <Button variant="outline" className="justify-start gap-3 h-12 font-bold text-slate-700 hover:text-primary" asChild>
                 <Link href={`/dashboard/clubs/${club?.id}/coaches`}><Users className="h-4 w-4" /> Staff Técnico</Link>
               </Button>
-              <Button variant="outline" className="justify-start gap-3 h-12" asChild>
+              <Button variant="outline" className="justify-start gap-3 h-12 font-bold text-slate-700 hover:text-primary" asChild>
                 <Link href={`/dashboard/clubs/${club?.id}/players`}><Briefcase className="h-4 w-4" /> Legajos Jugadoras</Link>
               </Button>
-              <Button variant="outline" className="justify-start gap-3 h-12" asChild>
+              <Button variant="outline" className="justify-start gap-3 h-12 font-bold text-slate-700 hover:text-primary" asChild>
                 <Link href={`/dashboard/clubs/${club?.id}/finances`}><CreditCard className="h-4 w-4" /> Tesorería</Link>
               </Button>
-              <Button variant="outline" className="justify-start gap-3 h-12" asChild>
+              <Button variant="outline" className="justify-start gap-3 h-12 font-bold text-slate-700 hover:text-primary" asChild>
                 <Link href={`/dashboard/clubs/${club?.id}/shop/admin`}><ShoppingBag className="h-4 w-4" /> Tienda Oficial</Link>
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="border-dashed border-2">
-            <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Alertas de Coordinación</CardTitle></CardHeader>
+          <Card className="border-dashed border-2 bg-muted/5">
+            <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest text-slate-500">Alertas de Coordinación</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-xs flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
-                <p className="text-red-700 font-medium">8 Legajos médicos vencidos en 1ra Damas.</p>
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                <p className="text-red-700 font-bold">8 Legajos médicos vencidos en 1ra Damas.</p>
               </div>
               <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg text-xs flex items-start gap-2">
-                <Clock className="h-4 w-4 text-orange-600 mt-0.5" />
-                <p className="text-orange-700 font-medium">Falta designar entrenador para Sub 12.</p>
+                <Clock className="h-4 w-4 text-orange-600 mt-0.5 shrink-0" />
+                <p className="text-orange-700 font-bold">Falta designar entrenador para Sub 12.</p>
               </div>
             </CardContent>
           </Card>
