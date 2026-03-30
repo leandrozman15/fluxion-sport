@@ -341,7 +341,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-primary/5 text-slate-400 hover:text-primary" onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
           <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:bg-red-50" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
-          <AccordionTrigger className="hover:no-underline py-0 ml-2" />
+          <AccordionTrigger className="hover:no-underline py-0 ml-2 h-10 w-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-900 hover:bg-primary hover:text-white transition-all [&>svg]:h-5 [&>svg]:w-5 shadow-sm" />
         </div>
       </div>
 
