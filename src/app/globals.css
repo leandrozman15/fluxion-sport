@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Paleta VantageBiz: Azul profesional y Gris azulado relajante */
+    /* Paleta Fluxion Sport: Azul profesional y Gris azulado relajante */
     --background: 210 15% 92%;
     --foreground: 210 25% 10%;
     --card: 0 0% 100%;
@@ -63,7 +63,8 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased selection:bg-primary/20;
+    /* Eliminamos bg-background para que sea transparente y deje ver la capa inferior */
+    @apply text-foreground font-body antialiased selection:bg-primary/20;
   }
 }
 
