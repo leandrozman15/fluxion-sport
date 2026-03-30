@@ -1,7 +1,9 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { DynamicBackground } from '@/components/layout/dynamic-background';
 
 export const metadata: Metadata = {
   title: 'Fluxion Sport | Gestión de Clubes Deportivos',
@@ -13,32 +15,17 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Ruta a la imagen solicitada en la carpeta public
-  const hockeyBgUrl = "/hockey.jpg";
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased text-foreground min-h-screen relative">
         <FirebaseClientProvider>
-          {/* Capa de fondo fija detras de todo */}
-          <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-slate-950">
-            <div 
-              className="absolute inset-0 bg-center bg-no-repeat"
-              style={{ 
-                backgroundImage: `url(${hockeyBgUrl})`,
-                backgroundSize: '75%',
-                opacity: 0.5 
-              }}
-              data-ai-hint="field hockey"
-            />
-            {/* Velo de color negro mucho más ligero para mayor claridad */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-black/30" />
-          </div>
+          {/* Fondo dinámico que reacciona al deporte del usuario */}
+          <DynamicBackground />
 
           {/* Contenido principal con fondo transparente para dejar ver el fondo global */}
           <div className="relative z-0 min-h-screen bg-transparent">

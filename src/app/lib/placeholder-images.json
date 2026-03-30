@@ -24,6 +24,12 @@
       "description": "Field hockey official background",
       "imageUrl": "/hockey.jpg",
       "imageHint": "field hockey"
+    },
+    {
+      "id": "rugby-bg",
+      "description": "Rugby official background",
+      "imageUrl": "/rugby.png",
+      "imageHint": "rugby field"
     }
   ]
 }
