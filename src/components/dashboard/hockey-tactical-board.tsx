@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Users, GripVertical, RefreshCw } from "lucide-react";
+import { Users, GripVertical, RefreshCw, Save } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,12 +18,30 @@ interface PositionSlot {
   assignedPlayerId: string | null;
 }
 
-export function HockeyTacticalBoard({ roster = [] }: { roster?: any[] }) {
-  const [playerCount, setPlayerCount] = useState(11);
-  const [sport, setSport] = useState<'hockey' | 'rugby'>('hockey');
+interface TacticalBoardProps {
+  roster: any[];
+  initialPlayerCount?: number;
+  initialSport?: 'hockey' | 'rugby';
+  onSettingsChange?: (settings: { playerCount: number; sport: 'hockey' | 'rugby' }) => void;
+}
+
+export function HockeyTacticalBoard({ 
+  roster = [], 
+  initialPlayerCount = 11, 
+  initialSport = 'hockey',
+  onSettingsChange 
+}: TacticalBoardProps) {
+  const [playerCount, setPlayerCount] = useState(initialPlayerCount);
+  const [sport, setSport] = useState<'hockey' | 'rugby'>(initialSport);
   const [positions, setPositions] = useState<PositionSlot[]>([]);
   const [draggingPosId, setDragPosId] = useState<string | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
+
+  // Sincronizar estado interno con props iniciales si cambian (ej. al cargar de la DB)
+  useEffect(() => {
+    setPlayerCount(initialPlayerCount);
+    setSport(initialSport);
+  }, [initialPlayerCount, initialSport]);
 
   useEffect(() => {
     const newPositions: PositionSlot[] = [];
@@ -88,6 +106,14 @@ export function HockeyTacticalBoard({ roster = [] }: { roster?: any[] }) {
       const cleaned = prev.map(p => p.assignedPlayerId === playerId ? { ...p, assignedPlayerId: null } : p);
       return cleaned.map(p => p.id === slotId ? { ...p, assignedPlayerId: playerId } : p);
     });
+  };
+
+  const updateSettings = (newCount: number, newSport: 'hockey' | 'rugby') => {
+    setPlayerCount(newCount);
+    setSport(newSport);
+    if (onSettingsChange) {
+      onSettingsChange({ playerCount: newCount, sport: newSport });
+    }
   };
 
   return (
@@ -172,16 +198,13 @@ export function HockeyTacticalBoard({ roster = [] }: { roster?: any[] }) {
         <Card className="border-none bg-white shadow-2xl overflow-hidden">
           <CardHeader className="bg-slate-900 text-white pb-6">
             <CardTitle className="text-xl font-black flex items-center gap-3">
-              <Users className="h-6 w-6 text-primary" /> Configuración Pizarra
+              <RefreshCw className="h-6 w-6 text-primary" /> Ajustes de Pizarra
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-8 pt-8">
             <div className="space-y-4">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-500">Disciplina / Campo</Label>
-              <Tabs value={sport} onValueChange={(v: any) => {
-                setSport(v);
-                if (v === 'hockey' && playerCount > 11) setPlayerCount(11);
-              }} className="w-full">
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-900">Campo de Juego</Label>
+              <Tabs value={sport} onValueChange={(v: any) => updateSettings(playerCount, v)} className="w-full">
                 <TabsList className="grid grid-cols-2 w-full h-12 bg-slate-100 p-1">
                   <TabsTrigger value="hockey" className="font-bold uppercase text-xs data-[state=active]:bg-white data-[state=active]:text-primary">🏑 Hockey</TabsTrigger>
                   <TabsTrigger value="rugby" className="font-bold uppercase text-xs data-[state=active]:bg-white data-[state=active]:text-primary">🏉 Rugby</TabsTrigger>
@@ -189,9 +212,9 @@ export function HockeyTacticalBoard({ roster = [] }: { roster?: any[] }) {
               </Tabs>
             </div>
 
-            <div className="space-y-6 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <div className="space-y-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
               <div className="flex justify-between items-center">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-500">Fichas en Cancha</Label>
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-900">Jugadores en Cancha</Label>
                 <div className="px-3 py-1 rounded-full bg-primary text-white font-black text-sm shadow-md">{playerCount}</div>
               </div>
               <Slider 
@@ -199,13 +222,14 @@ export function HockeyTacticalBoard({ roster = [] }: { roster?: any[] }) {
                 min={5} 
                 max={sport === 'rugby' ? 15 : 11} 
                 step={1} 
-                onValueChange={(v) => setPlayerCount(v[0])}
+                onValueChange={(v) => updateSettings(v[0], sport)}
                 className="py-4"
               />
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight text-center">Desliza para ajustar la formación</p>
             </div>
 
             <div className="space-y-3">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Banco de Jugadoras (Suplentes)</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Banco de Jugadores (Suplentes)</p>
               <div className="max-h-[350px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                 {roster.map((player: any) => {
                   const isAssigned = positions.some(p => p.assignedPlayerId === player.playerId);
@@ -218,7 +242,7 @@ export function HockeyTacticalBoard({ roster = [] }: { roster?: any[] }) {
                         "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
                         isAssigned 
                           ? "bg-slate-50 opacity-40 border-transparent grayscale" 
-                          : "bg-white border-slate-100 hover:border-primary hover:shadow-lg cursor-grab active:cursor-grabbing"
+                          : "bg-white border-slate-100 shadow-sm hover:border-primary hover:shadow-lg cursor-grab active:cursor-grabbing"
                       )}
                     >
                       <div className="flex items-center gap-3">
@@ -241,7 +265,7 @@ export function HockeyTacticalBoard({ roster = [] }: { roster?: any[] }) {
                 })}
                 {roster.length === 0 && (
                   <div className="text-center py-10 text-slate-400 font-medium italic border-2 border-dashed rounded-2xl">
-                    Sin jugadoras asignadas.
+                    Sin jugadores asignados.
                   </div>
                 )}
               </div>

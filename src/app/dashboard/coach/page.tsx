@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
 import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-board";
 import { cn } from "@/lib/utils";
+import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function CoachDashboard() {
   const { firestore, user } = useFirebase();
@@ -124,11 +125,19 @@ export default function CoachDashboard() {
     setDoc(attDoc, { playerId, playerName, status: nextStatus, updatedAt: new Date().toISOString() }, { merge: true });
   };
 
+  const handleTacticalSettingsSave = (settings: { playerCount: number; sport: 'hockey' | 'rugby' }) => {
+    if (!team || !firestore) return;
+    const teamDoc = doc(firestore, "clubs", team.clubId, "divisions", team.divisionId, "teams", team.id);
+    updateDocumentNonBlocking(teamDoc, {
+      tacticalPlayerCount: settings.playerCount,
+      tacticalSport: settings.sport
+    });
+  };
+
   const coachNav = [
     { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
     { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
     { title: "Búsqueda Jugadores", href: "/dashboard/player/search", icon: Users },
-    { title: "Arbitraje", href: "/dashboard/referee", icon: Flag },
   ];
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
@@ -200,7 +209,12 @@ export default function CoachDashboard() {
           </TabsList>
 
           <TabsContent value="tactical" className="animate-in fade-in zoom-in-95 duration-500">
-            <HockeyTacticalBoard roster={roster || []} />
+            <HockeyTacticalBoard 
+              roster={roster || []} 
+              initialPlayerCount={team.tacticalPlayerCount || 11}
+              initialSport={team.tacticalSport || 'hockey'}
+              onSettingsChange={handleTacticalSettingsSave}
+            />
           </TabsContent>
 
           <TabsContent value="roster" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -212,7 +226,7 @@ export default function CoachDashboard() {
                       <Users className="h-7 w-7 text-primary" /> Plantilla Oficial
                     </CardTitle>
                     <CardDescription className="font-bold text-slate-500 mt-1">
-                      {todayEvent ? "Control rápido de asistencia para hoy." : "Gestión de jugadoras y estado del equipo."}
+                      {todayEvent ? "Control rápido de asistencia para hoy." : "Gestión de jugadores y estado del equipo."}
                     </CardDescription>
                   </div>
                   {todayEvent && (
@@ -270,7 +284,7 @@ export default function CoachDashboard() {
                       })}
                       {(!roster || roster.length === 0) && (
                         <div className="py-24 text-center text-slate-400 font-black uppercase tracking-widest text-xs border-2 border-dashed m-8 rounded-3xl opacity-40">
-                          Sin jugadoras asignadas.
+                          Sin jugadores asignados.
                         </div>
                       )}
                     </div>

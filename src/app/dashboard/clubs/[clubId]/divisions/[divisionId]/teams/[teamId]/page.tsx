@@ -28,7 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-board";
@@ -45,8 +45,8 @@ export default function TeamDetailPage() {
   const [todayEvent, setTodayEvent] = useState<any>(null);
   const [eventLoading, setEventLoading] = useState(true);
 
-  const teamRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
-  const { data: team, isLoading: teamLoading } = useDoc(doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId));
+  const teamRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), [db, clubId, divisionId, teamId]);
+  const { data: team, isLoading: teamLoading } = useDoc(teamRef);
 
   const allPlayersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
   const { data: allPlayers } = useCollection(allPlayersQuery);
@@ -88,6 +88,14 @@ export default function TeamDetailPage() {
     setDoc(attDoc, { playerId, playerName, status: nextStatus, updatedAt: new Date().toISOString() }, { merge: true });
   };
 
+  const handleTacticalSettingsSave = (settings: { playerCount: number; sport: 'hockey' | 'rugby' }) => {
+    if (!teamRef) return;
+    updateDocumentNonBlocking(teamRef, {
+      tacticalPlayerCount: settings.playerCount,
+      tacticalSport: settings.sport
+    });
+  };
+
   const handleAssignPlayer = () => {
     if (!selectedPlayerId) return;
     const assignmentId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments")).id;
@@ -104,7 +112,7 @@ export default function TeamDetailPage() {
     });
     setSelectedPlayerId("");
     setIsAssignOpen(false);
-    toast({ title: "Jugadora Asignada", description: `${player?.firstName} ya es parte de la plantilla.` });
+    toast({ title: "Jugador Asignado", description: `${player?.firstName} ya es parte de la plantilla.` });
   };
 
   const handleUnassignPlayer = (id: string) => {
@@ -141,17 +149,17 @@ export default function TeamDetailPage() {
             <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-3 h-12 px-8 font-black uppercase text-[11px] tracking-widest shadow-2xl" size="sm">
-                  <UserPlus className="h-5 w-5" /> Asignar Jugadora
+                  <UserPlus className="h-5 w-5" /> Asignar Jugador
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-white border-none shadow-2xl">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black text-slate-900">Asignar a la Plantilla</DialogTitle>
-                  <DialogDescription className="font-bold text-slate-500">Selecciona una jugadora del padrón del club para incorporarla al equipo.</DialogDescription>
+                  <DialogDescription className="font-bold text-slate-500">Selecciona un jugador del padrón del club para incorporarlo al equipo.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-6">
                   <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Buscar Jugadora</Label>
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Buscar Jugador</Label>
                     <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
                       <SelectTrigger className="bg-white border-2 h-14 text-lg font-bold"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                       <SelectContent>
@@ -208,7 +216,7 @@ export default function TeamDetailPage() {
                     <Users className="h-7 w-7 text-primary" /> Plantilla Oficial
                   </CardTitle>
                   <CardDescription className="font-bold text-slate-500 mt-1">
-                    {todayEvent ? "Control de asistencia activa para la sesión." : "Gestión de jugadoras asignadas al equipo."}
+                    {todayEvent ? "Control de asistencia activa para la sesión." : "Gestión de jugadores asignados al equipo."}
                   </CardDescription>
                 </div>
                 {todayEvent && (
@@ -269,8 +277,8 @@ export default function TeamDetailPage() {
                     {(!roster || roster.length === 0) && (
                       <div className="py-24 text-center text-slate-400 font-black uppercase tracking-widest text-xs border-2 border-dashed m-8 rounded-3xl opacity-40 bg-slate-50/50">
                         <Users className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                        <p>No hay jugadoras asignadas</p>
-                        <p className="text-[10px] font-bold mt-2 opacity-60">Usa el botón "Asignar Jugadora" para empezar.</p>
+                        <p>No hay jugadores asignados</p>
+                        <p className="text-[10px] font-bold mt-2 opacity-60">Usa el botón "Asignar Jugador" para empezar.</p>
                       </div>
                     )}
                   </div>
@@ -285,7 +293,7 @@ export default function TeamDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-8 pt-4 relative z-10">
                   <div className="flex justify-between items-center border-b border-white/5 pb-6">
-                    <span className="text-xs font-black opacity-50 uppercase tracking-widest text-slate-400">Total Jugadoras</span>
+                    <span className="text-xs font-black opacity-50 uppercase tracking-widest text-slate-400">Total Jugadores</span>
                     <span className="text-5xl font-black text-primary tracking-tighter">{roster?.length || 0}</span>
                   </div>
                   {!todayEvent && (
@@ -297,7 +305,7 @@ export default function TeamDetailPage() {
                     </div>
                   )}
                   <Button asChild variant="outline" className="w-full h-14 font-black uppercase text-[11px] tracking-widest border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all shadow-xl rounded-xl">
-                    <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>Ver Rankings de Goleadoras</Link>
+                    <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>Ver Rankings de Goleadores</Link>
                   </Button>
                 </CardContent>
                 <PlayCircle className="absolute right-[-30px] bottom-[-30px] h-40 w-40 opacity-10 rotate-12" />
@@ -322,7 +330,12 @@ export default function TeamDetailPage() {
         </TabsContent>
 
         <TabsContent value="tactical" className="animate-in fade-in zoom-in-95 duration-500">
-          <HockeyTacticalBoard roster={roster || []} />
+          <HockeyTacticalBoard 
+            roster={roster || []} 
+            initialPlayerCount={team?.tacticalPlayerCount || 11}
+            initialSport={team?.tacticalSport || 'hockey'}
+            onSettingsChange={handleTacticalSettingsSave}
+          />
         </TabsContent>
       </Tabs>
     </div>
