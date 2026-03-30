@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, ShieldCheck, Trophy, Settings } from "lucide-react";
+import { LogOut, User, ShieldCheck, Trophy, Settings, Flag } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,7 @@ export function UserProfileHeader() {
     async function fetchData() {
       if (!user || !firestore) return;
       try {
-        // 1. Intentar buscar perfil directo por UID
+        // 1. Intentar buscar perfil directo por UID en la colección de usuarios
         const userSnap = await getDoc(doc(firestore, "users", user.uid));
         if (userSnap.exists()) {
           const userData = userSnap.data();
@@ -34,12 +34,14 @@ export function UserProfileHeader() {
             if (clubSnap.exists()) setClub(clubSnap.data());
           }
         } else {
-          // 2. Fallback: Buscar en el índice de jugadores por email
+          // 2. Fallback: Buscar en el índice de jugadores por email si no existe perfil de usuario
           const q = query(collection(firestore, "all_players_index"), where("email", "==", user.email));
           const playerSnap = await getDocs(q);
           if (!playerSnap.empty) {
             const pData = playerSnap.docs[0].data();
-            setProfile({ ...pData, role: 'player' });
+            // Aseguramos que tenga el rol de player para la visualización
+            const profileData = { ...pData, role: 'player' };
+            setProfile(profileData);
             setIsPlayer(true);
             const clubSnap = await getDoc(doc(firestore, "clubs", pData.clubId));
             if (clubSnap.exists()) setClub(clubSnap.data());
@@ -63,19 +65,24 @@ export function UserProfileHeader() {
 
   if (!user) return null;
 
+  const getRoleLabel = () => {
+    const role = profile?.role || (isPlayer ? 'player' : '');
+    
+    switch(role) {
+      case 'admin': return "Administrador Global";
+      case 'fed_admin': return "Administrador Federativo";
+      case 'coordinator': 
+      case 'club_admin':
+        return `Coordinador ${profile?.sport === 'rugby' ? 'Rugby 🏉' : 'Hockey 🏑'}`;
+      case 'coach': return "Entrenador Oficial";
+      case 'player': return "Jugador Federado";
+      case 'referee': return "Árbitro Oficial";
+      default: return role ? role.charAt(0).toUpperCase() + role.slice(1) : "Miembro Oficial";
+    }
+  };
+
   const isAdmin = profile?.role === 'admin' || profile?.role === 'fed_admin';
   const isCoordinator = profile?.role === 'coordinator' || profile?.role === 'club_admin';
-  
-  const getRoleLabel = () => {
-    if (isAdmin) return "Administrador Global";
-    if (isCoordinator) {
-      const sportLabel = profile?.sport === 'rugby' ? 'Rugby 🏉' : 'Hockey 🏑';
-      return `Coordinador ${sportLabel}`;
-    }
-    if (profile?.role === 'coach') return "Entrenador Oficial";
-    if (profile?.role === 'player' || isPlayer) return "Deportista Federado";
-    return "Miembro Oficial";
-  };
 
   return (
     <div className="w-full px-8 pt-6 flex justify-end items-center gap-4 z-50">
@@ -85,7 +92,7 @@ export function UserProfileHeader() {
       )}>
         <div className="flex flex-col items-end">
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
-            {profile?.name || profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : user.displayName || user.email}
+            {profile?.name || (profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : (user.displayName || user.email))}
           </span>
           <span className={cn(
             "text-[9px] uppercase font-bold tracking-widest mt-1 flex items-center gap-1",
@@ -93,6 +100,7 @@ export function UserProfileHeader() {
           )}>
             {isAdmin ? <Trophy className="h-2.5 w-2.5" /> : 
              isCoordinator ? <Settings className="h-2.5 w-2.5" /> : 
+             profile?.role === 'referee' ? <Flag className="h-2.5 w-2.5" /> :
              <ShieldCheck className="h-2.5 w-2.5" />}
             {getRoleLabel()}
           </span>

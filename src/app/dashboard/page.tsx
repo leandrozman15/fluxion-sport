@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -57,7 +58,7 @@ export default function DashboardPage() {
             router.replace('/dashboard/player');
             return;
           }
-          if (role === 'coordinator') {
+          if (role === 'coordinator' || role === 'club_admin') {
             router.replace('/dashboard/coordinator');
             return;
           }
@@ -80,6 +81,7 @@ export default function DashboardPage() {
 
     setSeeding(true);
     try {
+      // 1. Crear el perfil de SuperAdmin
       await setDoc(doc(firestore, "users", user.uid), {
         id: user.uid,
         name: user.displayName || "SuperAdmin Fluxion Sport",
@@ -88,18 +90,27 @@ export default function DashboardPage() {
         createdAt: new Date().toISOString()
       }, { merge: true });
 
+      // 2. Poblar Federaciones
       for (const fed of demoFederations) {
         await setDoc(doc(firestore, "federations", fed.id), { ...fed, ownerId: user.uid, createdAt: new Date().toISOString() });
       }
       
+      // 3. Poblar Asociaciones
       for (const assoc of demoAssociations) {
         await setDoc(doc(firestore, "federations", assoc.federationId, "associations", assoc.id), { ...assoc, createdAt: new Date().toISOString() });
       }
 
+      // 4. Poblar Clubes, Divisiones y Equipos
       for (const club of demoClubs) {
         await setDoc(doc(firestore, "clubs", club.id), { ...club, ownerId: user.uid, createdAt: new Date().toISOString() });
+        
         const divId = "div-inferiores-" + club.id;
-        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId), { id: divId, clubId: club.id, name: "Divisiones Inferiores", createdAt: new Date().toISOString() });
+        await setDoc(doc(firestore, "clubs", club.id, "divisions", divId), { 
+          id: divId, 
+          clubId: club.id, 
+          name: "Divisiones Inferiores", 
+          createdAt: new Date().toISOString() 
+        });
         
         const teamId = "team-a-" + club.id;
         await setDoc(doc(firestore, "clubs", club.id, "divisions", divId, "teams", teamId), { 
@@ -110,12 +121,23 @@ export default function DashboardPage() {
           createdAt: new Date().toISOString() 
         });
 
+        // 5. Poblar Jugadores (Específicamente para Lomas como ejemplo)
         if (club.id === "club-lomas") {
           for (const player of demoPlayers) {
             const pId = doc(collection(firestore, "clubs", club.id, "players")).id;
-            const pData = { ...player, id: pId, clubId: club.id, clubName: club.name, createdAt: new Date().toISOString() };
+            const pData = { 
+              ...player, 
+              id: pId, 
+              clubId: club.id, 
+              clubName: club.name, 
+              role: "player", // CRÍTICO: Asignar rol explícito
+              createdAt: new Date().toISOString() 
+            };
+            
+            // Guardar en la ficha local del club
             await setDoc(doc(firestore, "clubs", club.id, "players", pId), pData);
             
+            // Guardar en el índice global de búsqueda y acceso
             await setDoc(doc(firestore, "all_players_index", pId), {
               id: pId, 
               firstName: player.firstName, 
@@ -123,7 +145,8 @@ export default function DashboardPage() {
               photoUrl: player.photoUrl, 
               clubName: club.name, 
               clubId: club.id,
-              email: player.email
+              email: player.email,
+              role: "player" // CRÍTICO: Para que UserProfileHeader lo reconozca
             });
           }
         }

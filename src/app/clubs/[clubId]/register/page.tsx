@@ -66,6 +66,7 @@ export default function PublicPlayerRegistration() {
         ...form,
         id: playerId,
         clubId,
+        role: "player",
         status: "pending_approval",
         createdAt: new Date().toISOString()
       });
