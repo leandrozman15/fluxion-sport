@@ -18,6 +18,12 @@
       "description": "Winner trophy celebration",
       "imageUrl": "https://picsum.photos/seed/trophy1/600/400",
       "imageHint": "trophy victory"
+    },
+    {
+      "id": "hockey-bg",
+      "description": "Field hockey player in stadium at night",
+      "imageUrl": "https://images.unsplash.com/photo-1515523110800-9415d13b84a8?q=80&w=1974&auto=format&fit=crop",
+      "imageHint": "field hockey"
     }
   ]
 }
