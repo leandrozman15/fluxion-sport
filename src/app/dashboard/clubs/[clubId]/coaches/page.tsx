@@ -43,6 +43,7 @@ import { initiateEmailSignUp, initiatePasswordReset } from "@/firebase/non-block
 import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 
 export default function ClubCoachesPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -61,7 +62,8 @@ export default function ClubCoachesPage() {
     role: "coach",
     specialty: "",
     license: "",
-    photoUrl: ""
+    photoUrl: "",
+    sport: "hockey" // Default sport
   });
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
@@ -98,6 +100,7 @@ export default function ClubCoachesPage() {
         specialty: newCoach.specialty,
         license: newCoach.license,
         photoUrl: newCoach.photoUrl,
+        sport: newCoach.sport,
         id: userId,
         clubId,
         role: newCoach.role,
@@ -106,7 +109,7 @@ export default function ClubCoachesPage() {
       });
       
       toast({ title: "Miembro Registrado", description: `Cuenta creada para ${newCoach.name}.` });
-      setNewCoach({ name: "", email: "", phone: "", password: "", role: "coach", specialty: "", license: "", photoUrl: "" });
+      setNewCoach({ name: "", email: "", phone: "", password: "", role: "coach", specialty: "", license: "", photoUrl: "", sport: "hockey" });
       setIsCreateOpen(false);
     } catch (error) {
       console.error(error);
@@ -124,7 +127,8 @@ export default function ClubCoachesPage() {
       role: editingCoach.role,
       specialty: editingCoach.specialty,
       license: editingCoach.license,
-      photoUrl: editingCoach.photoUrl
+      photoUrl: editingCoach.photoUrl,
+      sport: editingCoach.sport
     });
     setIsEditOpen(false);
     toast({ title: "Perfil Actualizado", description: "Los cambios se han guardado correctamente." });
@@ -180,9 +184,22 @@ export default function ClubCoachesPage() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Nueva Ficha de Personal</DialogTitle>
-                <DialogDescription>Añade un miembro y define su acceso inicial.</DialogDescription>
+                <DialogDescription>Añade un miembro y define su disciplina y acceso.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
+                <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-bold">Disciplina Asignada</Label>
+                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">
+                      {newCoach.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={newCoach.sport === 'rugby'} 
+                    onCheckedChange={(v) => setNewCoach({...newCoach, sport: v ? 'rugby' : 'hockey'})} 
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label>Nombre Completo</Label>
                   <Input value={newCoach.name} onChange={e => setNewCoach({...newCoach, name: e.target.value})} placeholder="Ej. Camila Entrenadora" />
@@ -219,7 +236,7 @@ export default function ClubCoachesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Especialidad / Cargo</Label>
-                    <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. Hockey Damas" />
+                    <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. Coordinación Juvenil" />
                   </div>
                   <div className="space-y-2">
                     <Label>Licencia / Título</Label>
@@ -240,7 +257,7 @@ export default function ClubCoachesPage() {
             <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>
           ) : (
             coaches?.map((coach: any) => (
-              <Card key={coach.id} className="hover:border-primary/50 transition-all overflow-hidden border-2 group shadow-sm">
+              <Card key={coach.id} className="hover:border-primary/50 transition-all overflow-hidden border-2 group shadow-sm bg-card">
                 <CardContent className="p-0">
                   <div className="flex flex-col md:flex-row md:items-center">
                     {/* Perfil */}
@@ -254,6 +271,9 @@ export default function ClubCoachesPage() {
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary" className="text-[9px] uppercase font-black px-1.5 h-4">
                             {getRoleLabel(coach.role)}
+                          </Badge>
+                          <Badge variant="outline" className="text-[9px] uppercase font-black px-1.5 h-4 border-primary text-primary">
+                            {coach.sport === 'rugby' ? 'RUGBY' : 'HOCKEY'}
                           </Badge>
                         </div>
                       </div>
@@ -307,8 +327,8 @@ export default function ClubCoachesPage() {
                             Ver Panel <ClipboardCheck className="h-4 w-4" />
                           </Link>
                         </Button>
-                      ) : coach.role === 'club_admin' ? (
-                        <Badge className="bg-primary text-white gap-1 h-9 px-3"><UserCog className="h-3 w-3" /> Administrador</Badge>
+                      ) : coach.role === 'club_admin' || coach.role === 'coordinator' ? (
+                        <Badge className="bg-primary text-white gap-1 h-9 px-3"><UserCog className="h-3 w-3" /> Gestión</Badge>
                       ) : null}
                     </div>
                   </div>
@@ -330,11 +350,24 @@ export default function ClubCoachesPage() {
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black">Editar Perfil Institucional</DialogTitle>
-            <DialogDescription>Modifica los datos de acceso, rol y especialidad del miembro.</DialogDescription>
+            <DialogDescription>Modifica los datos de acceso, rol y disciplina del miembro.</DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] pr-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
               <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-muted rounded-xl border">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-bold">Disciplina Principal</Label>
+                    <p className="text-[10px] text-muted-foreground font-black uppercase">
+                      {editingCoach?.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={editingCoach?.sport === 'rugby'} 
+                    onCheckedChange={(v) => setEditingCoach({...editingCoach, sport: v ? 'rugby' : 'hockey'})} 
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label>Nombre Completo</Label>
                   <Input value={editingCoach?.name || ""} onChange={e => setEditingCoach({...editingCoach, name: e.target.value})} />
@@ -358,6 +391,9 @@ export default function ClubCoachesPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Teléfono</Label>
                   <div className="relative">
@@ -365,9 +401,6 @@ export default function ClubCoachesPage() {
                     <Input className="pl-10" value={editingCoach?.phone || ""} onChange={e => setEditingCoach({...editingCoach, phone: e.target.value})} />
                   </div>
                 </div>
-              </div>
-
-              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Especialidad / Cargo</Label>
                   <div className="relative">
@@ -390,11 +423,8 @@ export default function ClubCoachesPage() {
                     className="w-full justify-start gap-3 h-12 border-primary/20 text-primary hover:bg-primary/5"
                     onClick={() => handleResetPassword(editingCoach?.email)}
                   >
-                    <KeyRound className="h-4 w-4" /> Enviar link de recuperación
+                    <KeyRound className="h-4 w-4" /> Enviar reset de contraseña
                   </Button>
-                  <p className="text-[10px] text-muted-foreground leading-tight">
-                    El usuario recibirá un correo electrónico oficial de Firebase para restablecer su propia contraseña de forma segura.
-                  </p>
                 </div>
               </div>
             </div>

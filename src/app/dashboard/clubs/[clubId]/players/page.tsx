@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -36,7 +37,8 @@ import {
   Search,
   Hash,
   Stethoscope,
-  KeyRound
+  KeyRound,
+  Trophy
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -93,7 +95,8 @@ export default function PlayersPage() {
     photoUrl: "",
     parkingActive: false,
     enableLogin: false,
-    password: ""
+    password: "",
+    sport: "hockey"
   };
 
   const [newPlayer, setNewPlayer] = useState(initialForm);
@@ -114,35 +117,6 @@ export default function PlayersPage() {
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
   ];
 
-  const addTutor = (isEdit = false) => {
-    const emptyTutor = { name: "", kinship: "", phone: "" };
-    if (isEdit) {
-      setEditingPlayer({ ...editingPlayer, tutors: [...(editingPlayer.tutors || []), emptyTutor] });
-    } else {
-      setNewPlayer({ ...newPlayer, tutors: [...newPlayer.tutors, emptyTutor] });
-    }
-  };
-
-  const removeTutor = (index: number, isEdit = false) => {
-    if (isEdit) {
-      setEditingPlayer({ ...editingPlayer, tutors: editingPlayer.tutors.filter((_: any, i: number) => i !== index) });
-    } else {
-      setNewPlayer({ ...newPlayer, tutors: newPlayer.tutors.filter((_, i) => i !== index) });
-    }
-  };
-
-  const updateTutor = (index: number, field: keyof Tutor, value: string, isEdit = false) => {
-    if (isEdit) {
-      const updated = [...(editingPlayer.tutors || [])];
-      updated[index] = { ...updated[index], [field]: value };
-      setEditingPlayer({ ...editingPlayer, tutors: updated });
-    } else {
-      const updated = [...newPlayer.tutors];
-      updated[index] = { ...updated[index], [field]: value };
-      setNewPlayer({ ...newPlayer, tutors: updated });
-    }
-  };
-
   const handleCreatePlayer = async () => {
     if (!newPlayer.firstName || !newPlayer.lastName || !newPlayer.dni) return;
 
@@ -159,6 +133,7 @@ export default function PlayersPage() {
           email: newPlayer.email,
           role: "player",
           clubId,
+          sport: newPlayer.sport,
           requiresPasswordChange: true,
           createdAt: new Date().toISOString()
         });
@@ -169,7 +144,8 @@ export default function PlayersPage() {
           lastName: newPlayer.lastName,
           email: newPlayer.email,
           clubId,
-          clubName: club?.name || ""
+          clubName: club?.name || "",
+          sport: newPlayer.sport
         });
       }
 
@@ -193,45 +169,9 @@ export default function PlayersPage() {
     if (!editingPlayer) return;
     const playerDoc = doc(db, "clubs", clubId, "players", editingPlayer.id);
     
-    if (editingPlayer.enableLogin && !editingPlayer.hasAccessCreated && editingPlayer.email && editingPlayer.password) {
-      try {
-        initiateEmailSignUp(auth, editingPlayer.email, editingPlayer.password);
-        const userDoc = doc(db, "users", editingPlayer.id);
-        await setDoc(userDoc, {
-          id: editingPlayer.id,
-          name: `${editingPlayer.firstName} ${editingPlayer.lastName}`,
-          email: editingPlayer.email,
-          role: "player",
-          clubId,
-          requiresPasswordChange: true,
-          createdAt: new Date().toISOString()
-        });
-        editingPlayer.hasAccessCreated = true;
-      } catch (e) { console.error(e); }
-    }
-
     updateDocumentNonBlocking(playerDoc, { ...editingPlayer });
     setIsEditOpen(false);
     toast({ title: "Legajo Actualizado" });
-  };
-
-  const handleResetPassword = async (email: string) => {
-    if (!email) return;
-    try {
-      await initiatePasswordReset(auth, email);
-      toast({
-        title: "Reset enviado",
-        description: `Se envió un link de recuperación a ${email}`,
-      });
-    } catch (e) {
-      console.error(e);
-      toast({ variant: "destructive", title: "Error al resetear" });
-    }
-  };
-
-  const handleDeletePlayer = (id: string) => {
-    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "players", id));
-    toast({ variant: "destructive", title: "Jugador Eliminado" });
   };
 
   const filteredPlayers = players?.filter(p => {
@@ -239,8 +179,7 @@ export default function PlayersPage() {
     return (
       p.firstName.toLowerCase().includes(search) || 
       p.lastName.toLowerCase().includes(search) || 
-      p.dni?.includes(search) ||
-      p.position?.toLowerCase().includes(search)
+      p.dni?.includes(search)
     );
   });
 
@@ -264,91 +203,39 @@ export default function PlayersPage() {
               <DialogContent className="max-w-4xl max-h-[95vh]">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black">Nueva Ficha Deportiva</DialogTitle>
-                  <DialogDescription>Completa el legajo oficial y define los tutores responsables.</DialogDescription>
+                  <DialogDescription>Completa el legajo y selecciona la disciplina oficial.</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[70vh] pr-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
                     <div className="space-y-6">
-                      <div className="space-y-4">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                          <User className="h-3 w-3" /> Identidad y Contacto
-                        </Label>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Nombre</Label>
-                            <Input value={newPlayer.firstName} onChange={e => setNewPlayer({...newPlayer, firstName: e.target.value})} placeholder="Nombre" />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Apellido</Label>
-                            <Input value={newPlayer.lastName} onChange={e => setNewPlayer({...newPlayer, lastName: e.target.value})} placeholder="Apellido" />
-                          </div>
+                      <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
+                        <div className="space-y-0.5">
+                          <Label className="text-sm font-bold">Disciplina</Label>
+                          <p className="text-[10px] text-primary font-black uppercase tracking-widest">
+                            {newPlayer.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
+                          </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>DNI</Label>
-                            <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Fecha Nac.</Label>
-                            <Input type="date" value={newPlayer.birthDate} onChange={e => setNewPlayer({...newPlayer, birthDate: e.target.value})} />
-                          </div>
-                        </div>
-                        <Input value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email de Acceso (Oficial)" />
-                        <Input value={newPlayer.address} onChange={e => setNewPlayer({...newPlayer, address: e.target.value})} placeholder="Dirección Particular" />
+                        <Switch 
+                          checked={newPlayer.sport === 'rugby'} 
+                          onCheckedChange={(v) => setNewPlayer({...newPlayer, sport: v ? 'rugby' : 'hockey'})} 
+                        />
                       </div>
 
-                      <div className="space-y-4 border-t pt-6">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs font-black uppercase tracking-[0.2em] text-orange-600 flex items-center gap-2">
-                            <Users2 className="h-3 w-3" /> Tutores / Responsables
-                          </Label>
-                          <Button variant="ghost" size="sm" onClick={() => addTutor()} className="h-7 text-[10px] gap-1 bg-orange-50 text-orange-700">
-                            <PlusCircle className="h-3 w-3" /> Agregar Tutor
-                          </Button>
+                      <div className="space-y-4">
+                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-primary">Identidad</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input value={newPlayer.firstName} onChange={e => setNewPlayer({...newPlayer, firstName: e.target.value})} placeholder="Nombre" />
+                          <Input value={newPlayer.lastName} onChange={e => setNewPlayer({...newPlayer, lastName: e.target.value})} placeholder="Apellido" />
                         </div>
-                        
-                        <div className="space-y-4">
-                          {newPlayer.tutors.map((tutor, idx) => (
-                            <div key={idx} className="p-4 bg-muted/30 rounded-xl border relative space-y-3">
-                              {newPlayer.tutors.length > 1 && (
-                                <Button variant="ghost" size="icon" onClick={() => removeTutor(idx)} className="absolute top-2 right-2 h-6 w-6 text-destructive">
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              )}
-                              <div className="space-y-2">
-                                <Label className="text-[10px] font-bold">Nombre Completo</Label>
-                                <Input value={tutor.name} onChange={e => updateTutor(idx, 'name', e.target.value)} placeholder="Ej. Juan Pérez" />
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <Label className="text-[10px] font-bold">Parentesco</Label>
-                                  <Input value={tutor.kinship} onChange={e => updateTutor(idx, 'kinship', e.target.value)} placeholder="Ej. Padre" />
-                                </div>
-                                <div className="space-y-1">
-                                  <Label className="text-[10px] font-bold">Teléfono</Label>
-                                  <Input value={tutor.phone} onChange={e => updateTutor(idx, 'phone', e.target.value)} placeholder="+54..." />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} placeholder="DNI" />
+                        <Input type="date" value={newPlayer.birthDate} onChange={e => setNewPlayer({...newPlayer, birthDate: e.target.value})} />
                       </div>
                     </div>
 
                     <div className="space-y-6">
                       <div className="space-y-4">
-                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                          <AlertCircle className="h-3 w-3" /> Ficha Médica y Técnica
-                        </Label>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Select value={newPlayer.bloodType} onValueChange={v => setNewPlayer({...newPlayer, bloodType: v})}>
-                            <SelectTrigger><SelectValue placeholder="Sangre" /></SelectTrigger>
-                            <SelectContent>
-                              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <Input value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} placeholder="Posición" />
-                        </div>
+                        <Label className="text-xs font-black uppercase tracking-[0.2em] text-primary">Ficha Técnica</Label>
+                        <Input value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} placeholder="Posición" />
                         <div className="grid grid-cols-2 gap-4">
                           <Input type="number" value={newPlayer.weight} onChange={e => setNewPlayer({...newPlayer, weight: e.target.value})} placeholder="Peso (kg)" />
                           <Input type="number" value={newPlayer.height} onChange={e => setNewPlayer({...newPlayer, height: e.target.value})} placeholder="Altura (cm)" />
@@ -357,25 +244,12 @@ export default function PlayersPage() {
 
                       <div className="space-y-4 border-t pt-6 bg-muted/20 p-4 rounded-xl">
                         <div className="flex items-center justify-between">
-                          <Label className="text-xs font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                            <Lock className="h-3 w-3" /> Acceso al Sistema
-                          </Label>
+                          <Label className="text-xs font-black uppercase text-primary">Acceso Digital</Label>
                           <Switch checked={newPlayer.enableLogin} onCheckedChange={(v) => setNewPlayer({...newPlayer, enableLogin: v})} />
                         </div>
                         {newPlayer.enableLogin && (
-                          <div className="space-y-2 animate-in fade-in duration-300">
-                            <Label>Contraseña Temporal</Label>
-                            <Input type={showPassword ? "text" : "password"} value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} />
-                          </div>
+                          <Input type="password" value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} placeholder="Contraseña temporal" />
                         )}
-                      </div>
-
-                      <div className="p-4 bg-primary/5 rounded-xl border flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Car className="h-5 w-5 text-primary" />
-                          <Label className="font-bold">Acceso Vehicular</Label>
-                        </div>
-                        <Switch checked={newPlayer.parkingActive} onCheckedChange={(v) => setNewPlayer({...newPlayer, parkingActive: v})} />
                       </div>
                     </div>
                   </div>
@@ -388,12 +262,11 @@ export default function PlayersPage() {
             </Dialog>
           </div>
 
-          {/* Buscador */}
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              placeholder="Buscar por nombre, DNI o posición..." 
-              className="pl-10 h-12 text-lg shadow-sm border-2 focus-visible:ring-primary"
+              placeholder="Buscar por nombre o DNI..." 
+              className="pl-10 h-12 text-lg shadow-sm border-2 bg-card"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -405,196 +278,65 @@ export default function PlayersPage() {
         ) : (
           <div className="space-y-4">
             {filteredPlayers?.map((player: any) => (
-              <Card key={player.id} className="hover:border-primary/50 transition-all overflow-hidden border-2 group shadow-sm">
-                <CardContent className="p-0">
-                  <div className="flex flex-col lg:flex-row lg:items-center">
-                    {/* Perfil e Identidad */}
-                    <div className="flex items-center gap-4 p-4 lg:w-1/4 border-b lg:border-b-0 lg:border-r bg-muted/5">
-                      <Avatar className="h-14 w-14 border-2 border-primary/10 shadow-sm">
-                        <AvatarImage src={player.photoUrl} />
-                        <AvatarFallback><User /></AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-base truncate">{player.firstName} {player.lastName}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">DNI: {player.dni || 'S/D'}</span>
-                          <Badge variant="outline" className="text-[9px] border-red-200 text-red-600 font-black h-4">{player.bloodType || 'S/G'}</Badge>
-                        </div>
+              <Card key={player.id} className="hover:border-primary/50 transition-all overflow-hidden border-2 group shadow-sm bg-card">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12 border shadow-sm">
+                      <AvatarImage src={player.photoUrl} />
+                      <AvatarFallback><User /></AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-bold text-base">{player.firstName} {player.lastName}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant="outline" className="text-[9px] font-black uppercase border-primary text-primary">
+                          {player.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}
+                        </Badge>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">DNI: {player.dni || 'S/D'}</span>
                       </div>
                     </div>
-
-                    {/* Información Técnica y Responsables */}
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-                      {/* Tutores y Email */}
-                      <div className="space-y-3">
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5 tracking-widest">
-                            <Mail className="h-3 w-3" /> Email de Acceso
-                          </p>
-                          <p className="text-[11px] font-bold text-primary truncate">{player.email || 'Sin email asignado'}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5 tracking-widest">
-                            <Users2 className="h-3 w-3" /> Responsables ({player.tutors?.length || 0})
-                          </p>
-                          <div className="space-y-1">
-                            {player.tutors?.slice(0, 2).map((t: Tutor, i: number) => (
-                              <div key={i} className="flex justify-between text-[11px] leading-tight">
-                                <span className="font-bold truncate max-w-[120px]">{t.name}</span>
-                                <span className="text-muted-foreground font-mono">{t.phone}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Info Técnica / Salud */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Ficha Técnica</p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-tight">{player.position || 'JUGADOR'}</Badge>
-                          </div>
-                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-1">
-                            <span className="flex items-center gap-1"><Scale className="h-3 w-3" /> {player.weight || '-'}kg</span>
-                            <span className="flex items-center gap-1"><Ruler className="h-3 w-3" /> {player.height || '-'}cm</span>
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Estado</p>
-                          <div className="flex items-center gap-2">
-                            {player.parkingActive ? (
-                              <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none text-[8px] gap-1"><Car className="h-2 w-2" /> PARKING</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[8px] opacity-30">SIN PARKING</Badge>
-                            )}
-                            {player.enableLogin && <Badge className="bg-blue-100 text-blue-700 border-none text-[8px]"><Lock className="h-2 w-2 mr-1" /> DIGITAL</Badge>}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Acciones */}
-                    <div className="p-4 lg:border-l flex items-center justify-between lg:justify-end gap-3 bg-muted/5">
-                      <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-9 w-9 p-0 text-muted-foreground hover:text-primary hover:bg-primary/5" 
-                          onClick={() => handleResetPassword(player.email)}
-                          title="Enviar Reset de Contraseña"
-                        >
-                          <KeyRound className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:bg-red-50" onClick={() => handleDeletePlayer(player.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-primary/5" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      
-                      <Button variant="outline" size="sm" asChild className="font-bold h-9 gap-2 border-primary text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
-                        <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>
-                          PAGOS <CreditCard className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-primary/5" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" asChild className="font-bold h-9 gap-2 border-primary text-primary hover:bg-primary hover:text-white transition-all">
+                      <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>PAGOS</Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
-
-        {filteredPlayers?.length === 0 && !isLoading && (
-          <div className="text-center py-20 border-2 border-dashed rounded-xl bg-muted/10">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-            <p className="text-muted-foreground font-medium">No se encontraron jugadores que coincidan con la búsqueda.</p>
-          </div>
-        )}
       </div>
 
       {/* Modal de edición */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-4xl max-h-[95vh]">
+        <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle className="text-2xl font-black">Editar Legajo</DialogTitle></DialogHeader>
-          <ScrollArea className="max-h-[75vh] pr-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <Label className="text-xs font-black uppercase text-primary">Identidad</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input value={editingPlayer?.firstName || ""} onChange={e => setEditingPlayer({...editingPlayer, firstName: e.target.value})} placeholder="Nombre" />
-                    <Input value={editingPlayer?.lastName || ""} onChange={e => setEditingPlayer({...editingPlayer, lastName: e.target.value})} placeholder="Apellido" />
-                  </div>
-                  <Input value={editingPlayer?.dni || ""} onChange={e => setEditingPlayer({...editingPlayer, dni: e.target.value})} placeholder="DNI" />
-                  <Input type="date" value={editingPlayer?.birthDate || ""} onChange={e => setEditingPlayer({...editingPlayer, birthDate: e.target.value})} />
-                  <Input value={editingPlayer?.address || ""} onChange={e => setEditingPlayer({...editingPlayer, address: e.target.value})} placeholder="Dirección" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted rounded-xl border">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold">Disciplina</Label>
+                  <p className="text-[10px] text-muted-foreground font-black uppercase">
+                    {editingPlayer?.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
+                  </p>
                 </div>
-
-                <div className="space-y-4 border-t pt-6">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-black uppercase text-orange-600">Responsables</Label>
-                    <Button variant="ghost" size="sm" onClick={() => addTutor(true)} className="h-7 text-[10px] gap-1">
-                      <PlusCircle className="h-3 w-3" /> Agregar
-                    </Button>
-                  </div>
-                  <div className="space-y-4">
-                    {editingPlayer?.tutors?.map((tutor: Tutor, idx: number) => (
-                      <div key={idx} className="p-4 bg-muted/30 rounded-xl border relative space-y-3">
-                        <Button variant="ghost" size="icon" onClick={() => removeTutor(idx, true)} className="absolute top-2 right-2 h-6 w-6 text-destructive">
-                          <X className="h-4 w-4" />
-                        </Button>
-                        <Input value={tutor.name} onChange={e => updateTutor(idx, 'name', e.target.value, true)} placeholder="Nombre" />
-                        <div className="grid grid-cols-2 gap-3">
-                          <Input value={tutor.kinship} onChange={e => updateTutor(idx, 'kinship', e.target.value, true)} placeholder="Parentesco" />
-                          <Input value={tutor.phone} onChange={e => updateTutor(idx, 'phone', e.target.value, true)} placeholder="Teléfono" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <Switch 
+                  checked={editingPlayer?.sport === 'rugby'} 
+                  onCheckedChange={(v) => setEditingPlayer({...editingPlayer, sport: v ? 'rugby' : 'hockey'})} 
+                />
               </div>
-
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <Label className="text-xs font-black uppercase text-primary">Ficha Técnica</Label>
-                  <Select value={editingPlayer?.bloodType || ""} onValueChange={v => setEditingPlayer({...editingPlayer, bloodType: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Input value={editingPlayer?.position || ""} onChange={e => setEditingPlayer({...editingPlayer, position: e.target.value})} placeholder="Posición" />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input type="number" value={editingPlayer?.weight || ""} onChange={e => setEditingPlayer({...editingPlayer, weight: e.target.value})} placeholder="Peso" />
-                    <Input type="number" value={editingPlayer?.height || ""} onChange={e => setEditingPlayer({...editingPlayer, height: e.target.value})} placeholder="Altura" />
-                  </div>
-                </div>
-
-                <div className="space-y-4 border-t pt-6 bg-muted/20 p-4 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-black uppercase text-primary">Acceso Digital</Label>
-                    <Switch checked={editingPlayer?.enableLogin || false} onCheckedChange={(v) => setEditingPlayer({...editingPlayer, enableLogin: v})} />
-                  </div>
-                  {editingPlayer?.enableLogin && (
-                    <div className="space-y-2">
-                      <Label>Email de Acceso</Label>
-                      <Input value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} placeholder="email@ejemplo.com" />
-                      {!editingPlayer?.hasAccessCreated && (
-                        <>
-                          <Label>Contraseña temporal</Label>
-                          <Input type="password" value={editingPlayer?.password || ""} onChange={e => setEditingPlayer({...editingPlayer, password: e.target.value})} placeholder="Mín. 6 car." />
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <Input value={editingPlayer?.firstName || ""} onChange={e => setEditingPlayer({...editingPlayer, firstName: e.target.value})} placeholder="Nombre" />
+              <Input value={editingPlayer?.lastName || ""} onChange={e => setEditingPlayer({...editingPlayer, lastName: e.target.value})} placeholder="Apellido" />
             </div>
-          </ScrollArea>
-          <DialogFooter className="border-t pt-4">
+            <div className="space-y-4">
+              <Input value={editingPlayer?.dni || ""} onChange={e => setEditingPlayer({...editingPlayer, dni: e.target.value})} placeholder="DNI" />
+              <Input value={editingPlayer?.position || ""} onChange={e => setEditingPlayer({...editingPlayer, position: e.target.value})} placeholder="Posición" />
+            </div>
+          </div>
+          <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
             <Button onClick={handleUpdatePlayer} className="font-bold">Guardar Cambios</Button>
           </DialogFooter>
