@@ -25,6 +25,18 @@
         "bloodType": { "type": "string", "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] },
         "emergencyContact": { "type": "string" },
         "emergencyPhone": { "type": "string" },
+        "tutors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "kinship": { "type": "string" },
+              "phone": { "type": "string" }
+            }
+          },
+          "description": "Lista de responsables o tutores legales."
+        },
         "parkingActive": { "type": "boolean", "description": "Indica si tiene el plan de estacionamiento en el predio activo." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
