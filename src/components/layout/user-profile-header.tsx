@@ -24,18 +24,18 @@ export function UserProfileHeader() {
         const email = user.email?.toLowerCase().trim() || "";
         let finalProfile = null;
 
-        // 1. Intentar por UID (Documento directo)
+        // 1. Intentar por UID directo
         const uidSnap = await getDoc(doc(firestore, "users", user.uid));
-        if (uidSnap.exists() && uidSnap.data().role) {
+        if (uidSnap.exists()) {
           finalProfile = uidSnap.data();
         } else {
-          // 2. Fallback: Buscar por EMAIL en colección global de usuarios (Staff/Coaches)
+          // 2. BUSQUEDA MAESTRA POR EMAIL (Para staff creado manualmente como Robert)
           const qStaff = query(collection(firestore, "users"), where("email", "==", email));
           const staffSnap = await getDocs(qStaff);
           if (!staffSnap.empty) {
             finalProfile = staffSnap.docs[0].data();
           } else {
-            // 3. Fallback: Buscar por EMAIL en índice de jugadores
+            // 3. Buscar en Padrón de Jugadores
             const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
             const playerSnap = await getDocs(qPlayer);
             if (!playerSnap.empty) {
@@ -117,15 +117,13 @@ export function UserProfileHeader() {
         
         <div className="h-6 w-px bg-slate-200 mx-1" />
         
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <button 
           onClick={handleLogout}
-          className="text-destructive hover:text-destructive hover:bg-red-50 font-black uppercase text-[10px] tracking-tight h-9 gap-2 px-3"
+          className="text-destructive hover:text-red-600 flex items-center gap-2 px-2 transition-colors"
         >
-          <LogOut className="h-3.5 w-3.5" />
-          Salir
-        </Button>
+          <LogOut className="h-4 w-4" />
+          <span className="text-[10px] font-black uppercase tracking-tight">Salir</span>
+        </button>
       </div>
     </div>
   );

@@ -23,19 +23,20 @@ export default function Home() {
           let role = null;
           let clubId = null;
 
-          // 1. Buscar por UID
+          // 1. Intentar por UID
           const userSnap = await getDoc(doc(firestore, "users", user.uid));
           if (userSnap.exists()) {
             role = userSnap.data().role;
             clubId = userSnap.data().clubId;
           } else {
-            // 2. Buscar por Email en Staff
+            // 2. BUSQUEDA POR EMAIL (Crucial para staff manual)
             const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
             if (!staffSnap.empty) {
-              role = staffSnap.docs[0].data().role;
-              clubId = staffSnap.docs[0].data().clubId;
+              const data = staffSnap.docs[0].data();
+              role = data.role;
+              clubId = data.clubId;
             } else {
-              // 3. Buscar por Email en Jugadores
+              // 3. Buscar en Jugadores
               const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
               if (!playerSnap.empty) {
                 role = 'player';

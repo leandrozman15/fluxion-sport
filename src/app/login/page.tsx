@@ -9,8 +9,6 @@ import {
   Mail, 
   Lock, 
   AlertCircle,
-  Eye,
-  EyeOff,
   ShieldCheck,
   Zap
 } from "lucide-react";
@@ -31,7 +29,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,17 +43,20 @@ export default function LoginPage() {
       let role = null;
       let clubId = null;
 
-      // Buscar perfil por UID o Email
+      // 1. Intentar por UID
       const uidSnap = await getDoc(doc(firestore, "users", currentUser.uid));
       if (uidSnap.exists()) {
         role = uidSnap.data().role;
         clubId = uidSnap.data().clubId;
       } else {
+        // 2. BUSQUEDA POR EMAIL (Staff manual)
         const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", userEmail)));
         if (!staffSnap.empty) {
-          role = staffSnap.docs[0].data().role;
-          clubId = staffSnap.docs[0].data().clubId;
+          const data = staffSnap.docs[0].data();
+          role = data.role;
+          clubId = data.clubId;
         } else {
+          // 3. Buscar en Jugadores
           const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", userEmail)));
           if (!playerSnap.empty) {
             role = 'player';
@@ -121,7 +121,7 @@ export default function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label>Contraseña</Label>
-                <Input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
