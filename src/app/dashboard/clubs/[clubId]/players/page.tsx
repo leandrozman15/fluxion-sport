@@ -56,7 +56,7 @@ import { SectionNav } from "@/components/layout/section-nav";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { initiateEmailSignUp, initiatePasswordReset } from "@/firebase/non-blocking-login";
+import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
 import { cn } from "@/lib/utils";
 
 interface Tutor {
@@ -72,7 +72,6 @@ export default function PlayersPage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -124,28 +123,20 @@ export default function PlayersPage() {
       const playerId = doc(collection(db, "clubs", clubId, "players")).id;
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
       
+      // Si se habilita el login, creamos una entrada en el índice global
       if (newPlayer.enableLogin && newPlayer.email && newPlayer.password) {
         initiateEmailSignUp(auth, newPlayer.email, newPlayer.password);
-        const userDoc = doc(db, "users", playerId);
-        await setDoc(userDoc, {
-          id: playerId,
-          name: `${newPlayer.firstName} ${newPlayer.lastName}`,
-          email: newPlayer.email,
-          role: "player",
-          clubId,
-          sport: newPlayer.sport,
-          requiresPasswordChange: true,
-          createdAt: new Date().toISOString()
-        });
-
+        
         await setDoc(doc(db, "all_players_index", playerId), {
           id: playerId,
           firstName: newPlayer.firstName,
           lastName: newPlayer.lastName,
           email: newPlayer.email,
           clubId,
-          clubName: club?.name || "",
-          sport: newPlayer.sport
+          clubName: club?.name || "Club Vicentinos",
+          sport: newPlayer.sport,
+          role: "player",
+          createdAt: new Date().toISOString()
         });
       }
 
@@ -153,6 +144,7 @@ export default function PlayersPage() {
         ...newPlayer,
         id: playerId,
         clubId,
+        role: "player",
         createdAt: new Date().toISOString()
       });
       
@@ -168,8 +160,7 @@ export default function PlayersPage() {
   const handleUpdatePlayer = async () => {
     if (!editingPlayer) return;
     const playerDoc = doc(db, "clubs", clubId, "players", editingPlayer.id);
-    
-    updateDocumentNonBlocking(playerDoc, { ...editingPlayer });
+    updateDocumentNonBlocking(playerDoc, { ...editingPlayer, role: "player" });
     setIsEditOpen(false);
     toast({ title: "Legajo Actualizado" });
   };
@@ -196,11 +187,11 @@ export default function PlayersPage() {
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="flex items-center gap-2 shadow-lg h-12 px-6">
+                <Button className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest">
                   <UserPlus className="h-5 w-5" /> Alta de Jugador
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[95vh]">
+              <DialogContent className="max-w-4xl max-h-[95vh] bg-white">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black">Nueva Ficha Deportiva</DialogTitle>
                   <DialogDescription>Completa el legajo y selecciona la disciplina oficial.</DialogDescription>
@@ -210,7 +201,7 @@ export default function PlayersPage() {
                     <div className="space-y-6">
                       <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
                         <div className="space-y-0.5">
-                          <Label className="text-sm font-bold">Disciplina</Label>
+                          <Label className="text-sm font-bold text-slate-700">Disciplina</Label>
                           <p className="text-[10px] text-primary font-black uppercase tracking-widest">
                             {newPlayer.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
                           </p>
@@ -227,7 +218,7 @@ export default function PlayersPage() {
                           <Input value={newPlayer.firstName} onChange={e => setNewPlayer({...newPlayer, firstName: e.target.value})} placeholder="Nombre" />
                           <Input value={newPlayer.lastName} onChange={e => setNewPlayer({...newPlayer, lastName: e.target.value})} placeholder="Apellido" />
                         </div>
-                        <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} placeholder="DNI" />
+                        <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} placeholder="DNI / Documento" />
                         <Input type="date" value={newPlayer.birthDate} onChange={e => setNewPlayer({...newPlayer, birthDate: e.target.value})} />
                       </div>
                     </div>
@@ -235,7 +226,7 @@ export default function PlayersPage() {
                     <div className="space-y-6">
                       <div className="space-y-4">
                         <Label className="text-xs font-black uppercase tracking-[0.2em] text-primary">Ficha Técnica</Label>
-                        <Input value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} placeholder="Posición" />
+                        <Input value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} placeholder="Posición (Ej. Delantera)" />
                         <div className="grid grid-cols-2 gap-4">
                           <Input type="number" value={newPlayer.weight} onChange={e => setNewPlayer({...newPlayer, weight: e.target.value})} placeholder="Peso (kg)" />
                           <Input type="number" value={newPlayer.height} onChange={e => setNewPlayer({...newPlayer, height: e.target.value})} placeholder="Altura (cm)" />
@@ -244,17 +235,20 @@ export default function PlayersPage() {
 
                       <div className="space-y-4 border-t pt-6 bg-muted/20 p-4 rounded-xl">
                         <div className="flex items-center justify-between">
-                          <Label className="text-xs font-black uppercase text-primary">Acceso Digital</Label>
+                          <Label className="text-xs font-black uppercase text-primary">Acceso Digital (App Jugador)</Label>
                           <Switch checked={newPlayer.enableLogin} onCheckedChange={(v) => setNewPlayer({...newPlayer, enableLogin: v})} />
                         </div>
                         {newPlayer.enableLogin && (
-                          <Input type="password" value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} placeholder="Contraseña temporal" />
+                          <div className="space-y-3">
+                            <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email del jugador" />
+                            <Input type="password" value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} placeholder="Contraseña temporal" />
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
                 </ScrollArea>
-                <DialogFooter className="border-t pt-4">
+                <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6 mt-4">
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                   <Button onClick={handleCreatePlayer} disabled={!newPlayer.firstName || !newPlayer.lastName} className="font-bold">Confirmar Alta</Button>
                 </DialogFooter>
@@ -281,26 +275,26 @@ export default function PlayersPage() {
               <Card key={player.id} className="hover:border-primary/50 transition-all overflow-hidden border-2 group shadow-sm bg-card">
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12 border shadow-sm">
-                      <AvatarImage src={player.photoUrl} />
-                      <AvatarFallback><User /></AvatarFallback>
+                    <Avatar className="h-14 w-14 border shadow-sm">
+                      <AvatarImage src={player.photoUrl} className="object-cover" />
+                      <AvatarFallback className="font-black text-slate-300">{player.firstName[0]}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-bold text-base">{player.firstName} {player.lastName}</p>
+                      <p className="font-black text-base text-slate-900">{player.firstName} {player.lastName}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <Badge variant="outline" className="text-[9px] font-black uppercase border-primary text-primary">
                           {player.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}
                         </Badge>
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase">DNI: {player.dni || 'S/D'}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">DNI: {player.dni || 'S/D'}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-primary/5" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}>
-                      <Pencil className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" className="h-10 w-10 p-0 hover:bg-primary/5 text-slate-400 hover:text-primary" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}>
+                      <Pencil className="h-5 w-5" />
                     </Button>
-                    <Button variant="outline" size="sm" asChild className="font-bold h-9 gap-2 border-primary text-primary hover:bg-primary hover:text-white transition-all">
-                      <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>PAGOS</Link>
+                    <Button variant="outline" size="sm" asChild className="font-black h-10 gap-2 border-primary text-primary hover:bg-primary hover:text-white transition-all px-4 text-xs uppercase tracking-widest">
+                      <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>Pagos</Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -310,16 +304,15 @@ export default function PlayersPage() {
         )}
       </div>
 
-      {/* Modal de edición */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle className="text-2xl font-black">Editar Legajo</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl bg-white">
+          <DialogHeader><DialogTitle className="text-2xl font-black text-slate-900">Editar Legajo</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-muted rounded-xl border">
                 <div className="space-y-0.5">
-                  <Label className="text-sm font-bold">Disciplina</Label>
-                  <p className="text-[10px] text-muted-foreground font-black uppercase">
+                  <Label className="text-sm font-bold text-slate-700">Disciplina</Label>
+                  <p className="text-[10px] text-slate-500 font-black uppercase">
                     {editingPlayer?.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
                   </p>
                 </div>
@@ -334,9 +327,10 @@ export default function PlayersPage() {
             <div className="space-y-4">
               <Input value={editingPlayer?.dni || ""} onChange={e => setEditingPlayer({...editingPlayer, dni: e.target.value})} placeholder="DNI" />
               <Input value={editingPlayer?.position || ""} onChange={e => setEditingPlayer({...editingPlayer, position: e.target.value})} placeholder="Posición" />
+              <Input value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} placeholder="Email institucional" />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6 mt-4">
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
             <Button onClick={handleUpdatePlayer} className="font-bold">Guardar Cambios</Button>
           </DialogFooter>

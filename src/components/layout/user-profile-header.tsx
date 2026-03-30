@@ -3,10 +3,10 @@
 
 import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, ShieldCheck, Trophy, UserCircle, Settings } from "lucide-react";
+import { LogOut, User, ShieldCheck, Trophy, Settings } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -15,22 +15,34 @@ export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
   const [profile, setProfile] = useState<any>(null);
   const [club, setClub] = useState<any>(null);
+  const [isPlayer, setIsPlayer] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     async function fetchData() {
       if (!user || !firestore) return;
       try {
+        // 1. Intentar buscar perfil directo por UID
         const userSnap = await getDoc(doc(firestore, "users", user.uid));
         if (userSnap.exists()) {
           const userData = userSnap.data();
           setProfile(userData);
+          setIsPlayer(userData.role === 'player');
           
           if (userData.clubId) {
             const clubSnap = await getDoc(doc(firestore, "clubs", userData.clubId));
-            if (clubSnap.exists()) {
-              setClub(clubSnap.data());
-            }
+            if (clubSnap.exists()) setClub(clubSnap.data());
+          }
+        } else {
+          // 2. Fallback: Buscar en el índice de jugadores por email
+          const q = query(collection(firestore, "all_players_index"), where("email", "==", user.email));
+          const playerSnap = await getDocs(q);
+          if (!playerSnap.empty) {
+            const pData = playerSnap.docs[0].data();
+            setProfile({ ...pData, role: 'player' });
+            setIsPlayer(true);
+            const clubSnap = await getDoc(doc(firestore, "clubs", pData.clubId));
+            if (clubSnap.exists()) setClub(clubSnap.data());
           }
         }
       } catch (e) {
@@ -54,7 +66,6 @@ export function UserProfileHeader() {
   const isAdmin = profile?.role === 'admin' || profile?.role === 'fed_admin';
   const isCoordinator = profile?.role === 'coordinator' || profile?.role === 'club_admin';
   
-  // Determinar etiqueta de rol con deporte para coordinadores
   const getRoleLabel = () => {
     if (isAdmin) return "Administrador Global";
     if (isCoordinator) {
@@ -62,8 +73,8 @@ export function UserProfileHeader() {
       return `Coordinador ${sportLabel}`;
     }
     if (profile?.role === 'coach') return "Entrenador Oficial";
-    if (profile?.role === 'player') return "Deportista Federado";
-    return profile?.role || "Usuario";
+    if (profile?.role === 'player' || isPlayer) return "Deportista Federado";
+    return "Miembro Oficial";
   };
 
   return (
@@ -74,11 +85,11 @@ export function UserProfileHeader() {
       )}>
         <div className="flex flex-col items-end">
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
-            {profile?.name || user.displayName || user.email}
+            {profile?.name || profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : user.displayName || user.email}
           </span>
           <span className={cn(
             "text-[9px] uppercase font-bold tracking-widest mt-1 flex items-center gap-1",
-            isAdmin ? "text-primary" : isCoordinator ? "text-orange-600" : "text-slate-500"
+            isAdmin ? "text-primary" : isCoordinator ? "text-orange-600" : isPlayer ? "text-green-600" : "text-slate-500"
           )}>
             {isAdmin ? <Trophy className="h-2.5 w-2.5" /> : 
              isCoordinator ? <Settings className="h-2.5 w-2.5" /> : 
@@ -87,14 +98,13 @@ export function UserProfileHeader() {
           </span>
         </div>
 
-        {/* Avatar / Escudo: El Admin muestra el logo del club (escudo) */}
         <Avatar className={cn(
           "h-10 w-10 border-2 transition-transform group-hover:scale-105",
           isAdmin ? "border-primary shadow-primary/20" : "border-slate-100"
         )}>
           <AvatarImage 
             src={isAdmin ? (club?.logoUrl || profile?.photoUrl) : profile?.photoUrl} 
-            className="object-contain p-0.5" 
+            className="object-cover" 
           />
           <AvatarFallback className="bg-primary/5 text-primary text-xs font-black">
             {isAdmin ? <Trophy className="h-5 w-5" /> : <User className="h-5 w-5" />}
