@@ -20,7 +20,7 @@ import {
   ChevronRight,
   CalendarDays,
   MapPinned,
-  MoreVertical
+  Pencil
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
@@ -32,29 +32,32 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+const INITIAL_EVENT_STATE = { 
+  title: "", 
+  type: "training", 
+  date: "", 
+  location: "", 
+  address: "", 
+  opponent: "", 
+  description: "",
+  duration: 90,
+  objectives: "",
+  status: "scheduled"
+};
 
 export default function TeamEventsPage() {
   const { clubId, divisionId, teamId } = useParams() as any;
   const db = useFirestore();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   
-  const [newEvent, setNewEvent] = useState({ 
-    title: "", 
-    type: "training", 
-    date: "", 
-    location: "", 
-    address: "", 
-    opponent: "", 
-    description: "",
-    duration: 90,
-    objectives: "",
-    status: "scheduled"
-  });
+  const [eventForm, setEventForm] = useState(INITIAL_EVENT_STATE);
 
   const eventsQuery = useMemoFirebase(() => 
     collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events"), 
@@ -68,25 +71,59 @@ export default function TeamEventsPage() {
   );
   const { data: coaches } = useCollection(coachesQuery);
 
-  const handleCreateEvent = async () => {
-    if (!newEvent.title || !newEvent.date) return;
-    
-    const eventId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events")).id;
-    const eventDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId);
-    
-    await setDoc(eventDoc, {
-      ...newEvent,
-      id: eventId,
-      teamId,
-      createdAt: new Date().toISOString()
-    });
-    
-    setNewEvent({ title: "", type: "training", date: "", location: "", address: "", opponent: "", description: "", duration: 90, objectives: "", status: "scheduled" });
-    setIsDialogOpen(false);
-    toast({ title: "Actividad Programada", description: "La actividad se ha añadido al calendario del equipo." });
+  const handleOpenCreate = () => {
+    setEditingEventId(null);
+    setEventForm(INITIAL_EVENT_STATE);
+    setIsDialogOpen(true);
   };
 
-  const handleDeleteEvent = (id: string) => {
+  const handleOpenEdit = (ev: any) => {
+    setEditingEventId(ev.id);
+    setEventForm({
+      title: ev.title || "",
+      type: ev.type || "training",
+      date: ev.date || "",
+      location: ev.location || "",
+      address: ev.address || "",
+      opponent: ev.opponent || "",
+      description: ev.description || "",
+      duration: ev.duration || 90,
+      objectives: ev.objectives || "",
+      status: ev.status || "scheduled"
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveEvent = async () => {
+    if (!eventForm.title || !eventForm.date) return;
+    
+    try {
+      if (editingEventId) {
+        const eventDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", editingEventId);
+        updateDocumentNonBlocking(eventDoc, { ...eventForm });
+        toast({ title: "Actividad Actualizada", description: "Los cambios se han guardado correctamente." });
+      } else {
+        const eventId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events")).id;
+        const eventDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId);
+        
+        await setDoc(eventDoc, {
+          ...eventForm,
+          id: eventId,
+          teamId,
+          createdAt: new Date().toISOString()
+        });
+        toast({ title: "Actividad Programada", description: "La actividad se ha añadido al calendario." });
+      }
+      setIsDialogOpen(false);
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la actividad." });
+    }
+  };
+
+  const handleDeleteEvent = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
     if(confirm("¿Seguro que deseas eliminar esta actividad?")) {
       deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", id));
       toast({ variant: "destructive", title: "Actividad Eliminada" });
@@ -105,102 +142,19 @@ export default function TeamEventsPage() {
     <div className="space-y-10 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col gap-6">
         <Link href={`/dashboard/coach`} className="ambient-link group w-fit">
-          <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" /> Volver al equipo
+          <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" /> Volver al panel técnico
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-4xl font-black font-headline tracking-tight text-white drop-shadow-2xl">Agenda Deportiva</h1>
             <p className="ambient-text text-lg opacity-90 font-bold">Planificación de sesiones y encuentros oficiales.</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-3 h-12 px-8 font-black uppercase text-[11px] tracking-widest shadow-2xl bg-white text-primary hover:bg-slate-50">
-                <Plus className="h-5 w-5" /> Nueva Actividad
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-white border-none shadow-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-slate-900">Programar Sesión o Partido</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Define los detalles técnicos y logísticos de la actividad.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-6 py-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Tipo de Actividad</Label>
-                    <Select value={newEvent.type} onValueChange={v => setNewEvent({...newEvent, type: v})}>
-                      <SelectTrigger className="h-12 border-2"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="training">Entrenamiento</SelectItem>
-                        <SelectItem value="match">Partido Oficial / Amistoso</SelectItem>
-                        <SelectItem value="social">Social / Evento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Fecha y Hora</Label>
-                    <Input type="datetime-local" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} className="h-12 border-2" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Título / Nombre de la Sesión</Label>
-                  <Input value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} placeholder="Ej. Entrenamiento Físico-Técnico" className="h-12 border-2 font-bold" />
-                </div>
-
-                {newEvent.type === 'training' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-slate-200">
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-900 flex items-center gap-2"><Timer className="h-3.5 w-3.5" /> Duración (min)</Label>
-                      <Input type="number" value={newEvent.duration} onChange={e => setNewEvent({...newEvent, duration: parseInt(e.target.value)})} className="h-10" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-900 flex items-center gap-2"><Target className="h-3.5 w-3.5" /> Objetivos</Label>
-                      <Input value={newEvent.objectives} onChange={e => setNewEvent({...newEvent, objectives: e.target.value})} placeholder="Ej. Salida de fondo" className="h-10" />
-                    </div>
-                  </div>
-                )}
-
-                {newEvent.type === 'match' && (
-                  <div className="space-y-4 bg-accent/5 p-6 rounded-2xl border-2 border-accent/20">
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-accent flex items-center gap-2"><Trophy className="h-3.5 w-3.5" /> Rival (VS)</Label>
-                      <Input value={newEvent.opponent} onChange={e => setNewEvent({...newEvent, opponent: e.target.value})} placeholder="Ej. C.D. Los Leones" className="h-12 border-2 border-accent/30 font-bold" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2"><MapPin className="h-3.5 w-3.5" /> Sede / Cancha</Label>
-                    <Input value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} placeholder="Ej. Cancha Principal N°1" className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Responsable</Label>
-                    <Select onValueChange={v => {}}>
-                      <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                      <SelectContent>
-                        {coaches?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2"><MapPinned className="h-3.5 w-3.5" /> Dirección (Google Maps)</Label>
-                  <Input value={newEvent.address} onChange={e => setNewEvent({...newEvent, address: e.target.value})} placeholder="Ej. Calle Falsa 123, CABA" className="h-12 border-2" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Notas Adicionales</Label>
-                  <Textarea value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} placeholder="Instrucciones para el plantel..." className="h-24 border-2" />
-                </div>
-              </div>
-              <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t border-slate-100">
-                <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-                <Button onClick={handleCreateEvent} disabled={!newEvent.title || !newEvent.date} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg">Confirmar y Guardar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            onClick={handleOpenCreate}
+            className="flex items-center gap-3 h-12 px-8 font-black uppercase text-[11px] tracking-widest shadow-2xl bg-white text-primary hover:bg-slate-50"
+          >
+            <Plus className="h-5 w-5" /> Nueva Actividad
+          </Button>
         </div>
       </header>
 
@@ -228,7 +182,20 @@ export default function TeamEventsPage() {
                       {style.label}
                     </Badge>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-slate-300 hover:text-destructive hover:bg-red-50 rounded-xl" onClick={() => handleDeleteEvent(ev.id)}>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-10 w-10 p-0 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors"
+                        onClick={() => handleOpenEdit(ev)}
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-10 w-10 p-0 text-slate-300 hover:text-destructive hover:bg-red-50 rounded-xl transition-colors" 
+                        onClick={(e) => handleDeleteEvent(e, ev.id)}
+                      >
                         <Trash2 className="h-5 w-5" />
                       </Button>
                     </div>
@@ -303,6 +270,85 @@ export default function TeamEventsPage() {
           })
         )}
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl bg-white border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-900">
+              {editingEventId ? "Editar Actividad" : "Programar Sesión o Partido"}
+            </DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">Define los detalles técnicos y logísticos de la actividad.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Tipo de Actividad</Label>
+                <Select value={eventForm.type} onValueChange={v => setEventForm({...eventForm, type: v})}>
+                  <SelectTrigger className="h-12 border-2"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="training">Entrenamiento</SelectItem>
+                    <SelectItem value="match">Partido Oficial / Amistoso</SelectItem>
+                    <SelectItem value="social">Social / Evento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Fecha y Hora</Label>
+                <Input type="datetime-local" value={eventForm.date} onChange={e => setEventForm({...eventForm, date: e.target.value})} className="h-12 border-2" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Título / Nombre de la Sesión</Label>
+              <Input value={eventForm.title} onChange={e => setEventForm({...eventForm, title: e.target.value})} placeholder="Ej. Entrenamiento Físico-Técnico" className="h-12 border-2 font-bold" />
+            </div>
+
+            {eventForm.type === 'training' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-slate-200">
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-900 flex items-center gap-2"><Timer className="h-3.5 w-3.5" /> Duración (min)</Label>
+                  <Input type="number" value={eventForm.duration} onChange={e => setEventForm({...eventForm, duration: parseInt(e.target.value)})} className="h-10" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-900 flex items-center gap-2"><Target className="h-3.5 w-3.5" /> Objetivos</Label>
+                  <Input value={eventForm.objectives} onChange={e => setEventForm({...eventForm, objectives: e.target.value})} placeholder="Ej. Salida de fondo" className="h-10" />
+                </div>
+              </div>
+            )}
+
+            {eventForm.type === 'match' && (
+              <div className="space-y-4 bg-accent/5 p-6 rounded-2xl border-2 border-accent/20">
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-accent flex items-center gap-2"><Trophy className="h-3.5 w-3.5" /> Rival (VS)</Label>
+                  <Input value={eventForm.opponent} onChange={e => setEventForm({...eventForm, opponent: e.target.value})} placeholder="Ej. C.D. Los Leones" className="h-12 border-2 border-accent/30 font-bold" />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2"><MapPin className="h-3.5 w-3.5" /> Sede / Cancha</Label>
+                <Input value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} placeholder="Ej. Cancha Principal N°1" className="h-12 border-2" />
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2"><MapPinned className="h-3.5 w-3.5" /> Dirección (Google Maps)</Label>
+                <Input value={eventForm.address} onChange={e => setEventForm({...eventForm, address: e.target.value})} placeholder="Ej. Calle Falsa 123, CABA" className="h-12 border-2" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Notas Adicionales</Label>
+              <Textarea value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} placeholder="Instrucciones para el plantel..." className="h-24 border-2" />
+            </div>
+          </div>
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t border-slate-100">
+            <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
+            <Button onClick={handleSaveEvent} disabled={!eventForm.title || !eventForm.date} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg">
+              {editingEventId ? "Guardar Cambios" : "Confirmar y Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
