@@ -24,7 +24,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased text-foreground min-h-screen relative bg-background">
+      <body className="font-body antialiased text-foreground min-h-screen relative">
         <FirebaseClientProvider>
           {/* Capa de fondo fija detras de todo */}
           <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none">
@@ -37,7 +37,7 @@ export default function RootLayout({
               data-ai-hint="field hockey"
             />
             {/* Velo de color temático semi-transparente para legibilidad */}
-            <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background/90" />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/60 to-background/80" />
           </div>
 
           {/* Contenido principal con fondo transparente para dejar ver el fondo global */}
