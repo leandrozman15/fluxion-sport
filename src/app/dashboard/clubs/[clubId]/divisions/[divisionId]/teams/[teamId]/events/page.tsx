@@ -104,7 +104,7 @@ export default function TeamEventsPage() {
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col gap-6">
-        <Link href={`/dashboard/clubs/${clubId}/divisions`} className="ambient-link group w-fit">
+        <Link href={`/dashboard/coach`} className="ambient-link group w-fit">
           <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" /> Volver al equipo
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -177,12 +177,17 @@ export default function TeamEventsPage() {
                   <div className="space-y-2">
                     <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Responsable</Label>
                     <Select onValueChange={v => {}}>
-                      <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Profesor..." /></SelectTrigger>
+                      <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                       <SelectContent>
                         {coaches?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2"><MapPinned className="h-3.5 w-3.5" /> Dirección (Google Maps)</Label>
+                  <Input value={newEvent.address} onChange={e => setNewEvent({...newEvent, address: e.target.value})} placeholder="Ej. Calle Falsa 123, CABA" className="h-12 border-2" />
                 </div>
 
                 <div className="space-y-2">
@@ -263,7 +268,19 @@ export default function TeamEventsPage() {
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                         <MapPinned className="h-3 w-3" /> Ubicación
                       </p>
-                      <p className="text-sm font-black text-slate-900 truncate">{ev.location || "Sede Club"}</p>
+                      <div className="flex flex-col">
+                        <p className="text-sm font-black text-slate-900 truncate">{ev.location || "Sede Club"}</p>
+                        {ev.address && (
+                          <a 
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 mt-0.5"
+                          >
+                            <ExternalLink className="h-2.5 w-2.5" /> Ver en Google Maps
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>

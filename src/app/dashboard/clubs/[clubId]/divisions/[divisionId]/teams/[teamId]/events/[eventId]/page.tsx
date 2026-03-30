@@ -20,7 +20,8 @@ import {
   BellRing,
   ClipboardList,
   Target,
-  Timer
+  Timer,
+  ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
@@ -142,10 +143,23 @@ export default function EventAttendancePage() {
               <h1 className="text-3xl font-bold font-headline text-foreground">{event?.title}</h1>
               <Badge variant={isTraining ? "secondary" : "default"}>{event?.type?.toUpperCase()}</Badge>
             </div>
-            <div className="flex items-center gap-4 mt-2 text-muted-foreground">
-              <span className="flex items-center gap-1 text-sm"><CalendarIcon className="h-4 w-4" /> {new Date(event?.date).toLocaleString()}</span>
-              <span className="flex items-center gap-1 text-sm"><MapPin className="h-4 w-4" /> {event?.location}</span>
-              {isTraining && event?.duration && <span className="flex items-center gap-1 text-sm"><Timer className="h-4 w-4" /> {event.duration} min</span>}
+            <div className="flex items-center flex-wrap gap-x-6 gap-y-2 mt-2 text-muted-foreground">
+              <span className="flex items-center gap-1 text-sm font-bold"><CalendarIcon className="h-4 w-4" /> {new Date(event?.date).toLocaleString()}</span>
+              <span className="flex items-center gap-1 text-sm font-bold">
+                <MapPin className="h-4 w-4" /> 
+                {event?.location}
+                {event?.address && (
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-primary hover:underline flex items-center gap-0.5 text-[10px] font-black uppercase"
+                  >
+                    <ExternalLink className="h-3 w-3" /> Abrir Mapa
+                  </a>
+                )}
+              </span>
+              {isTraining && event?.duration && <span className="flex items-center gap-1 text-sm font-bold"><Timer className="h-4 w-4" /> {event.duration} min</span>}
             </div>
           </div>
           <div className="flex gap-2">
@@ -216,8 +230,8 @@ export default function EventAttendancePage() {
                         onClick={() => handleToggleAttendance(p.playerId, p.playerName, status)}
                         className={cn(
                           "h-10 w-10 p-0 rounded-full",
-                          status === 'going' ? "bg-green-100 text-green-600 hover:bg-green-200" :
-                          status === 'not_going' ? "bg-red-100 text-red-600 hover:bg-red-200" :
+                          status === 'going' ? "bg-green-500 text-white hover:bg-green-600" :
+                          status === 'not_going' ? "bg-red-500 text-white hover:bg-red-600" :
                           "bg-muted text-muted-foreground"
                         )}
                       >
