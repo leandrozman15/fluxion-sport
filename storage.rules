@@ -1,0 +1,11 @@
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      // PERMISOS TOTALES PARA PROTOTIPADO
+      // Permite subir logos de clubes y fotos de perfil sin restricciones
+      allow read, write: if true;
+    }
+  }
+}
