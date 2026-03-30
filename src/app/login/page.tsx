@@ -102,46 +102,48 @@ export default function LoginPage() {
 
   if (isUserLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+      <div className="min-h-screen flex items-center justify-center bg-background/50 backdrop-blur-sm">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center space-y-2">
-          <div className="bg-primary p-3 rounded-2xl inline-block shadow-lg mb-2">
-            <Trophy className="h-10 w-10 text-primary-foreground" />
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in duration-500">
+        <div className="text-center space-y-4">
+          <div className="bg-primary p-4 rounded-3xl inline-block shadow-2xl shadow-primary/40 mb-2 border-4 border-white">
+            <Trophy className="h-12 w-12 text-primary-foreground" />
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-foreground">Fluxion Sport</h1>
-          <p className="text-muted-foreground font-medium uppercase tracking-widest text-[10px]">Plataforma de Gestión Deportiva</p>
+          <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
+            <h1 className="text-5xl font-black tracking-tighter text-slate-900 drop-shadow-sm">Fluxion Sport</h1>
+            <p className="text-primary font-black uppercase tracking-[0.3em] text-xs mt-2">Plataforma de Gestión Deportiva</p>
+          </div>
         </div>
 
-        <Card className="shadow-2xl border-none">
+        <Card className="shadow-2xl border-none bg-white/95 backdrop-blur-xl">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
-            <CardDescription>Ingresa tus credenciales oficiales para acceder al sistema.</CardDescription>
+            <CardTitle className="text-2xl font-black text-slate-800">Acceso Oficial</CardTitle>
+            <CardDescription className="text-slate-500 font-medium">Ingresa tus credenciales para administrar tu institución.</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="bg-red-50 border-red-200">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription className="font-bold">{error}</AlertDescription>
                 </Alert>
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="email">Correo Electrónico</Label>
+                <Label htmlFor="email" className="font-bold text-slate-700">Email Institucional</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input 
                     id="email"
                     type="email" 
-                    placeholder="ejemplo@club.com" 
-                    className="pl-10"
+                    placeholder="usuario@club.com" 
+                    className="pl-10 h-12 border-slate-200 focus:border-primary transition-all"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -151,18 +153,18 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="password">Contraseña</Label>
-                  <Button variant="link" size="sm" className="px-0 h-auto text-xs text-primary font-bold">
-                    ¿Olvidaste tu clave?
+                  <Label htmlFor="password" term="password" className="font-bold text-slate-700">Contraseña</Label>
+                  <Button variant="link" size="sm" className="px-0 h-auto text-xs text-primary font-black uppercase tracking-tighter">
+                    Recuperar Clave
                   </Button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input 
                     id="password"
                     type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 h-12 border-slate-200 focus:border-primary transition-all"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -171,40 +173,40 @@ export default function LoginPage() {
                     type="button"
                     variant="ghost" 
                     size="icon" 
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-slate-400"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full h-12 text-lg font-bold gap-2" disabled={loading}>
+              <Button type="submit" className="w-full h-14 text-lg font-black gap-2 shadow-xl shadow-primary/30" disabled={loading}>
                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
                 Ingresar al Sistema
               </Button>
               
               <div className="relative w-full py-2">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground font-bold">O también</span></div>
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200" /></div>
+                <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-slate-400"><span className="bg-white px-4">Acceso Rápido</span></div>
               </div>
 
               <Button 
                 type="button" 
                 variant="outline" 
-                className="w-full h-12 border-2 font-black uppercase text-[10px] tracking-widest gap-2 hover:bg-accent hover:text-accent-foreground transition-all"
+                className="w-full h-12 border-2 border-accent/20 font-black uppercase text-[10px] tracking-widest gap-2 hover:bg-accent/10 hover:text-accent-foreground transition-all"
                 onClick={handleDeveloperAccess}
               >
                 <Zap className="h-4 w-4 text-accent fill-current" />
-                Acceso Desarrollador (SuperAdmin)
+                Modo Desarrollador (SuperAdmin)
               </Button>
             </CardFooter>
           </form>
         </Card>
 
-        <p className="text-center text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">
-          Powered by Fluxion Sport Engine © 2026
+        <p className="text-center text-[10px] text-white font-black uppercase tracking-[0.4em] drop-shadow-md">
+          Fluxion Sport Engine © 2026
         </p>
       </div>
     </div>

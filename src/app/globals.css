@@ -1,38 +1,39 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Paleta Fluxion Sport: Azul profesional y Gris azulado relajante */
-    --background: 210 15% 92%;
+    /* Paleta Fluxion Sport: Azul profesional y Claridad cristalina */
+    --background: 210 20% 98%;
     --foreground: 210 25% 10%;
     --card: 0 0% 100%;
     --card-foreground: 210 25% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 210 25% 10%;
-    --primary: 210 65% 45%; /* #2873BD */
+    --primary: 210 85% 40%; /* Un azul más vibrante y claro */
     --primary-foreground: 210 10% 98%;
-    --secondary: 210 20% 88%;
-    --secondary-foreground: 210 65% 30%;
-    --muted: 210 15% 85%;
-    --muted-foreground: 210 10% 40%;
-    --accent: 180 78% 60%; /* #4DE6E6 */
-    --accent-foreground: 180 80% 15%;
-    --destructive: 0 84% 60%;
+    --secondary: 210 20% 95%;
+    --secondary-foreground: 210 65% 25%;
+    --muted: 210 15% 90%;
+    --muted-foreground: 210 10% 35%;
+    --accent: 185 90% 50%; /* Cian deportivo claro */
+    --accent-foreground: 185 90% 10%;
+    --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 15% 85%;
-    --input: 210 15% 85%;
-    --ring: 210 65% 45%;
-    --radius: 0.75rem;
-    --sidebar-background: 210 20% 95%;
-    --sidebar-foreground: 210 25% 20%;
-    --sidebar-primary: 210 65% 45%;
+    --border: 210 15% 90%;
+    --input: 210 15% 90%;
+    --ring: 210 85% 40%;
+    --radius: 1rem;
+    --sidebar-background: 210 20% 98%;
+    --sidebar-foreground: 210 25% 15%;
+    --sidebar-primary: 210 85% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 90%;
-    --sidebar-accent-foreground: 210 65% 45%;
-    --sidebar-border: 210 15% 88%;
-    --sidebar-ring: 210 65% 45%;
+    --sidebar-accent: 210 20% 94%;
+    --sidebar-accent-foreground: 210 85% 40%;
+    --sidebar-border: 210 15% 92%;
+    --sidebar-ring: 210 85% 40%;
   }
 
   .dark {
@@ -42,19 +43,19 @@
     --card-foreground: 210 10% 95%;
     --popover: 210 25% 8%;
     --popover-foreground: 210 10% 95%;
-    --primary: 210 65% 55%;
+    --primary: 210 85% 55%;
     --primary-foreground: 210 10% 5%;
     --secondary: 210 25% 15%;
-    --secondary-foreground: 210 65% 80%;
+    --secondary-foreground: 210 65% 85%;
     --muted: 210 25% 15%;
-    --muted-foreground: 210 10% 60%;
-    --accent: 180 78% 60%;
-    --accent-foreground: 180 80% 10%;
-    --destructive: 0 62% 30%;
+    --muted-foreground: 210 10% 65%;
+    --accent: 185 90% 50%;
+    --accent-foreground: 185 90% 10%;
+    --destructive: 0 62% 35%;
     --destructive-foreground: 0 0% 98%;
     --border: 210 25% 15%;
     --input: 210 25% 15%;
-    --ring: 210 65% 55%;
+    --ring: 210 85% 55%;
   }
 }
 
@@ -63,19 +64,24 @@
     @apply border-border;
   }
   body {
-    /* Cuerpo transparente para mostrar la imagen de fondo de RootLayout */
     @apply text-foreground font-body antialiased selection:bg-primary/20 bg-transparent;
   }
 }
 
-/* Transparencias refinadas para mayor claridad */
+/* Transparencias refinadas para máxima claridad */
 .bg-card {
-  background-color: hsl(var(--card) / 0.95); /* Aumentado de 0.85 para más claridad */
-  backdrop-filter: blur(12px);
+  background-color: hsl(var(--card) / 0.98);
+  backdrop-filter: blur(16px);
+  @apply shadow-xl border-white/50;
 }
 
 .bg-muted\/30 {
-  background-color: hsl(var(--muted) / 0.15);
+  background-color: hsl(var(--muted) / 0.2);
+}
+
+/* Tipografías con más fuerza */
+.font-headline {
+  @apply tracking-tight font-black;
 }
 
 /* Scrollbar personalizada minimalista */
@@ -87,8 +93,8 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted rounded-full;
+  @apply bg-slate-300 rounded-full;
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/30;
+  @apply bg-slate-400;
 }
