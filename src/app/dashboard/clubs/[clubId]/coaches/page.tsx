@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -23,7 +24,8 @@ import {
   UserCog,
   Briefcase,
   KeyRound,
-  AlertCircle
+  AlertCircle,
+  FileBadge
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
@@ -40,6 +42,7 @@ import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase
 import { initiateEmailSignUp, initiatePasswordReset } from "@/firebase/non-blocking-login";
 import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function ClubCoachesPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -124,9 +127,11 @@ export default function ClubCoachesPage() {
       photoUrl: editingCoach.photoUrl
     });
     setIsEditOpen(false);
+    toast({ title: "Perfil Actualizado", description: "Los cambios se han guardado correctamente." });
   };
 
   const handleResetPassword = async (email: string) => {
+    if (!email) return;
     try {
       await initiatePasswordReset(auth, email);
       toast({
@@ -141,6 +146,7 @@ export default function ClubCoachesPage() {
 
   const handleDeleteCoach = (id: string) => {
     deleteDocumentNonBlocking(doc(db, "users", id));
+    toast({ variant: "destructive", title: "Miembro Eliminado" });
   };
 
   const getRoleLabel = (role: string) => {
@@ -319,39 +325,83 @@ export default function ClubCoachesPage() {
         </div>
       </div>
 
-      {/* Modal de edición */}
+      {/* Modal de edición completa */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Editar Perfil</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nombre</Label>
-              <Input value={editingCoach?.name || ""} onChange={e => setEditingCoach({...editingCoach, name: e.target.value})} />
+        <DialogContent className="max-w-2xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Editar Perfil Institucional</DialogTitle>
+            <DialogDescription>Modifica los datos de acceso, rol y especialidad del miembro.</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Nombre Completo</Label>
+                  <Input value={editingCoach?.name || ""} onChange={e => setEditingCoach({...editingCoach, name: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email de Acceso</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input className="pl-10" value={editingCoach?.email || ""} onChange={e => setEditingCoach({...editingCoach, email: e.target.value})} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rol en el Club</Label>
+                  <Select value={editingCoach?.role || "coach"} onValueChange={v => setEditingCoach({...editingCoach, role: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="coach">Entrenador</SelectItem>
+                      <SelectItem value="coordinator">Coordinador</SelectItem>
+                      <SelectItem value="club_admin">Administrador</SelectItem>
+                      <SelectItem value="player">Jugador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Teléfono</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input className="pl-10" value={editingCoach?.phone || ""} onChange={e => setEditingCoach({...editingCoach, phone: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Especialidad / Cargo</Label>
+                  <div className="relative">
+                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input className="pl-10" value={editingCoach?.specialty || ""} onChange={e => setEditingCoach({...editingCoach, specialty: e.target.value})} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Licencia / Título</Label>
+                  <div className="relative">
+                    <FileBadge className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input className="pl-10" value={editingCoach?.license || ""} onChange={e => setEditingCoach({...editingCoach, license: e.target.value})} />
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t space-y-4">
+                  <Label className="text-xs font-black uppercase text-muted-foreground">Seguridad de la Cuenta</Label>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start gap-3 h-12 border-primary/20 text-primary hover:bg-primary/5"
+                    onClick={() => handleResetPassword(editingCoach?.email)}
+                  >
+                    <KeyRound className="h-4 w-4" /> Enviar link de recuperación
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    El usuario recibirá un correo electrónico oficial de Firebase para restablecer su propia contraseña de forma segura.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Rol</Label>
-              <Select value={editingCoach?.role || "coach"} onValueChange={v => setEditingCoach({...editingCoach, role: v})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="coach">Entrenador</SelectItem>
-                  <SelectItem value="coordinator">Coordinador</SelectItem>
-                  <SelectItem value="club_admin">Administrador</SelectItem>
-                  <SelectItem value="player">Jugador</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Especialidad</Label>
-              <Input value={editingCoach?.specialty || ""} onChange={e => setEditingCoach({...editingCoach, specialty: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Teléfono</Label>
-              <Input value={editingCoach?.phone || ""} onChange={e => setEditingCoach({...editingCoach, phone: e.target.value})} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateCoach}>Guardar Cambios</Button>
+          </ScrollArea>
+          <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6 mt-4">
+            <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUpdateCoach} className="font-bold">Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
