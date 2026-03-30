@@ -28,9 +28,10 @@ export default function RootLayout({
           {/* Capa de fondo fija detras de todo */}
           <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-slate-950">
             <div 
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              className="absolute inset-0 bg-center bg-no-repeat"
               style={{ 
                 backgroundImage: `url(${hockeyBgUrl})`,
+                backgroundSize: '85%',
                 opacity: 0.5 
               }}
               data-ai-hint="field hockey"
