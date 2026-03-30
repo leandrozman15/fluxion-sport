@@ -6,9 +6,6 @@ import { useRouter } from "next/navigation";
 import { 
   Trophy, 
   Loader2, 
-  Mail, 
-  Lock, 
-  AlertCircle,
   ShieldCheck,
   Zap
 } from "lucide-react";
@@ -43,20 +40,17 @@ export default function LoginPage() {
       let role = null;
       let clubId = null;
 
-      // 1. Intentar por UID
       const uidSnap = await getDoc(doc(firestore, "users", currentUser.uid));
       if (uidSnap.exists()) {
         role = uidSnap.data().role;
         clubId = uidSnap.data().clubId;
       } else {
-        // 2. BUSQUEDA POR EMAIL (Staff manual)
         const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", userEmail)));
         if (!staffSnap.empty) {
           const data = staffSnap.docs[0].data();
           role = data.role;
           clubId = data.clubId;
         } else {
-          // 3. Buscar en Jugadores
           const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", userEmail)));
           if (!playerSnap.empty) {
             role = 'player';
@@ -66,9 +60,8 @@ export default function LoginPage() {
       }
 
       if (role === 'coach') router.replace('/dashboard/coach');
-      else if (role === 'admin' || role === 'fed_admin') router.replace('/dashboard');
-      else if (role === 'coordinator' || role === 'club_admin') router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
       else if (role === 'player') router.replace('/dashboard/player');
+      else if (clubId) router.replace(`/dashboard/clubs/${clubId}`);
       else router.replace('/dashboard');
 
     } catch (e) {
@@ -109,14 +102,14 @@ export default function LoginPage() {
 
         <Card className="shadow-2xl border-none">
           <CardHeader>
-            <CardTitle className="text-2xl font-black">Acceso Oficial</CardTitle>
+            <CardTitle className="text-2xl font-black">Acceso Clubes</CardTitle>
             <CardDescription>Ingresa para gestionar tu institución o equipo.</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
               {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
               <div className="space-y-2">
-                <Label>Email Institucional</Label>
+                <Label>Email</Label>
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
@@ -125,13 +118,12 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full h-14 text-lg font-black" disabled={loading}>
+              <Button type="submit" className="w-full h-14 text-lg font-black shadow-xl" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
                 Ingresar
               </Button>
-              <Button type="button" variant="outline" className="w-full" onClick={handleDeveloperAccess}>
-                <Zap className="h-4 w-4 text-accent fill-current" />
-                Modo Desarrollador
+              <Button type="button" variant="ghost" className="w-full text-slate-400" onClick={handleDeveloperAccess}>
+                <Zap className="h-4 w-4 mr-2" /> Modo Demo
               </Button>
             </CardFooter>
           </form>
