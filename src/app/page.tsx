@@ -23,40 +23,36 @@ export default function Home() {
           let role = null;
           let clubId = null;
 
-          // 1. Intentar por UID directo
+          // 1. Buscar en Staff/Admin
           const userSnap = await getDoc(doc(firestore, "users", user.uid));
           if (userSnap.exists()) {
-            role = userSnap.data().role;
-            clubId = userSnap.data().clubId;
+            const data = userSnap.data();
+            role = data.role;
+            clubId = data.clubId;
           } else {
-            // 2. Búsqueda por Email (Staff manual)
             const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
             if (!staffSnap.empty) {
               const data = staffSnap.docs[0].data();
               role = data.role;
               clubId = data.clubId;
             } else {
-              // 3. Buscar en Padrón de Jugadores
+              // 2. Buscar en Jugadores
               const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
               if (!playerSnap.empty) {
+                const data = playerSnap.docs[0].data();
                 role = 'player';
-                clubId = playerSnap.docs[0].data().clubId;
+                clubId = data.clubId;
               }
             }
           }
 
-          // REDIRECCIÓN CENTRADA EN EL CLUB
+          // REDIRECCIÓN INSTITUCIONAL
           if (role === 'coach') {
             router.replace('/dashboard/coach');
           } else if (role === 'player') {
             router.replace('/dashboard/player');
-          } else if (role === 'coordinator' || role === 'club_admin' || role === 'admin') {
-            // Si tiene club asignado, va directo al panel del club
-            if (clubId) {
-              router.replace(`/dashboard/clubs/${clubId}`);
-            } else {
-              router.replace('/dashboard');
-            }
+          } else if (clubId) {
+            router.replace(`/dashboard/clubs/${clubId}`);
           } else {
             router.replace('/dashboard');
           }
@@ -70,14 +66,14 @@ export default function Home() {
   }, [user, isUserLoading, router, firestore]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900/20 backdrop-blur-md">
+    <div className="min-h-screen flex items-center justify-center bg-slate-950">
       <div className="text-center space-y-6 animate-pulse">
         <div className="bg-white p-4 rounded-3xl shadow-2xl inline-block border-4 border-primary/20">
           <Trophy className="h-16 w-16 text-primary" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-4xl font-black text-white tracking-tighter drop-shadow-lg">Fluxion Sport</h2>
-          <p className="text-primary-foreground font-black uppercase tracking-[0.4em] text-[10px] opacity-80">Cargando Club...</p>
+          <h2 className="text-4xl font-black text-white tracking-tighter">Fluxion Sport</h2>
+          <p className="text-primary-foreground font-black uppercase tracking-[0.4em] text-[10px] opacity-80">Accediendo al Club...</p>
         </div>
         <Loader2 className="h-8 w-8 animate-spin text-white mx-auto mt-4 opacity-50" />
       </div>

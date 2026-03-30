@@ -5,7 +5,7 @@ import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, ShieldCheck, Trophy, Settings, UserCircle, UserCheck, Shield } from "lucide-react";
+import { LogOut, Shield, UserCheck, UserCircle, Settings } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -23,15 +23,18 @@ export function UserProfileHeader() {
         const email = user.email?.toLowerCase().trim() || "";
         let finalProfile = null;
 
+        // 1. Buscar por UID (Staff/Admin)
         const uidSnap = await getDoc(doc(firestore, "users", user.uid));
         if (uidSnap.exists()) {
           finalProfile = uidSnap.data();
         } else {
+          // 2. Buscar por Email en Staff
           const qStaff = query(collection(firestore, "users"), where("email", "==", email));
           const staffSnap = await getDocs(qStaff);
           if (!staffSnap.empty) {
             finalProfile = staffSnap.docs[0].data();
           } else {
+            // 3. Buscar por Email en Jugadores
             const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
             const playerSnap = await getDocs(qPlayer);
             if (!playerSnap.empty) {
@@ -47,7 +50,7 @@ export function UserProfileHeader() {
             if (clubSnap.exists()) setClub(clubSnap.data());
           }
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("Error en cabecera de perfil:", e); }
     }
     fetchIdentity();
   }, [user, firestore]);
@@ -59,14 +62,14 @@ export function UserProfileHeader() {
 
   if (!user) return null;
 
-  const role = profile?.role || "";
-  const sport = profile?.sport || "";
+  const role = profile?.role || "player";
+  const sport = profile?.sport || "hockey";
 
   const getRoleDisplay = () => {
     switch(role) {
       case 'admin': 
       case 'club_admin':
-        return { label: "Administrador Club", icon: Shield, color: "text-primary" };
+        return { label: "Director Club", icon: Shield, color: "text-primary" };
       case 'coordinator': 
         return { 
           label: `Coordinador ${sport === 'rugby' ? 'Rugby 🏉' : 'Hockey 🏑'}`, 
@@ -75,22 +78,22 @@ export function UserProfileHeader() {
         };
       case 'coach': return { label: "Entrenador Oficial", icon: UserCheck, color: "text-blue-600" };
       case 'player': return { label: "Jugador Federado", icon: UserCircle, color: "text-green-600" };
-      default: return { label: "Usuario", icon: UserCircle, color: "text-slate-500" };
+      default: return { label: "Miembro", icon: UserCircle, color: "text-slate-500" };
     }
   };
 
   const display = getRoleDisplay();
-  const showClubLogo = role === 'admin' || role === 'club_admin';
+  const isAdminView = role === 'admin' || role === 'club_admin' || role === 'coordinator';
 
   return (
     <div className="w-full px-8 pt-6 flex justify-end items-center gap-4 z-50">
       <div className={cn(
         "flex items-center gap-3 bg-white/95 backdrop-blur-md p-2 pl-4 pr-4 rounded-full border shadow-lg group transition-all",
-        showClubLogo ? "border-primary/30 ring-2 ring-primary/10" : "border-slate-200"
+        isAdminView ? "border-primary/30 ring-2 ring-primary/10" : "border-slate-200"
       )}>
         <div className="flex flex-col items-end">
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
-            {profile?.name || profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : user.email}
+            {profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : profile?.name || user.email}
           </span>
           <span className={cn("text-[9px] uppercase font-black tracking-widest mt-1 flex items-center gap-1", display.color)}>
             <display.icon className="h-2.5 w-2.5" />
@@ -100,9 +103,9 @@ export function UserProfileHeader() {
 
         <Avatar className={cn(
           "h-10 w-10 border-2 transition-transform group-hover:scale-105",
-          showClubLogo ? "border-primary shadow-primary/20" : "border-slate-100"
+          isAdminView ? "border-primary shadow-primary/20" : "border-slate-100"
         )}>
-          <AvatarImage src={showClubLogo ? club?.logoUrl : profile?.photoUrl} className="object-cover" />
+          <AvatarImage src={isAdminView ? club?.logoUrl : profile?.photoUrl} className="object-cover" />
           <AvatarFallback className="bg-primary/5 text-primary text-xs font-black">
             {profile?.firstName?.[0] || 'U'}
           </AvatarFallback>
