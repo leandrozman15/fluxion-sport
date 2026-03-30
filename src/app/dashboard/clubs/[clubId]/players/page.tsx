@@ -123,6 +123,14 @@ export default function PlayersPage() {
       const playerId = doc(collection(db, "clubs", clubId, "players")).id;
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
       
+      const pData = {
+        ...newPlayer,
+        id: playerId,
+        clubId,
+        role: "player",
+        createdAt: new Date().toISOString()
+      };
+
       // Si se habilita el login, creamos una entrada en el índice global
       if (newPlayer.enableLogin && newPlayer.email && newPlayer.password) {
         initiateEmailSignUp(auth, newPlayer.email, newPlayer.password);
@@ -131,22 +139,16 @@ export default function PlayersPage() {
           id: playerId,
           firstName: newPlayer.firstName,
           lastName: newPlayer.lastName,
-          email: newPlayer.email,
+          email: newPlayer.email.toLowerCase().trim(),
           clubId,
-          clubName: club?.name || "Club Vicentinos",
+          clubName: club?.name || "Vicentinos",
           sport: newPlayer.sport,
           role: "player",
           createdAt: new Date().toISOString()
         });
       }
 
-      await setDoc(playerDoc, {
-        ...newPlayer,
-        id: playerId,
-        clubId,
-        role: "player",
-        createdAt: new Date().toISOString()
-      });
+      await setDoc(playerDoc, pData);
       
       toast({ title: "Jugador Registrado", description: `${newPlayer.firstName} ha sido dado de alta correctamente.` });
       setNewPlayer(initialForm);

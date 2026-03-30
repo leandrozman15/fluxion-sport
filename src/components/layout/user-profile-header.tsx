@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, ShieldCheck, Trophy, Settings, Flag } from "lucide-react";
+import { LogOut, User, ShieldCheck, Trophy, Settings, Flag, UserCircle } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -22,24 +22,40 @@ export function UserProfileHeader() {
     async function fetchData() {
       if (!user || !firestore) return;
       try {
-        // 1. Intentar buscar perfil directo por UID en la colección de usuarios
+        const userEmail = user.email?.toLowerCase().trim() || "";
+        
+        // 1. Intentar buscar perfil directo por UID
         const userSnap = await getDoc(doc(firestore, "users", user.uid));
+        
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          setProfile(userData);
-          setIsPlayer(userData.role === 'player');
+          // Si existe el doc pero no tiene role, intentamos inferirlo
+          if (!userData.role) {
+            // Buscamos si es un jugador por email para rescatar el rol
+            const q = query(collection(firestore, "all_players_index"), where("email", "==", userEmail));
+            const pSnap = await getDocs(q);
+            if (!pSnap.empty) {
+              const pData = pSnap.docs[0].data();
+              setProfile({ ...userData, ...pData, role: 'player' });
+              setIsPlayer(true);
+            } else {
+              setProfile({ ...userData, role: 'member' });
+            }
+          } else {
+            setProfile(userData);
+            setIsPlayer(userData.role === 'player');
+          }
           
           if (userData.clubId) {
             const clubSnap = await getDoc(doc(firestore, "clubs", userData.clubId));
             if (clubSnap.exists()) setClub(clubSnap.data());
           }
         } else {
-          // 2. Fallback: Buscar en el índice de jugadores por email si no existe perfil de usuario
-          const q = query(collection(firestore, "all_players_index"), where("email", "==", user.email));
+          // 2. Fallback: No tiene doc en 'users', buscamos en el índice global de jugadores
+          const q = query(collection(firestore, "all_players_index"), where("email", "==", userEmail));
           const playerSnap = await getDocs(q);
           if (!playerSnap.empty) {
             const pData = playerSnap.docs[0].data();
-            // Aseguramos que tenga el rol de player para la visualización
             const profileData = { ...pData, role: 'player' };
             setProfile(profileData);
             setIsPlayer(true);
@@ -77,7 +93,8 @@ export function UserProfileHeader() {
       case 'coach': return "Entrenador Oficial";
       case 'player': return "Jugador Federado";
       case 'referee': return "Árbitro Oficial";
-      default: return role ? role.charAt(0).toUpperCase() + role.slice(1) : "Miembro Oficial";
+      default: 
+        return role ? role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ') : "Deportista Registrado";
     }
   };
 
@@ -101,6 +118,7 @@ export function UserProfileHeader() {
             {isAdmin ? <Trophy className="h-2.5 w-2.5" /> : 
              isCoordinator ? <Settings className="h-2.5 w-2.5" /> : 
              profile?.role === 'referee' ? <Flag className="h-2.5 w-2.5" /> :
+             isPlayer ? <UserCircle className="h-2.5 w-2.5" /> :
              <ShieldCheck className="h-2.5 w-2.5" />}
             {getRoleLabel()}
           </span>
