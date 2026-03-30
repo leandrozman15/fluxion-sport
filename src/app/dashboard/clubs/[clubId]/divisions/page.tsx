@@ -21,7 +21,8 @@ import {
   X,
   ShoppingBag,
   ChevronDown,
-  Trophy
+  Trophy,
+  ChevronLeft
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
@@ -152,26 +153,29 @@ export default function ClubCategoriesListPage() {
       
       <div className="flex-1 space-y-8 pb-20">
         <header className="flex flex-col gap-4">
+          <Link href={`/dashboard/clubs/${clubId}`} className="ambient-link group">
+            <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver al panel del club
+          </Link>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold font-headline text-foreground">Gestión de Categorías</h1>
-              <p className="text-muted-foreground">{club?.name} • Organización de ramas y equipos.</p>
+              <h1 className="text-4xl font-black font-headline tracking-tight">Gestión de Categorías</h1>
+              <p className="ambient-text text-lg font-bold">{club?.name} • Organización de ramas y equipos.</p>
             </div>
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
-                <Button className="flex items-center gap-2 shadow-lg h-12 px-6">
+                <Button className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest">
                   <Plus className="h-5 w-5" /> Nueva Categoría
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Crear Categoría</DialogTitle>
+                  <DialogTitle className="text-xl font-black">Crear Categoría</DialogTitle>
                   <DialogDescription>Define una rama deportiva y su cronograma base.</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[60vh] pr-4">
                   <div className="space-y-6 py-4">
                     <div className="space-y-2">
-                      <Label>Nombre de la Categoría</Label>
+                      <Label className="font-bold">Nombre de la Categoría</Label>
                       <Input value={newDiv.name} onChange={e => setNewDiv({...newDiv, name: e.target.value})} placeholder="Ej. Damas o Sub 15" />
                     </div>
                     <div className="space-y-4">
@@ -199,7 +203,7 @@ export default function ClubCategoriesListPage() {
                 </ScrollArea>
                 <DialogFooter className="border-t pt-4">
                   <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreateDiv} disabled={!newDiv.name}>Crear Categoría</Button>
+                  <Button onClick={handleCreateDiv} disabled={!newDiv.name} className="font-bold">Crear Categoría</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -223,9 +227,9 @@ export default function ClubCategoriesListPage() {
             </Accordion>
           )}
           {categories?.length === 0 && !divsLoading && (
-            <div className="text-center py-20 border-2 border-dashed rounded-2xl bg-muted/10 opacity-50">
-              <Layers className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground font-medium">Aún no hay categorías registradas.</p>
+            <div className="text-center py-20 border-2 border-dashed rounded-2xl bg-white/5 backdrop-blur-sm opacity-50">
+              <Layers className="h-12 w-12 mx-auto text-white mb-4" />
+              <p className="text-white font-black uppercase tracking-widest text-sm">Aún no hay categorías registradas.</p>
             </div>
           )}
         </div>
@@ -233,11 +237,11 @@ export default function ClubCategoriesListPage() {
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Editar Categoría</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xl font-black">Editar Categoría</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-6 py-4">
               <div className="space-y-2">
-                <Label>Nombre</Label>
+                <Label className="font-bold">Nombre</Label>
                 <Input value={editingDiv?.name || ""} onChange={e => setEditingDiv({...editingDiv, name: e.target.value})} />
               </div>
               <div className="space-y-4">
@@ -261,7 +265,7 @@ export default function ClubCategoriesListPage() {
           </ScrollArea>
           <DialogFooter className="border-t pt-4">
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateDiv}>Guardar Cambios</Button>
+            <Button onClick={handleUpdateDiv} className="font-bold">Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -320,14 +324,14 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
               <Layers className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-black text-lg">{division.name}</h3>
-              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{teams?.length || 0} Equipos</p>
+              <h3 className="font-black text-lg text-slate-900">{division.name}</h3>
+              <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">{teams?.length || 0} Equipos</p>
             </div>
           </div>
 
           <div className="flex-1 flex flex-wrap gap-2">
             {division.trainingSessions?.map((s: any, idx: number) => (
-              <Badge key={idx} variant="secondary" className="bg-muted/50 border-none text-[10px] py-1 gap-1.5 font-bold">
+              <Badge key={idx} variant="secondary" className="bg-muted/50 border-none text-[10px] py-1 gap-1.5 font-black text-slate-700">
                 <Clock className="h-3 w-3 opacity-50" /> {s.day} • {s.time}
               </Badge>
             ))}
@@ -335,7 +339,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-primary/5" onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-primary/5 text-slate-400 hover:text-primary" onClick={onEdit}><Pencil className="h-4 w-4" /></Button>
           <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:bg-red-50" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
           <AccordionTrigger className="hover:no-underline py-0 ml-2" />
         </div>
@@ -344,24 +348,24 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
       <AccordionContent className="border-t bg-muted/5 p-6">
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" /> Plantillas de Competición
+            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" /> Plantillas de Competición
             </h4>
             <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="h-8 gap-2 text-[10px] font-black uppercase tracking-widest">
+                <Button size="sm" className="h-8 gap-2 text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-slate-800 shadow-md">
                   <Plus className="h-3 w-3" /> Nuevo Equipo
                 </Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Nuevo Equipo: {division.name}</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle className="font-black">Nuevo Equipo: {division.name}</DialogTitle></DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label>Nombre del Equipo</Label>
+                    <Label className="font-bold">Nombre del Equipo</Label>
                     <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Entrenador</Label>
+                    <Label className="font-bold">Entrenador Responsable</Label>
                     <Select value={newTeam.coachName} onValueChange={v => setNewTeam({...newTeam, coachName: v})}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                       <SelectContent>
@@ -370,33 +374,33 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Temporada</Label>
+                    <Label className="font-bold">Temporada</Label>
                     <Input value={newTeam.season} onChange={e => setNewTeam({...newTeam, season: e.target.value})} />
                   </div>
                 </div>
-                <DialogFooter><Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachName}>Crear Equipo</Button></DialogFooter>
+                <DialogFooter><Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachName} className="font-bold">Confirmar Equipo</Button></DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isLoading ? <Loader2 className="animate-spin mx-auto" /> : (
+            {isLoading ? <Loader2 className="animate-spin mx-auto text-primary" /> : (
               teams?.map((team: any) => (
-                <Card key={team.id} className="border-2 hover:border-primary/30 transition-all shadow-sm group/team">
+                <Card key={team.id} className="border-2 hover:border-primary/30 transition-all shadow-sm group/team bg-white">
                   <CardHeader className="p-4 pb-2">
                     <div className="flex justify-between items-start">
-                      <CardTitle className="text-base font-bold">{team.name}</CardTitle>
-                      <Badge variant="outline" className="text-[9px]">{team.season}</Badge>
+                      <CardTitle className="text-base font-black text-slate-900">{team.name}</CardTitle>
+                      <Badge variant="outline" className="text-[9px] font-bold border-slate-200 text-slate-500">{team.season}</Badge>
                     </div>
-                    <CardDescription className="text-[10px] flex items-center gap-1.5 font-medium mt-1">
+                    <CardDescription className="text-[10px] flex items-center gap-1.5 font-black uppercase text-primary mt-1">
                       <UserRound className="h-3 w-3" /> Coach: {team.coachName}
                     </CardDescription>
                   </CardHeader>
-                  <CardFooter className="p-4 pt-4 border-t bg-muted/10 flex justify-between gap-2">
+                  <CardFooter className="p-4 pt-4 border-t bg-slate-50/50 flex justify-between gap-2">
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive opacity-0 group-hover/team:opacity-100 transition-opacity" onClick={() => handleDeleteTeam(team.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button asChild size="sm" variant="outline" className="flex-1 h-8 text-[10px] font-black uppercase tracking-tight gap-2">
+                    <Button asChild size="sm" variant="outline" className="flex-1 h-8 text-[10px] font-black uppercase tracking-tight gap-2 border-primary text-primary hover:bg-primary hover:text-white transition-all">
                       <Link href={`/dashboard/clubs/${clubId}/divisions/${division.id}/teams/${team.id}`}>
                         Gestionar Plantilla <ArrowRight className="h-3 w-3" />
                       </Link>
@@ -406,9 +410,9 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
               ))
             )}
             {teams?.length === 0 && !isLoading && (
-              <div className="col-span-full py-10 border-2 border-dashed rounded-xl flex flex-col items-center justify-center opacity-40">
-                <Trophy className="h-8 w-8 mb-2" />
-                <p className="text-xs font-bold uppercase">Sin equipos registrados</p>
+              <div className="col-span-full py-10 border-2 border-dashed rounded-xl flex flex-col items-center justify-center opacity-40 bg-slate-50">
+                <Trophy className="h-8 w-8 mb-2 text-slate-300" />
+                <p className="text-xs font-black uppercase text-slate-400">Sin equipos registrados</p>
               </div>
             )}
           </div>
