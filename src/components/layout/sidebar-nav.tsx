@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useFirebase } from "@/firebase";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 
 export function SidebarNav() {
@@ -45,9 +45,11 @@ export function SidebarNav() {
     async function fetchProfile() {
       if (!user || !firestore) return;
       try {
-        const userDoc = await getDoc(doc(firestore, "users", user.uid));
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data());
+        const email = user.email?.toLowerCase().trim() || "";
+        const q = query(collection(firestore, "users"), where("email", "==", email));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setUserProfile(snap.docs[0].data());
         }
       } catch (e) { console.error(e); }
     }
@@ -62,10 +64,6 @@ export function SidebarNav() {
   if (!mounted) return null;
 
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'club_admin';
-  const isCoordinator = userProfile?.role === 'coordinator' || isAdmin;
-  const isCoach = userProfile?.role === 'coach' || isAdmin;
-  const isPlayer = userProfile?.role === 'player' || isAdmin;
-
   const clubId = userProfile?.clubId;
 
   return (
@@ -83,94 +81,46 @@ export function SidebarNav() {
       </SidebarHeader>
       
       <SidebarContent className="px-2">
-        {/* SECCIÓN ADMINISTRADOR / COORDINADOR */}
-        {isCoordinator && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Administración</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.includes(`/clubs/${clubId}`)} tooltip="Panel Club">
-                    <Link href={clubId ? `/dashboard/clubs/${clubId}` : "/dashboard"}>
-                      <Building2 className="h-4 w-4" />
-                      <span className="font-bold">Panel Institucional</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.includes("/divisions")} tooltip="Categorías">
-                    <Link href={clubId ? `/dashboard/clubs/${clubId}/divisions` : "/dashboard"}>
-                      <Layers className="h-4 w-4" />
-                      <span className="font-bold">Categorías</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.includes("/players")} tooltip="Socios">
-                    <Link href={clubId ? `/dashboard/clubs/${clubId}/players` : "/dashboard"}>
-                      <Users className="h-4 w-4" />
-                      <span className="font-bold">Padrón de Socios</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.includes("/finances")} tooltip="Finanzas">
-                    <Link href={clubId ? `/dashboard/clubs/${clubId}/finances` : "/dashboard"}>
-                      <CreditCard className="h-4 w-4" />
-                      <span className="font-bold">Tesorería</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* SECCIÓN ENTRENADOR */}
-        {isCoach && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-blue-600">Área Técnica</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/coach"} tooltip="Mi Pizarra">
-                    <Link href="/dashboard/coach">
-                      <ClipboardCheck className="h-4 w-4" />
-                      <span className="font-bold">Pizarra Táctica</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* SECCIÓN JUGADOR */}
-        {isPlayer && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-green-600">Mi Espacio</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"} tooltip="Mi Perfil">
-                    <Link href="/dashboard/player">
-                      <UserCircle className="h-4 w-4" />
-                      <span className="font-bold">Mi Hub</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"} tooltip="Carnet Digital">
-                    <Link href="/dashboard/player/id-card">
-                      <ShieldCheck className="h-4 w-4" />
-                      <span className="font-bold">Mi Credencial</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {/* GESTIÓN INSTITUCIONAL */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Gestión Club</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.includes(`/clubs/${clubId}`)} tooltip="Panel Club">
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}` : "/dashboard"}>
+                    <Building2 className="h-4 w-4" />
+                    <span className="font-bold">Panel Principal</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.includes("/divisions")} tooltip="Categorías">
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/divisions` : "/dashboard"}>
+                    <Layers className="h-4 w-4" />
+                    <span className="font-bold">Categorías y Ramas</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.includes("/players")} tooltip="Socios">
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/players` : "/dashboard"}>
+                    <Users className="h-4 w-4" />
+                    <span className="font-bold">Padrón de Socios</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.includes("/finances")} tooltip="Tesorería">
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/finances` : "/dashboard"}>
+                    <CreditCard className="h-4 w-4" />
+                    <span className="font-bold">Tesorería</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-slate-100">

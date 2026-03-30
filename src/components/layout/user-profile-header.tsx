@@ -23,23 +23,17 @@ export function UserProfileHeader() {
         const email = user.email?.toLowerCase().trim() || "";
         let finalProfile = null;
 
-        // 1. Buscar por UID (Staff/Admin)
-        const uidSnap = await getDoc(doc(firestore, "users", user.uid));
-        if (uidSnap.exists()) {
-          finalProfile = uidSnap.data();
+        // Buscamos por Email (método más robusto para vincular login con perfil)
+        const qStaff = query(collection(firestore, "users"), where("email", "==", email));
+        const staffSnap = await getDocs(qStaff);
+        
+        if (!staffSnap.empty) {
+          finalProfile = staffSnap.docs[0].data();
         } else {
-          // 2. Buscar por Email en Staff
-          const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-          const staffSnap = await getDocs(qStaff);
-          if (!staffSnap.empty) {
-            finalProfile = staffSnap.docs[0].data();
-          } else {
-            // 3. Buscar por Email en Jugadores
-            const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-            const playerSnap = await getDocs(qPlayer);
-            if (!playerSnap.empty) {
-              finalProfile = { ...playerSnap.docs[0].data(), role: 'player' };
-            }
+          const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
+          const playerSnap = await getDocs(qPlayer);
+          if (!playerSnap.empty) {
+            finalProfile = { ...playerSnap.docs[0].data(), role: 'player' };
           }
         }
 
@@ -50,7 +44,7 @@ export function UserProfileHeader() {
             if (clubSnap.exists()) setClub(clubSnap.data());
           }
         }
-      } catch (e) { console.error("Error en cabecera de perfil:", e); }
+      } catch (e) { console.error("Error en cabecera:", e); }
     }
     fetchIdentity();
   }, [user, firestore]);
@@ -78,12 +72,12 @@ export function UserProfileHeader() {
         };
       case 'coach': return { label: "Entrenador Oficial", icon: UserCheck, color: "text-blue-600" };
       case 'player': return { label: "Jugador Federado", icon: UserCircle, color: "text-green-600" };
-      default: return { label: "Miembro", icon: UserCircle, color: "text-slate-500" };
+      default: return { label: "Miembro del Club", icon: UserCircle, color: "text-slate-500" };
     }
   };
 
   const display = getRoleDisplay();
-  const isAdminView = role === 'admin' || role === 'club_admin' || role === 'coordinator';
+  const isAdminView = role === 'admin' || role === 'club_admin';
 
   return (
     <div className="w-full px-8 pt-6 flex justify-end items-center gap-4 z-50">

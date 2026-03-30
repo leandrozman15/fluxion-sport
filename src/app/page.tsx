@@ -23,30 +23,22 @@ export default function Home() {
           let role = null;
           let clubId = null;
 
-          // 1. Buscar en Staff/Admin
-          const userSnap = await getDoc(doc(firestore, "users", user.uid));
-          if (userSnap.exists()) {
-            const data = userSnap.data();
+          // Búsqueda robusta por Email en Staff
+          const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
+          if (!staffSnap.empty) {
+            const data = staffSnap.docs[0].data();
             role = data.role;
             clubId = data.clubId;
           } else {
-            const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
-            if (!staffSnap.empty) {
-              const data = staffSnap.docs[0].data();
-              role = data.role;
-              clubId = data.clubId;
-            } else {
-              // 2. Buscar en Jugadores
-              const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
-              if (!playerSnap.empty) {
-                const data = playerSnap.docs[0].data();
-                role = 'player';
-                clubId = data.clubId;
-              }
+            // Búsqueda en Jugadores
+            const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
+            if (!playerSnap.empty) {
+              role = 'player';
+              clubId = playerSnap.docs[0].data().clubId;
             }
           }
 
-          // REDIRECCIÓN INSTITUCIONAL
+          // REDIRECCIÓN DIRECTA POR ROL INSTITUCIONAL
           if (role === 'coach') {
             router.replace('/dashboard/coach');
           } else if (role === 'player') {
@@ -54,11 +46,11 @@ export default function Home() {
           } else if (clubId) {
             router.replace(`/dashboard/clubs/${clubId}`);
           } else {
-            router.replace('/dashboard');
+            router.replace('/dashboard/clubs');
           }
         } catch (e) {
           console.error("Error redireccionando:", e);
-          router.replace('/dashboard');
+          router.replace('/dashboard/clubs');
         }
       };
       checkRoleAndRedirect();
