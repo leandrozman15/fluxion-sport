@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   XCircle,
   HelpCircle,
-  Flag
+  Flag,
+  ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -136,6 +137,7 @@ export default function CoachDashboard() {
 
   const coachNav = [
     { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
+    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
     { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
     { title: "Búsqueda Jugadores", href: "/dashboard/player/search", icon: Users },
   ];

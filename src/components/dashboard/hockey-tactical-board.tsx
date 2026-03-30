@@ -73,6 +73,7 @@ export function HockeyTacticalBoard({
       }
     }
 
+    // Mantener jugadores asignados si es posible
     roster.slice(0, playerCount).forEach((player, idx) => {
       if (newPositions[idx]) {
         newPositions[idx].assignedPlayerId = player.playerId;
