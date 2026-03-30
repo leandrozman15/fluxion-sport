@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -36,7 +35,8 @@ import {
   X,
   Search,
   Hash,
-  Stethoscope
+  Stethoscope,
+  KeyRound
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -54,7 +54,7 @@ import { SectionNav } from "@/components/layout/section-nav";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
+import { initiateEmailSignUp, initiatePasswordReset } from "@/firebase/non-blocking-login";
 import { cn } from "@/lib/utils";
 
 interface Tutor {
@@ -215,6 +215,20 @@ export default function PlayersPage() {
     toast({ title: "Legajo Actualizado" });
   };
 
+  const handleResetPassword = async (email: string) => {
+    if (!email) return;
+    try {
+      await initiatePasswordReset(auth, email);
+      toast({
+        title: "Reset enviado",
+        description: `Se envió un link de recuperación a ${email}`,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al resetear" });
+    }
+  };
+
   const handleDeletePlayer = (id: string) => {
     deleteDocumentNonBlocking(doc(db, "clubs", clubId, "players", id));
     toast({ variant: "destructive", title: "Jugador Eliminado" });
@@ -279,7 +293,7 @@ export default function PlayersPage() {
                             <Input type="date" value={newPlayer.birthDate} onChange={e => setNewPlayer({...newPlayer, birthDate: e.target.value})} />
                           </div>
                         </div>
-                        <Input value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email Oficial" />
+                        <Input value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email de Acceso (Oficial)" />
                         <Input value={newPlayer.address} onChange={e => setNewPlayer({...newPlayer, address: e.target.value})} placeholder="Dirección Particular" />
                       </div>
 
@@ -411,20 +425,26 @@ export default function PlayersPage() {
 
                     {/* Información Técnica y Responsables */}
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-                      {/* Tutores */}
-                      <div className="space-y-2">
-                        <p className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5 tracking-widest">
-                          <Users2 className="h-3 w-3" /> Responsables ({player.tutors?.length || 0})
-                        </p>
+                      {/* Tutores y Email */}
+                      <div className="space-y-3">
                         <div className="space-y-1">
-                          {player.tutors?.slice(0, 2).map((t: Tutor, i: number) => (
-                            <div key={i} className="flex justify-between text-[11px] leading-tight">
-                              <span className="font-bold truncate max-w-[120px]">{t.name}</span>
-                              <span className="text-muted-foreground font-mono">{t.phone}</span>
-                            </div>
-                          ))}
-                          {(!player.tutors || player.tutors.length === 0) && <p className="text-[10px] text-muted-foreground italic">Sin responsables.</p>}
-                          {player.tutors?.length > 2 && <p className="text-[9px] text-primary font-bold">+ Ver más responsables</p>}
+                          <p className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5 tracking-widest">
+                            <Mail className="h-3 w-3" /> Email de Acceso
+                          </p>
+                          <p className="text-[11px] font-bold text-primary truncate">{player.email || 'Sin email asignado'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1.5 tracking-widest">
+                            <Users2 className="h-3 w-3" /> Responsables ({player.tutors?.length || 0})
+                          </p>
+                          <div className="space-y-1">
+                            {player.tutors?.slice(0, 2).map((t: Tutor, i: number) => (
+                              <div key={i} className="flex justify-between text-[11px] leading-tight">
+                                <span className="font-bold truncate max-w-[120px]">{t.name}</span>
+                                <span className="text-muted-foreground font-mono">{t.phone}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
@@ -457,6 +477,15 @@ export default function PlayersPage() {
                     {/* Acciones */}
                     <div className="p-4 lg:border-l flex items-center justify-between lg:justify-end gap-3 bg-muted/5">
                       <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-9 w-9 p-0 text-muted-foreground hover:text-primary hover:bg-primary/5" 
+                          onClick={() => handleResetPassword(player.email)}
+                          title="Enviar Reset de Contraseña"
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:bg-red-50" onClick={() => handleDeletePlayer(player.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -479,7 +508,7 @@ export default function PlayersPage() {
         )}
 
         {filteredPlayers?.length === 0 && !isLoading && (
-          <div className="text-center py-20 border-2 border-dashed rounded-2xl bg-muted/10">
+          <div className="text-center py-20 border-2 border-dashed rounded-xl bg-muted/10">
             <Users className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
             <p className="text-muted-foreground font-medium">No se encontraron jugadores que coincidan con la búsqueda.</p>
           </div>
@@ -544,17 +573,24 @@ export default function PlayersPage() {
                   </div>
                 </div>
 
-                {!editingPlayer?.hasAccessCreated && (
-                  <div className="space-y-4 border-t pt-6 bg-muted/20 p-4 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-black uppercase text-primary">Acceso Digital</Label>
-                      <Switch checked={editingPlayer?.enableLogin || false} onCheckedChange={(v) => setEditingPlayer({...editingPlayer, enableLogin: v})} />
-                    </div>
-                    {editingPlayer?.enableLogin && (
-                      <Input type="password" value={editingPlayer?.password || ""} onChange={e => setEditingPlayer({...editingPlayer, password: e.target.value})} placeholder="Contraseña temporal" />
-                    )}
+                <div className="space-y-4 border-t pt-6 bg-muted/20 p-4 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-black uppercase text-primary">Acceso Digital</Label>
+                    <Switch checked={editingPlayer?.enableLogin || false} onCheckedChange={(v) => setEditingPlayer({...editingPlayer, enableLogin: v})} />
                   </div>
-                )}
+                  {editingPlayer?.enableLogin && (
+                    <div className="space-y-2">
+                      <Label>Email de Acceso</Label>
+                      <Input value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} placeholder="email@ejemplo.com" />
+                      {!editingPlayer?.hasAccessCreated && (
+                        <>
+                          <Label>Contraseña temporal</Label>
+                          <Input type="password" value={editingPlayer?.password || ""} onChange={e => setEditingPlayer({...editingPlayer, password: e.target.value})} placeholder="Mín. 6 car." />
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </ScrollArea>

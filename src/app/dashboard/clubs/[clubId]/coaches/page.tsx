@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -23,7 +22,7 @@ import {
   EyeOff,
   UserCog,
   Briefcase,
-  Contact2
+  KeyRound
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
@@ -37,7 +36,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
+import { initiateEmailSignUp, initiatePasswordReset } from "@/firebase/non-blocking-login";
 import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
 
@@ -124,6 +123,19 @@ export default function ClubCoachesPage() {
       photoUrl: editingCoach.photoUrl
     });
     setIsEditOpen(false);
+  };
+
+  const handleResetPassword = async (email: string) => {
+    try {
+      await initiatePasswordReset(auth, email);
+      toast({
+        title: "Link de recuperación enviado",
+        description: `Se ha enviado un correo a ${email} para resetear la contraseña.`,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al enviar reset" });
+    }
   };
 
   const handleDeleteCoach = (id: string) => {
@@ -246,8 +258,8 @@ export default function ClubCoachesPage() {
                         <div className="flex items-center gap-2 text-xs font-medium text-primary">
                           <Briefcase className="h-3 w-3" /> {coach.specialty || 'Sin cargo definido'}
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Mail className="h-3 w-3" /> {coach.email}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-bold">
+                          <Lock className="h-3 w-3 text-slate-400" /> {coach.email}
                         </div>
                       </div>
                       <div className="space-y-1">
@@ -256,7 +268,7 @@ export default function ClubCoachesPage() {
                         </div>
                         {coach.requiresPasswordChange && (
                           <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-600 uppercase">
-                            <Lock className="h-3 w-3" /> Pendiente Cambio Clave
+                            <AlertCircle className="h-3 w-3" /> Pendiente Cambio Clave
                           </div>
                         )}
                       </div>
@@ -265,6 +277,15 @@ export default function ClubCoachesPage() {
                     {/* Acciones */}
                     <div className="p-4 md:border-l flex items-center justify-between md:justify-end gap-3 bg-muted/5">
                       <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-9 w-9 p-0 text-muted-foreground hover:text-primary hover:bg-primary/5" 
+                          onClick={() => handleResetPassword(coach.email)}
+                          title="Enviar Reset de Contraseña"
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive hover:bg-red-50" onClick={() => handleDeleteCoach(coach.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
