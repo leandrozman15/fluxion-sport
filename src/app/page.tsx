@@ -25,43 +25,43 @@ export default function Home() {
             const role = data.role;
             const clubId = data.clubId;
 
-            // 1. Administradores Globales
-            if (role === 'admin' || role === 'fed_admin') {
-              router.push('/dashboard');
+            // 1. Entrenadores (Coach) - PRIORIDAD: Acceso directo a Pizarra
+            if (role === 'coach') {
+              router.replace('/dashboard/coach');
               return;
             }
 
-            // 2. Coordinadores y Admins de Club
+            // 2. Administradores Globales
+            if (role === 'admin' || role === 'fed_admin') {
+              router.replace('/dashboard');
+              return;
+            }
+
+            // 3. Coordinadores y Admins de Club
             if (role === 'coordinator' || role === 'club_admin') {
               if (clubId) {
-                router.push(`/dashboard/clubs/${clubId}`);
+                router.replace(`/dashboard/clubs/${clubId}`);
               } else {
-                router.push('/dashboard/clubs');
+                router.replace('/dashboard/clubs');
               }
-              return;
-            }
-
-            // 3. Entrenadores (Coach)
-            if (role === 'coach') {
-              router.push('/dashboard/coach');
               return;
             }
 
             // 4. Jugadores
             if (role === 'player') {
-              router.push('/dashboard/player');
+              router.replace('/dashboard/player');
               return;
             }
 
             // Fallback general
-            router.push('/dashboard/player');
+            router.replace('/dashboard/player');
           } else {
             // Si el usuario no tiene documento de perfil, asumimos que es nuevo o demo
-            router.push('/dashboard');
+            router.replace('/dashboard');
           }
         } catch (e) {
           console.error("Error redireccionando por rol:", e);
-          router.push('/login');
+          router.replace('/login');
         }
       };
       checkRoleAndRedirect();

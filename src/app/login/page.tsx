@@ -51,27 +51,27 @@ export default function LoginPage() {
         switch (role) {
           case 'admin':
           case 'fed_admin':
-            router.push('/dashboard');
+            router.replace('/dashboard');
             break;
           case 'coordinator':
           case 'club_admin':
-            router.push(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
+            router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
             break;
           case 'coach':
-            router.push('/dashboard/coach');
+            router.replace('/dashboard/coach');
             break;
           case 'player':
-            router.push('/dashboard/player');
+            router.replace('/dashboard/player');
             break;
           default:
-            router.push('/dashboard/player');
+            router.replace('/dashboard/player');
         }
       } else {
-        router.push('/dashboard');
+        router.replace('/dashboard');
       }
     } catch (e) {
       console.error(e);
-      router.push('/dashboard');
+      router.replace('/dashboard');
     }
   };
 
