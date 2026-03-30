@@ -5,7 +5,7 @@ import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, Shield, UserCheck, UserCircle, Settings } from "lucide-react";
+import { LogOut, Shield, UserCheck, UserCircle, Settings, Building2 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -23,12 +23,14 @@ export function UserProfileHeader() {
         const email = user.email?.toLowerCase().trim() || "";
         let finalProfile = null;
 
+        // 1. Buscamos primero en la colección de Staff (users)
         const qStaff = query(collection(firestore, "users"), where("email", "==", email));
         const staffSnap = await getDocs(qStaff);
         
         if (!staffSnap.empty) {
           finalProfile = staffSnap.docs[0].data();
         } else {
+          // 2. Si no está en staff, buscamos en el índice global de jugadores
           const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
           const playerSnap = await getDocs(qPlayer);
           if (!playerSnap.empty) {
@@ -40,10 +42,10 @@ export function UserProfileHeader() {
           setProfile(finalProfile);
           if (finalProfile.clubId) {
             const clubSnap = await getDoc(doc(firestore, "clubs", finalProfile.clubId));
-            if (clubSnap.exists()) setClub(clubSnap.data());
+            if (clubSnap.exists()) setClub({ ...clubSnap.data(), id: clubSnap.id });
           }
         }
-      } catch (e) { console.error("Error en cabecera:", e); }
+      } catch (e) { console.error("Error en cabecera de perfil:", e); }
     }
     fetchIdentity();
   }, [user, firestore]);
@@ -55,7 +57,7 @@ export function UserProfileHeader() {
 
   if (!user) return null;
 
-  const role = profile?.role || "player";
+  const role = profile?.role || "guest";
   const sport = profile?.sport || "hockey";
 
   const getRoleDisplay = () => {
@@ -65,13 +67,16 @@ export function UserProfileHeader() {
         return { label: "Director Club", icon: Shield, color: "text-primary" };
       case 'coordinator': 
         return { 
-          label: `Coordinador ${sport === 'rugby' ? 'Rugby 🏉' : 'Hockey 🏑'}`, 
+          label: `Coord. ${sport === 'rugby' ? 'Rugby 🏉' : 'Hockey 🏑'}`, 
           icon: Settings, 
           color: "text-orange-600" 
         };
-      case 'coach': return { label: "Entrenador Oficial", icon: UserCheck, color: "text-blue-600" };
-      case 'player': return { label: "Jugador Federado", icon: UserCircle, color: "text-green-600" };
-      default: return { label: "Miembro del Club", icon: UserCircle, color: "text-slate-500" };
+      case 'coach': 
+        return { label: "Entrenador Oficial", icon: UserCheck, color: "text-blue-600" };
+      case 'player': 
+        return { label: "Jugador Federado", icon: UserCircle, color: "text-green-600" };
+      default: 
+        return { label: "Usuario Registrado", icon: UserCircle, color: "text-slate-500" };
     }
   };
 
@@ -95,12 +100,13 @@ export function UserProfileHeader() {
         </div>
 
         <Avatar className={cn(
-          "h-10 w-10 border-2 transition-transform group-hover:scale-105",
-          isAdminView ? "border-primary shadow-primary/20" : "border-slate-100"
+          "h-10 w-10 border-2 transition-transform group-hover:scale-105 shadow-sm",
+          isAdminView ? "border-primary" : "border-slate-100"
         )}>
+          {/* Si es Admin muestra el logo del club, si no su foto o inicial */}
           <AvatarImage src={isAdminView ? club?.logoUrl : profile?.photoUrl} className="object-cover" />
           <AvatarFallback className="bg-primary/5 text-primary text-xs font-black">
-            {profile?.firstName?.[0] || 'U'}
+            {isAdminView ? <Building2 className="h-4 w-4" /> : (profile?.firstName?.[0] || 'U')}
           </AvatarFallback>
         </Avatar>
         
@@ -108,9 +114,9 @@ export function UserProfileHeader() {
         
         <button 
           onClick={handleLogout}
-          className="text-destructive hover:text-red-600 flex items-center gap-2 px-2 transition-colors"
+          className="text-destructive hover:text-red-600 flex items-center gap-2 px-2 transition-colors group/logout"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4 group-hover/logout:translate-x-0.5 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-tight">Salir</span>
         </button>
       </div>

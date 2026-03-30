@@ -40,32 +40,28 @@ export default function LoginPage() {
       let role = null;
       let clubId = null;
 
-      const uidSnap = await getDoc(doc(firestore, "users", currentUser.uid));
-      if (uidSnap.exists()) {
-        role = uidSnap.data().role;
-        clubId = uidSnap.data().clubId;
+      // Buscamos en el Staff
+      const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", userEmail)));
+      if (!staffSnap.empty) {
+        const data = staffSnap.docs[0].data();
+        role = data.role;
+        clubId = data.clubId;
       } else {
-        const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", userEmail)));
-        if (!staffSnap.empty) {
-          const data = staffSnap.docs[0].data();
-          role = data.role;
-          clubId = data.clubId;
-        } else {
-          const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", userEmail)));
-          if (!playerSnap.empty) {
-            role = 'player';
-            clubId = playerSnap.docs[0].data().clubId;
-          }
+        // Buscamos en Jugadores
+        const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", userEmail)));
+        if (!playerSnap.empty) {
+          role = 'player';
+          clubId = playerSnap.docs[0].data().clubId;
         }
       }
 
       if (role === 'coach') router.replace('/dashboard/coach');
       else if (role === 'player') router.replace('/dashboard/player');
       else if (clubId) router.replace(`/dashboard/clubs/${clubId}`);
-      else router.replace('/dashboard');
+      else router.replace('/dashboard/clubs');
 
     } catch (e) {
-      router.replace('/dashboard');
+      router.replace('/dashboard/clubs');
     }
   };
 
@@ -102,8 +98,8 @@ export default function LoginPage() {
 
         <Card className="shadow-2xl border-none">
           <CardHeader>
-            <CardTitle className="text-2xl font-black">Acceso Clubes</CardTitle>
-            <CardDescription>Ingresa para gestionar tu institución o equipo.</CardDescription>
+            <CardTitle className="text-2xl font-black">Acceso Institucional</CardTitle>
+            <CardDescription>Ingresa a la consola de gestión de tu club.</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
@@ -120,10 +116,10 @@ export default function LoginPage() {
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full h-14 text-lg font-black shadow-xl" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
-                Ingresar
+                Ingresar al Club
               </Button>
               <Button type="button" variant="ghost" className="w-full text-slate-400" onClick={handleDeveloperAccess}>
-                <Zap className="h-4 w-4 mr-2" /> Modo Demo
+                <Zap className="h-4 w-4 mr-2" /> Acceso Desarrollador
               </Button>
             </CardFooter>
           </form>

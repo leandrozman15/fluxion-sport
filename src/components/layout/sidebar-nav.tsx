@@ -11,7 +11,8 @@ import {
   Users,
   CreditCard,
   ShoppingBag,
-  UserRound
+  UserRound,
+  LayoutDashboard
 } from "lucide-react";
 import {
   Sidebar,
@@ -49,7 +50,7 @@ export function SidebarNav() {
         if (!snap.empty) {
           setUserProfile(snap.docs[0].data());
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("Error en sidebar:", e); }
     }
     fetchProfile();
   }, [user, firestore]);
@@ -72,35 +73,35 @@ export function SidebarNav() {
           </div>
           <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
             <span className="font-headline font-black text-xl tracking-tighter leading-none truncate text-foreground">Fluxion Sport</span>
-            <span className="text-[10px] font-black uppercase text-accent tracking-[0.2em]">Club Manager</span>
+            <span className="text-[10px] font-black uppercase text-accent tracking-[0.2em]">Institucional</span>
           </div>
         </Link>
       </SidebarHeader>
       
       <SidebarContent className="px-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Gestión del Club</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Consola Club</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname === `/dashboard/clubs/${clubId}`} tooltip="Dashboard">
-                  <Link href={clubId ? `/dashboard/clubs/${clubId}` : "/dashboard"}>
-                    <Building2 className="h-4 w-4" />
-                    <span className="font-bold">Panel Principal</span>
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}` : "/dashboard/clubs"}>
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span className="font-bold">Panel General</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.includes("/divisions")} tooltip="Categorías">
-                  <Link href={clubId ? `/dashboard/clubs/${clubId}/divisions` : "/dashboard"}>
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/divisions` : "/dashboard/clubs"}>
                     <Layers className="h-4 w-4" />
-                    <span className="font-bold">Categorías</span>
+                    <span className="font-bold">Ramas y Categorías</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.includes("/players")} tooltip="Socios">
-                  <Link href={clubId ? `/dashboard/clubs/${clubId}/players` : "/dashboard"}>
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/players` : "/dashboard/clubs"}>
                     <Users className="h-4 w-4" />
                     <span className="font-bold">Padrón de Socios</span>
                   </Link>
@@ -108,23 +109,23 @@ export function SidebarNav() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.includes("/coaches")} tooltip="Staff">
-                  <Link href={clubId ? `/dashboard/clubs/${clubId}/coaches` : "/dashboard"}>
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/coaches` : "/dashboard/clubs"}>
                     <UserRound className="h-4 w-4" />
-                    <span className="font-bold">Staff Técnico</span>
+                    <span className="font-bold">Personal y Staff</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.includes("/finances")} tooltip="Tesorería">
-                  <Link href={clubId ? `/dashboard/clubs/${clubId}/finances` : "/dashboard"}>
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/finances` : "/dashboard/clubs"}>
                     <CreditCard className="h-4 w-4" />
-                    <span className="font-bold">Tesorería</span>
+                    <span className="font-bold">Caja y Tesorería</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.includes("/shop")} tooltip="Tienda">
-                  <Link href={clubId ? `/dashboard/clubs/${clubId}/shop/admin` : "/dashboard"}>
+                  <Link href={clubId ? `/dashboard/clubs/${clubId}/shop/admin` : "/dashboard/clubs"}>
                     <ShoppingBag className="h-4 w-4" />
                     <span className="font-bold">Tienda Oficial</span>
                   </Link>

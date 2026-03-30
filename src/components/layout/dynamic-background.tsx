@@ -18,7 +18,7 @@ export function DynamicBackground() {
     const email = user.email?.toLowerCase().trim();
     if (!email) return;
 
-    // Buscamos el deporte del usuario por su email para asegurar que el fondo sea el correcto
+    // Buscamos el deporte del usuario por email en Staff primero
     const qStaff = query(collection(firestore, "users"), where("email", "==", email));
     const unsubStaff = onSnapshot(qStaff, (snap) => {
       if (!snap.empty) {
@@ -40,7 +40,7 @@ export function DynamicBackground() {
     return () => unsubStaff();
   }, [user, firestore]);
 
-  // Usamos .jpg para ambos fondos para asegurar consistencia con el pedido del usuario
+  // Usamos .jpg para asegurar que se carguen correctamente los archivos
   const bgUrl = sport === 'rugby' ? "/rugby.jpg" : "/hockey.jpg";
 
   return (

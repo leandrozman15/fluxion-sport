@@ -23,12 +23,15 @@ export default function Home() {
           let role = null;
           let clubId = null;
 
+          // 1. Buscamos primero en Staff (Admin, Coordinador, Coach)
           const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
+          
           if (!staffSnap.empty) {
             const data = staffSnap.docs[0].data();
             role = data.role;
             clubId = data.clubId;
           } else {
+            // 2. Si no es staff, buscamos en el padrón de jugadores
             const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
             if (!playerSnap.empty) {
               role = 'player';
@@ -36,6 +39,7 @@ export default function Home() {
             }
           }
 
+          // Redirección basada en Rol Real
           if (role === 'coach') {
             router.replace('/dashboard/coach');
           } else if (role === 'player') {
@@ -43,6 +47,7 @@ export default function Home() {
           } else if (clubId) {
             router.replace(`/dashboard/clubs/${clubId}`);
           } else {
+            // Fallback para administradores sin club asignado (Desarrollador)
             router.replace('/dashboard/clubs');
           }
         } catch (e) {
@@ -62,7 +67,7 @@ export default function Home() {
         </div>
         <div className="space-y-2">
           <h2 className="text-4xl font-black text-white tracking-tighter">Fluxion Sport</h2>
-          <p className="text-primary-foreground font-black uppercase tracking-[0.4em] text-[10px] opacity-80">Accediendo al Club...</p>
+          <p className="text-primary-foreground font-black uppercase tracking-[0.4em] text-[10px] opacity-80">Identificando Perfil...</p>
         </div>
         <Loader2 className="h-8 w-8 animate-spin text-white mx-auto mt-4 opacity-50" />
       </div>
