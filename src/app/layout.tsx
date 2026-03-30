@@ -31,7 +31,7 @@ export default function RootLayout({
               className="absolute inset-0 bg-center bg-no-repeat"
               style={{ 
                 backgroundImage: `url(${hockeyBgUrl})`,
-                backgroundSize: '85%',
+                backgroundSize: '65%',
                 opacity: 0.5 
               }}
               data-ai-hint="field hockey"
