@@ -19,9 +19,14 @@ export default function DashboardLayout({
   useEffect(() => {
     async function checkRole() {
       if (!user || !firestore) return;
-      const docSnap = await getDoc(doc(firestore, "users", user.uid));
-      if (docSnap.exists() && (docSnap.data().role === 'admin' || docSnap.data().role === 'fed_admin')) {
-        setIsAdmin(true);
+      try {
+        const docSnap = await getDoc(doc(firestore, "users", user.uid));
+        if (docSnap.exists()) {
+          const role = docSnap.data().role;
+          setIsAdmin(role === 'admin' || role === 'fed_admin');
+        }
+      } catch (e) {
+        console.error("Error validando permisos de sidebar:", e);
       }
     }
     checkRole();
@@ -31,14 +36,15 @@ export default function DashboardLayout({
     <SidebarProvider>
       {/* Solo el desarrollador/admin ve el menú lateral completo */}
       {isAdmin && <SidebarNav />}
-      <SidebarInset className="bg-transparent">
+      
+      <SidebarInset className="bg-transparent border-none">
         <div className="relative flex flex-col min-h-screen">
           {/* Encabezado con Perfil y Salir visible para todos en la pantalla */}
           <UserProfileHeader />
           
-          <div className="p-6 md:p-8 flex-1">
+          <main className="p-6 md:p-8 flex-1">
             {children}
-          </div>
+          </main>
         </div>
       </SidebarInset>
     </SidebarProvider>

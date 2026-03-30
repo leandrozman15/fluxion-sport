@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useFirebase } from "@/firebase";
-import { doc, getDoc, collection, getDocs, limit } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { Loader2, Trophy } from "lucide-react";
 
 export default function Home() {
@@ -21,39 +21,47 @@ export default function Home() {
         try {
           const userDoc = await getDoc(doc(firestore, "users", user.uid));
           if (userDoc.exists()) {
-            const role = userDoc.data().role;
-            const clubId = userDoc.data().clubId;
+            const data = userDoc.data();
+            const role = data.role;
+            const clubId = data.clubId;
 
+            // 1. Administradores Globales
             if (role === 'admin' || role === 'fed_admin') {
-              router.push('/dashboard/clubs');
+              router.push('/dashboard');
               return;
             }
 
-            if (clubId) {
-              router.push(`/dashboard/clubs/${clubId}`);
+            // 2. Coordinadores y Admins de Club
+            if (role === 'coordinator' || role === 'club_admin') {
+              if (clubId) {
+                router.push(`/dashboard/clubs/${clubId}`);
+              } else {
+                router.push('/dashboard/clubs');
+              }
               return;
             }
 
-            switch (role) {
-              case 'coordinator':
-              case 'club_admin':
-                router.push('/dashboard/coordinator');
-                break;
-              case 'coach':
-                router.push('/dashboard/coach');
-                break;
-              case 'player':
-                router.push('/dashboard/player');
-                break;
-              default:
-                router.push('/dashboard');
+            // 3. Entrenadores (Coach)
+            if (role === 'coach') {
+              router.push('/dashboard/coach');
+              return;
             }
+
+            // 4. Jugadores
+            if (role === 'player') {
+              router.push('/dashboard/player');
+              return;
+            }
+
+            // Fallback general
+            router.push('/dashboard/player');
           } else {
-            router.push('/dashboard/clubs');
+            // Si el usuario no tiene documento de perfil, asumimos que es nuevo o demo
+            router.push('/dashboard');
           }
         } catch (e) {
-          console.error("Error redireccionando:", e);
-          router.push('/dashboard');
+          console.error("Error redireccionando por rol:", e);
+          router.push('/login');
         }
       };
       checkRoleAndRedirect();

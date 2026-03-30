@@ -44,7 +44,10 @@ export default function LoginPage() {
     try {
       const userDoc = await getDoc(doc(firestore, "users", uid));
       if (userDoc.exists()) {
-        const role = userDoc.data().role;
+        const data = userDoc.data();
+        const role = data.role;
+        const clubId = data.clubId;
+
         switch (role) {
           case 'admin':
           case 'fed_admin':
@@ -52,7 +55,7 @@ export default function LoginPage() {
             break;
           case 'coordinator':
           case 'club_admin':
-            router.push('/dashboard/coordinator');
+            router.push(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
             break;
           case 'coach':
             router.push('/dashboard/coach');
@@ -85,8 +88,7 @@ export default function LoginPage() {
       });
     } catch (err: any) {
       console.error(err);
-      let message = "Credenciales inválidas. Por favor, revisa tus datos.";
-      setError(message);
+      setError("Credenciales inválidas. Por favor, revisa tus datos.");
     } finally {
       setLoading(false);
     }
@@ -102,7 +104,7 @@ export default function LoginPage() {
 
   if (isUserLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background/50 backdrop-blur-sm">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -143,7 +145,7 @@ export default function LoginPage() {
                     id="email"
                     type="email" 
                     placeholder="usuario@club.com" 
-                    className="pl-10 h-12 border-slate-200 focus:border-primary transition-all"
+                    className="pl-10 h-12"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -153,7 +155,7 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="password" term="password" className="font-bold text-slate-700">Contraseña</Label>
+                  <Label htmlFor="password" className="font-bold text-slate-700">Contraseña</Label>
                   <Button variant="link" size="sm" className="px-0 h-auto text-xs text-primary font-black uppercase tracking-tighter">
                     Recuperar Clave
                   </Button>
@@ -164,7 +166,7 @@ export default function LoginPage() {
                     id="password"
                     type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
-                    className="pl-10 pr-10 h-12 border-slate-200 focus:border-primary transition-all"
+                    className="pl-10 pr-10 h-12"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
