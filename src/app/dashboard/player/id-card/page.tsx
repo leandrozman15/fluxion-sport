@@ -16,7 +16,10 @@ import {
   CreditCard,
   ShoppingBag,
   Award,
-  BadgeCheck
+  BadgeCheck,
+  ClipboardCheck,
+  Calendar,
+  Users
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
@@ -96,6 +99,16 @@ export default function GenericIdCardPage() {
     fetchData();
   }, [user, firestore]);
 
+  // Navegación dinámica basada en el rol detectado
+  const isStaff = roleInfo.role === 'coach' || roleInfo.role === 'coordinator' || roleInfo.role === 'club_admin' || roleInfo.role === 'admin';
+
+  const coachNav = [
+    { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
+    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
+    { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
+    { title: "Búsqueda Jugadores", href: "/dashboard/player/search", icon: Users },
+  ];
+
   const playerNav = [
     { title: "Inicio Hub", href: "/dashboard/player", icon: LayoutDashboard },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
@@ -105,6 +118,8 @@ export default function GenericIdCardPage() {
     { title: "Tienda Club", href: clubInfo ? `/dashboard/clubs/${clubInfo.id}/shop` : "/dashboard/player", icon: ShoppingBag },
   ];
 
+  const currentNav = isStaff ? coachNav : playerNav;
+
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
 
   const isCoach = roleInfo.role === 'coach';
@@ -112,7 +127,7 @@ export default function GenericIdCardPage() {
 
   return (
     <div className="flex gap-8 animate-in fade-in duration-500">
-      <SectionNav items={playerNav} basePath="/dashboard/player" />
+      <SectionNav items={currentNav} basePath={isStaff ? "/dashboard/coach" : "/dashboard/player"} />
       
       <div className="flex-1 flex flex-col items-center justify-center space-y-8 max-w-md mx-auto pb-20">
         <header className="text-center space-y-2">
@@ -157,7 +172,7 @@ export default function GenericIdCardPage() {
                     #{profile.jerseyNumber}
                   </div>
                 )}
-                {isCoach && (
+                {(isCoach || isAdmin) && (
                   <div className="absolute -top-3 -left-3 bg-accent text-accent-foreground text-[10px] font-black px-3 py-1.5 rounded-lg border-2 border-white shadow-xl z-20 uppercase tracking-widest flex items-center gap-1.5">
                     <BadgeCheck className="h-3.5 w-3.5" /> Oficial
                   </div>
