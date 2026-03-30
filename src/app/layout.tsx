@@ -31,13 +31,13 @@ export default function RootLayout({
               className="absolute inset-0 bg-center bg-no-repeat"
               style={{ 
                 backgroundImage: `url(${hockeyBgUrl})`,
-                backgroundSize: '65%',
+                backgroundSize: '75%',
                 opacity: 0.5 
               }}
               data-ai-hint="field hockey"
             />
-            {/* Velo de color negro semi-transparente para legibilidad extrema */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/60" />
+            {/* Velo de color negro mucho más ligero para mayor claridad */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-black/30" />
           </div>
 
           {/* Contenido principal con fondo transparente para dejar ver el fondo global */}

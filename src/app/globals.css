@@ -68,14 +68,14 @@
   }
 }
 
-/* Transparencias sutiles para tarjetas y secciones */
+/* Transparencias refinadas para mayor claridad */
 .bg-card {
-  background-color: hsl(var(--card) / 0.85);
-  backdrop-filter: blur(8px);
+  background-color: hsl(var(--card) / 0.95); /* Aumentado de 0.85 para más claridad */
+  backdrop-filter: blur(12px);
 }
 
 .bg-muted\/30 {
-  background-color: hsl(var(--muted) / 0.2);
+  background-color: hsl(var(--muted) / 0.15);
 }
 
 /* Scrollbar personalizada minimalista */
