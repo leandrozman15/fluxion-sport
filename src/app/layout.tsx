@@ -14,7 +14,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Referencia a la imagen local en la carpeta public
+  // La imagen está en la carpeta public, por lo que se accede con /hockey.jpg
   const hockeyBgUrl = "/hockey.jpg";
 
   return (
@@ -24,24 +24,24 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased text-foreground min-h-screen relative bg-transparent">
+      <body className="font-body antialiased text-foreground min-h-screen relative bg-background">
         <FirebaseClientProvider>
           {/* Capa de fondo fija detras de todo */}
           <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none">
             <div 
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
               style={{ 
                 backgroundImage: `url(${hockeyBgUrl})`,
                 opacity: 0.5 
               }}
               data-ai-hint="field hockey"
             />
-            {/* Velo de color temático para que el contenido sea perfectamente legible */}
-            <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/90 to-background" />
+            {/* Velo de color temático semi-transparente para legibilidad */}
+            <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background/90" />
           </div>
 
-          {/* Contenido principal */}
-          <div className="relative z-0 min-h-screen">
+          {/* Contenido principal con fondo transparente para dejar ver el fondo global */}
+          <div className="relative z-0 min-h-screen bg-transparent">
             {children}
           </div>
           <Toaster />

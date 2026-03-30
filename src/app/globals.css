@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -63,9 +64,19 @@
     @apply border-border;
   }
   body {
-    /* Eliminamos bg-background para que sea transparente y deje ver la capa inferior */
-    @apply text-foreground font-body antialiased selection:bg-primary/20;
+    /* Fondo base transparente para dejar ver el div de imagen de RootLayout */
+    @apply text-foreground font-body antialiased selection:bg-primary/20 bg-transparent;
   }
+}
+
+/* Transparencias sutiles para tarjetas y secciones para dejar ver el fondo */
+.bg-card {
+  background-color: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(4px);
+}
+
+.bg-muted\/30 {
+  background-color: hsl(var(--muted) / 0.2);
 }
 
 /* Scrollbar personalizada minimalista */
