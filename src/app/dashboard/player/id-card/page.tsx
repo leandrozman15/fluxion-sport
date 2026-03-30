@@ -8,18 +8,15 @@ import {
   QrCode, 
   Download,
   Share2,
-  UserCircle,
   Trophy,
   Star,
-  Target,
   Building2,
-  Car,
-  Briefcase,
-  GraduationCap,
   LayoutDashboard,
   Table as TableIcon,
   CreditCard,
-  ShoppingBag
+  ShoppingBag,
+  Award,
+  BadgeCheck
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
@@ -34,7 +31,6 @@ export default function GenericIdCardPage() {
   const { firestore, user } = useFirebase();
   const [profile, setProfile] = useState<any>(null);
   const [clubInfo, setClubInfo] = useState<any>(null);
-  const [teamInfo, setTeamInfo] = useState<any>(null);
   const [roleInfo, setRoleInfo] = useState<{ role: string, label: string }>({ role: 'player', label: 'Jugador' });
   const [loading, setLoading] = useState(true);
 
@@ -42,36 +38,60 @@ export default function GenericIdCardPage() {
     async function fetchData() {
       if (!user || !firestore) return;
       try {
+        const userEmail = user.email?.toLowerCase().trim() || "";
+        
+        // 1. Buscamos en Staff (users) primero por UID o Email
         const userDocRef = doc(firestore, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
-        const userData = userDoc.exists() ? userDoc.data() : null;
-        const role = userData?.role || 'player';
-        
+        let userData = userDoc.exists() ? userDoc.data() : null;
+
+        if (!userData) {
+          const qStaff = query(collection(firestore, "users"), where("email", "==", userEmail));
+          const staffSnap = await getDocs(qStaff);
+          if (!staffSnap.empty) userData = staffSnap.docs[0].data();
+        }
+
         let foundProfile = null;
         let foundClub = null;
 
-        if (role === 'admin' || role === 'coach' || role === 'fed_admin') {
+        if (userData) {
           foundProfile = userData;
-          setRoleInfo({ role, label: role === 'admin' ? 'Directivo' : role === 'coach' ? 'Entrenador' : 'Federativo' });
-          if (userData?.clubId) {
+          const role = userData.role || 'coach';
+          setRoleInfo({ 
+            role, 
+            label: role === 'admin' || role === 'club_admin' ? 'Director Club' : 
+                   role === 'coordinator' ? 'Coordinador' : 
+                   role === 'coach' ? 'Entrenador Oficial' : 'Staff' 
+          });
+          
+          if (userData.clubId) {
             const clubDoc = await getDoc(doc(firestore, "clubs", userData.clubId));
-            foundClub = clubDoc.exists() ? clubDoc.data() : null;
+            foundClub = clubDoc.exists() ? { ...clubDoc.data(), id: clubDoc.id } : null;
           }
         } else {
-          const clubsSnap = await getDocs(collection(firestore, "clubs"));
-          for (const clubDoc of clubsSnap.docs) {
-            const pSnap = await getDocs(query(collection(firestore, "clubs", clubDoc.id, "players"), where("email", "==", user.email || "")));
-            if (!pSnap.empty) {
-              foundProfile = pSnap.docs[0].data();
-              foundClub = clubDoc.data();
-              break;
-            }
+          // 2. Si no es staff, buscamos en el índice de jugadores
+          const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", userEmail));
+          const pSnap = await getDocs(qPlayer);
+          if (!pSnap.empty) {
+            const pData = pSnap.docs[0].data();
+            foundProfile = pData;
+            foundClub = { id: pData.clubId, name: pData.clubName, logoUrl: "" }; // Fallback
+            
+            // Intentar traer el logo real del club
+            const cDoc = await getDoc(doc(firestore, "clubs", pData.clubId));
+            if (cDoc.exists()) foundClub = { ...cDoc.data(), id: cDoc.id };
+            
+            setRoleInfo({ role: 'player', label: 'Jugador Federado' });
           }
         }
+
         setProfile(foundProfile);
         setClubInfo(foundClub);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
+      } catch (e) { 
+        console.error("Error cargando carnet:", e); 
+      } finally { 
+        setLoading(false); 
+      }
     }
     fetchData();
   }, [user, firestore]);
@@ -85,79 +105,108 @@ export default function GenericIdCardPage() {
     { title: "Tienda Club", href: clubInfo ? `/dashboard/clubs/${clubInfo.id}/shop` : "/dashboard/player", icon: ShoppingBag },
   ];
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
+  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
+
+  const isCoach = roleInfo.role === 'coach';
+  const isAdmin = roleInfo.role === 'admin' || roleInfo.role === 'club_admin';
 
   return (
     <div className="flex gap-8 animate-in fade-in duration-500">
       <SectionNav items={playerNav} basePath="/dashboard/player" />
       
-      <div className="flex-1 flex flex-col items-center justify-center space-y-8 max-w-md mx-auto pb-10">
-        <header className="text-center">
-          <h1 className="text-3xl font-bold font-headline text-foreground">Carnet Institucional</h1>
-          <p className="text-muted-foreground">Credencial digital oficial oficial.</p>
+      <div className="flex-1 flex flex-col items-center justify-center space-y-8 max-w-md mx-auto pb-20">
+        <header className="text-center space-y-2">
+          <h1 className="text-4xl font-black font-headline text-white drop-shadow-xl">Credencial Digital</h1>
+          <p className="ambient-text text-lg opacity-80">Identificación oficial para competencia y sede.</p>
         </header>
 
         <Card className={cn(
-          "w-full text-primary-foreground overflow-hidden shadow-2xl rounded-2xl border-none transition-all",
-          roleInfo.role === 'admin' ? "bg-gradient-to-br from-slate-800 to-slate-900" :
-          roleInfo.role === 'coach' ? "bg-gradient-to-br from-blue-700 to-blue-900" :
+          "w-full text-white overflow-hidden shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] rounded-[2.5rem] border-none transition-all relative",
+          isAdmin ? "bg-gradient-to-br from-slate-800 to-slate-950" :
+          isCoach ? "bg-gradient-to-br from-blue-700 to-blue-950" :
           "bg-gradient-to-br from-primary to-primary/80"
         )}>
           <CardContent className="p-0">
-            <div className="p-6 flex justify-between items-start">
-              <div className="flex items-center gap-3">
-                <div className="bg-white p-1 rounded-lg shadow-inner">
-                  <Avatar className="h-12 w-12 rounded-md border-none">
+            {/* Header del Carnet */}
+            <div className="p-8 flex justify-between items-start">
+              <div className="flex items-center gap-4">
+                <div className="bg-white p-1.5 rounded-2xl shadow-2xl">
+                  <Avatar className="h-14 w-14 rounded-xl border-none bg-white">
                     <AvatarImage src={clubInfo?.logoUrl} className="object-contain" />
-                    <AvatarFallback className="bg-muted"><Trophy className="h-6 w-6 text-primary" /></AvatarFallback>
+                    <AvatarFallback className="bg-slate-50 text-primary"><Building2 className="h-8 w-8" /></AvatarFallback>
                   </Avatar>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-80 leading-none mb-1">{roleInfo.label} Oficial</p>
-                  <p className="text-lg font-black font-headline truncate max-w-[180px] leading-tight">{clubInfo?.name || "Fluxion Sport"}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 leading-none mb-1.5">Estatus Oficial</p>
+                  <p className="text-xl font-black font-headline truncate max-w-[200px] leading-none drop-shadow-sm">{clubInfo?.name || "Fluxion Sport"}</p>
                 </div>
               </div>
-              <Badge variant="outline" className="text-white border-white/30 bg-white/10 backdrop-blur-sm font-bold">2025</Badge>
+              <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md font-black text-xs px-4 py-1.5 rounded-full">2025</Badge>
             </div>
 
-            <div className="bg-white text-foreground mx-4 mb-4 rounded-xl p-6 flex flex-col items-center space-y-4 shadow-inner">
+            {/* Cuerpo del Carnet */}
+            <div className="bg-white text-slate-900 mx-5 mb-5 rounded-[2rem] p-8 flex flex-col items-center space-y-6 shadow-inner relative overflow-hidden">
               <div className="relative">
-                <Avatar className="h-32 w-32 border-4 border-muted shadow-lg">
+                <div className="absolute inset-0 bg-primary/5 rounded-3xl blur-2xl animate-pulse" />
+                <Avatar className="h-44 w-44 border-[6px] border-slate-50 shadow-2xl rounded-3xl relative z-10">
                   <AvatarImage src={profile?.photoUrl} className="object-cover" />
-                  <AvatarFallback className="text-4xl font-bold">{profile?.firstName?.[0] || 'U'}</AvatarFallback>
+                  <AvatarFallback className="text-6xl font-black text-slate-200 bg-slate-50">{profile?.firstName?.[0] || profile?.name?.[0]}</AvatarFallback>
                 </Avatar>
                 {profile?.jerseyNumber && (
-                  <div className="absolute -bottom-2 -right-2 bg-primary text-white text-sm font-bold w-10 h-10 flex items-center justify-center rounded-full border-4 border-white shadow-lg">#{profile.jerseyNumber}</div>
+                  <div className="absolute -bottom-3 -right-3 bg-primary text-white text-xl font-black w-14 h-14 flex items-center justify-center rounded-2xl border-[5px] border-white shadow-2xl z-20">
+                    #{profile.jerseyNumber}
+                  </div>
+                )}
+                {isCoach && (
+                  <div className="absolute -top-3 -left-3 bg-accent text-accent-foreground text-[10px] font-black px-3 py-1.5 rounded-lg border-2 border-white shadow-xl z-20 uppercase tracking-widest flex items-center gap-1.5">
+                    <BadgeCheck className="h-3.5 w-3.5" /> Oficial
+                  </div>
                 )}
               </div>
               
-              <div className="text-center">
-                <h2 className="text-2xl font-bold font-headline uppercase leading-tight">{profile?.firstName} {profile?.lastName}</h2>
-                <p className="text-primary font-bold text-sm mt-1 uppercase tracking-wider">{profile?.position || roleInfo.label}</p>
+              <div className="text-center space-y-1">
+                <h2 className="text-3xl font-black font-headline uppercase tracking-tighter leading-none text-slate-900">
+                  {profile?.firstName ? `${profile.firstName} ${profile.lastName}` : profile?.name || "Usuario"}
+                </h2>
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-primary font-black text-xs uppercase tracking-[0.2em]">
+                    {roleInfo.label}
+                  </p>
+                  {isCoach && profile?.specialty && (
+                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{profile.specialty}</p>
+                  )}
+                </div>
               </div>
 
-              {profile?.parkingActive && (
-                <div className="w-full bg-green-50 border border-green-100 rounded-lg p-2 flex items-center justify-center gap-2">
-                  <Car className="h-4 w-4 text-green-600" />
-                  <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Estacionamiento Permitido</span>
+              <div className="w-full h-px bg-slate-100" />
+              
+              <div className="flex flex-col items-center gap-4">
+                <div className="bg-slate-50 p-3 rounded-2xl flex items-center justify-center w-36 h-36 border-2 border-dashed border-slate-200 group">
+                  <QrCode className="h-32 w-32 text-slate-300 group-hover:text-primary transition-colors" />
                 </div>
-              )}
-
-              <div className="w-full h-px bg-border my-2" />
-              <div className="bg-muted/30 p-2 rounded-lg flex items-center justify-center w-32 h-32 border-2 border-dashed border-muted/50"><QrCode className="h-28 w-28 text-muted-foreground opacity-50" /></div>
-              <p className="text-[10px] text-muted-foreground font-mono uppercase">ID: {profile?.id?.substring(0, 12)}</p>
+                <div className="text-center">
+                  <p className="text-[10px] text-slate-400 font-black font-mono uppercase tracking-widest">REG: {profile?.id?.substring(0, 14) || "STAFF-ID-PENDING"}</p>
+                </div>
+              </div>
             </div>
             
-            <div className="px-6 py-4 bg-black/10 flex justify-between items-center">
-               <p className="text-xs font-black tracking-widest flex items-center gap-2 uppercase"><ShieldCheck className="h-4 w-4 text-white" /> Estado: Activo</p>
-               <p className="text-[10px] font-bold opacity-50">SISTEMA NACIONAL</p>
+            <div className="px-8 py-5 bg-black/20 backdrop-blur-md flex justify-between items-center border-t border-white/5">
+               <div className="flex items-center gap-2">
+                 <ShieldCheck className="h-5 w-5 text-accent" />
+                 <span className="text-xs font-black tracking-widest uppercase text-white">Estado: Activo</span>
+               </div>
+               <p className="text-[9px] font-black opacity-40 uppercase tracking-widest">SISTEMA NACIONAL • 2025</p>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 gap-4 w-full px-4">
-          <Button variant="outline" className="flex items-center gap-2 font-bold h-12 shadow-sm"><Download className="h-4 w-4" /> Bajar PDF</Button>
-          <Button variant="outline" className="flex items-center gap-2 font-bold h-12 shadow-sm"><Share2 className="h-4 w-4" /> Compartir</Button>
+        <div className="grid grid-cols-2 gap-4 w-full px-2">
+          <Button variant="outline" className="flex items-center gap-3 font-black uppercase text-[10px] tracking-widest h-14 shadow-xl bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary transition-all">
+            <Download className="h-4 w-4" /> Descargar PDF
+          </Button>
+          <Button variant="outline" className="flex items-center gap-3 font-black uppercase text-[10px] tracking-widest h-14 shadow-xl bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary transition-all">
+            <Share2 className="h-4 w-4" /> Compartir
+          </Button>
         </div>
       </div>
     </div>
