@@ -119,7 +119,7 @@ export function SidebarNav() {
             <Trophy className="h-6 w-6" />
           </div>
           <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-            <span className="font-headline font-black text-xl tracking-tighter leading-none truncate text-foreground">SportsManager</span>
+            <span className="font-headline font-black text-xl tracking-tighter leading-none truncate text-foreground">Fluxion Sport</span>
             <span className="text-[10px] font-black uppercase text-accent tracking-[0.2em]">Platform</span>
           </div>
         </Link>

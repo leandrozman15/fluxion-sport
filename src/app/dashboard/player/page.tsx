@@ -225,7 +225,7 @@ export default function PlayerDashboardHub() {
         <footer className="text-center pt-10 opacity-30 flex flex-col items-center gap-2">
           <div className="h-px w-20 bg-muted-foreground mb-4" />
           <Trophy className="h-8 w-8 text-muted-foreground" />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em]">SportsManager Platform • 2026</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]">Fluxion Sport Platform • 2026</p>
         </footer>
       </div>
     </div>

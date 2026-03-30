@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'SportsManager | Gestión de Clubes Deportivos',
+  title: 'Fluxion Sport | Gestión de Clubes Deportivos',
   description: 'Administra tu club, divisiones y equipos de forma profesional.',
 };
 

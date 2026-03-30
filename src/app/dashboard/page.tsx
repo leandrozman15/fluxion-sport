@@ -84,8 +84,8 @@ export default function DashboardPage() {
       // Al poblar datos, el usuario actual se convierte en el ADMIN (Desarrollador)
       await setDoc(doc(firestore, "users", user.uid), {
         id: user.uid,
-        name: user.displayName || "SuperAdmin SportsManager",
-        email: user.email || "admin@sportsmanager.app",
+        name: user.displayName || "SuperAdmin Fluxion Sport",
+        email: user.email || "admin@fluxionsport.app",
         role: "admin",
         createdAt: new Date().toISOString()
       }, { merge: true });
@@ -148,7 +148,7 @@ export default function DashboardPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-black tracking-tight text-foreground flex items-center gap-3">
-            SportsManager <Sparkles className="h-6 w-6 text-accent" />
+            Fluxion Sport <Sparkles className="h-6 w-6 text-accent" />
           </h1>
           <p className="text-muted-foreground text-lg">Consola de Administración Central y Desarrollo.</p>
         </div>

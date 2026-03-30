@@ -114,7 +114,7 @@ export default function GenericIdCardPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest opacity-80 leading-none mb-1">{roleInfo.label} Oficial</p>
-                  <p className="text-lg font-black font-headline truncate max-w-[180px] leading-tight">{clubInfo?.name || "SportsManager"}</p>
+                  <p className="text-lg font-black font-headline truncate max-w-[180px] leading-tight">{clubInfo?.name || "Fluxion Sport"}</p>
                 </div>
               </div>
               <Badge variant="outline" className="text-white border-white/30 bg-white/10 backdrop-blur-sm font-bold">2025</Badge>

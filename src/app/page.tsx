@@ -56,7 +56,7 @@ export default function Home() {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-        <p className="text-muted-foreground font-bold animate-pulse">Iniciando SportsManager...</p>
+        <p className="text-muted-foreground font-bold animate-pulse">Iniciando Fluxion Sport...</p>
       </div>
     </div>
   );

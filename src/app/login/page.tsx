@@ -115,7 +115,7 @@ export default function LoginPage() {
           <div className="bg-primary p-3 rounded-2xl inline-block shadow-lg mb-2">
             <Trophy className="h-10 w-10 text-primary-foreground" />
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-foreground">SportsManager</h1>
+          <h1 className="text-4xl font-black tracking-tight text-foreground">Fluxion Sport</h1>
           <p className="text-muted-foreground font-medium uppercase tracking-widest text-[10px]">Plataforma de Gestión Deportiva</p>
         </div>
 
@@ -204,7 +204,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">
-          Powered by SportsManager Engine © 2026
+          Powered by Fluxion Sport Engine © 2026
         </p>
       </div>
     </div>
