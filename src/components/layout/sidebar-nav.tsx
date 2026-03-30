@@ -8,7 +8,6 @@ import {
   Trophy, 
   UserCircle, 
   ShieldCheck, 
-  CreditCard, 
   Globe, 
   Flag, 
   ClipboardCheck, 
@@ -16,7 +15,10 @@ import {
   LogOut,
   Settings,
   Users,
-  Search
+  Search,
+  Layers,
+  UserCog,
+  Briefcase
 } from "lucide-react";
 import {
   Sidebar,
@@ -104,15 +106,15 @@ export function SidebarNav() {
 
   if (!mounted) return null;
 
-  // Lógica de Acceso: El Admin es el "Desarrollador" y ve TODO.
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'fed_admin';
+  const isCoordinator = userProfile?.role === 'coordinator' || userProfile?.role === 'club_admin';
   const isCoach = userProfile?.role === 'coach';
-  const isPlayer = userProfile?.role === 'player' || (!isAdmin && !isCoach && playerInfo);
+  const isPlayer = userProfile?.role === 'player' || (!isAdmin && !isCoordinator && !isCoach && playerInfo);
 
   return (
     <Sidebar className="border-r-0 shadow-sm" collapsible="icon">
       <SidebarHeader className="p-6">
-        <Link href={isAdmin ? "/dashboard" : isCoach ? "/dashboard/coach" : "/dashboard/player"} className="flex items-center gap-3 group">
+        <Link href={isAdmin ? "/dashboard" : isCoordinator ? "/dashboard/coordinator" : isCoach ? "/dashboard/coach" : "/dashboard/player"} className="flex items-center gap-3 group">
           <div className="bg-primary p-2 rounded-xl text-primary-foreground shadow-lg group-hover:scale-110 transition-transform shrink-0">
             <Trophy className="h-6 w-6" />
           </div>
@@ -124,25 +126,33 @@ export function SidebarNav() {
       </SidebarHeader>
       
       <SidebarContent className="px-2">
-        {/* SECCIÓN ADMIN: Visibilidad total para Administradores/Desarrolladores */}
-        {isAdmin && (
+        {/* 1. SECCIÓN ADMINISTRADOR */}
+        {(isAdmin) && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Administración</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-primary">Administrador</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard"} tooltip="Dashboard Global">
                     <Link href="/dashboard">
                       <LayoutDashboard className="h-4 w-4" />
-                      <span className="font-bold">Dashboard Admin</span>
+                      <span className="font-bold">Ecosistema Global</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clubs") && !pathname.includes("/shop")} tooltip="Gestión de Clubes">
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/federations")} tooltip="Federaciones">
+                    <Link href="/dashboard/federations">
+                      <Globe className="h-4 w-4" />
+                      <span className="font-bold">Federaciones</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/clubs"} tooltip="Gestión de Clubes">
                     <Link href="/dashboard/clubs">
                       <Building2 className="h-4 w-4" />
-                      <span className="font-bold">Clubes & Sedes</span>
+                      <span className="font-bold">Listado de Clubes</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -151,10 +161,37 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
-        {/* SECCIÓN STAFF: Para Entrenadores y Admins */}
+        {/* 2. SECCIÓN COORDINADOR */}
+        {(isCoordinator || isAdmin) && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-orange-600">Coordinador</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/coordinator"} tooltip="Dashboard Coordinación">
+                    <Link href="/dashboard/coordinator">
+                      <Briefcase className="h-4 w-4" />
+                      <span className="font-bold">Gestión del Club</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.includes("/divisions")} tooltip="Categorías">
+                    <Link href={userProfile?.clubId ? `/dashboard/clubs/${userProfile.clubId}/divisions` : "/dashboard/clubs"}>
+                      <Layers className="h-4 w-4" />
+                      <span className="font-bold">Categorías & Staff</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* 3. SECCIÓN ENTRENADOR */}
         {(isCoach || isAdmin) && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Staff Técnico</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-blue-600">Entrenador</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
@@ -168,8 +205,8 @@ export function SidebarNav() {
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/search"} tooltip="Búsqueda Jugadoras">
                     <Link href="/dashboard/player/search">
-                      <Users className="h-4 w-4" />
-                      <span className="font-bold">Base de Jugadoras</span>
+                      <Search className="h-4 w-4" />
+                      <span className="font-bold">Base Jugadoras</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -178,17 +215,17 @@ export function SidebarNav() {
           </SidebarGroup>
         )}
 
-        {/* SECCIÓN DEPORTISTA: Para Jugadores y Admins */}
+        {/* 4. SECCIÓN JUGADOR */}
         {(isPlayer || isAdmin) && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Deportista</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2 text-green-600">Jugador</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player"} tooltip="Hub del Jugador">
                     <Link href="/dashboard/player">
                       <UserCircle className="h-4 w-4" />
-                      <span className="font-bold">Panel de Jugador</span>
+                      <span className="font-bold">Hub Personal</span>
                     </Link>
                   </SidebarMenuButton>
                   {pendingCount > 0 && (
@@ -201,34 +238,7 @@ export function SidebarNav() {
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/player/id-card"} tooltip="Carnet Digital">
                     <Link href="/dashboard/player/id-card">
                       <ShieldCheck className="h-4 w-4" />
-                      <span className="font-bold">Carnet Digital</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* SECCIÓN ECOSISTEMA: Solo Admins */}
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-widest px-4 mb-2">Ecosistema</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/federations")} tooltip="Federaciones">
-                    <Link href="/dashboard/federations">
-                      <Globe className="h-4 w-4" />
-                      <span className="font-bold">Federaciones</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/referee")} tooltip="Arbitraje">
-                    <Link href="/dashboard/referee">
-                      <Flag className="h-4 w-4" />
-                      <span className="font-bold">Arbitraje</span>
+                      <span className="font-bold">Credencial Oficial</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -248,7 +258,7 @@ export function SidebarNav() {
               </Avatar>
               <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
                 <span className="text-[10px] font-black truncate text-foreground">{userProfile?.name || user.email}</span>
-                <span className="text-[8px] uppercase text-primary font-black tracking-widest">{userProfile?.role || 'Desarrollador'}</span>
+                <span className="text-[8px] uppercase text-primary font-black tracking-widest">{userProfile?.role || 'User'}</span>
               </div>
             </div>
           )}
@@ -256,7 +266,7 @@ export function SidebarNav() {
             <SidebarMenuItem>
               <SidebarMenuButton onClick={handleLogout} className="text-destructive hover:text-destructive hover:bg-destructive/10" tooltip="Cerrar Sesión">
                 <LogOut className="h-4 w-4" />
-                <span className="font-bold">Cerrar Sesión</span>
+                <span className="font-bold">Salir</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

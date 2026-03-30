@@ -45,13 +45,25 @@ export default function LoginPage() {
       const userDoc = await getDoc(doc(firestore, "users", uid));
       if (userDoc.exists()) {
         const role = userDoc.data().role;
-        if (role === 'coach') router.push('/dashboard/coach');
-        else if (role === 'player') router.push('/dashboard/player');
-        else if (role === 'referee') router.push('/dashboard/referee');
-        else router.push('/dashboard');
+        switch (role) {
+          case 'admin':
+          case 'fed_admin':
+            router.push('/dashboard');
+            break;
+          case 'coordinator':
+          case 'club_admin':
+            router.push('/dashboard/coordinator');
+            break;
+          case 'coach':
+            router.push('/dashboard/coach');
+            break;
+          case 'player':
+            router.push('/dashboard/player');
+            break;
+          default:
+            router.push('/dashboard/player');
+        }
       } else {
-        // Si es un usuario nuevo (o anónimo de desarrollador) que aún no tiene perfil,
-        // lo enviamos al dashboard para que pueda "Poblar Datos" y crearse el perfil admin.
         router.push('/dashboard');
       }
     } catch (e) {
@@ -74,8 +86,6 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error(err);
       let message = "Credenciales inválidas. Por favor, revisa tus datos.";
-      if (err.code === 'auth/user-not-found') message = "El usuario no existe.";
-      if (err.code === 'auth/wrong-password') message = "Contraseña incorrecta.";
       setError(message);
     } finally {
       setLoading(false);

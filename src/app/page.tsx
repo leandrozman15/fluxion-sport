@@ -22,20 +22,25 @@ export default function Home() {
           const userDoc = await getDoc(doc(firestore, "users", user.uid));
           if (userDoc.exists()) {
             const role = userDoc.data().role;
-            if (role === 'coach') {
-              router.push('/dashboard/coach');
-            } else if (role === 'player') {
-              router.push('/dashboard/player');
-            } else if (role === 'referee') {
-              router.push('/dashboard/referee');
-            } else if (role === 'admin' || role === 'fed_admin') {
-              router.push('/dashboard');
-            } else {
-              // Si no tiene un rol claro pero está en el índice de jugadores
-              router.push('/dashboard/player');
+            switch (role) {
+              case 'admin':
+              case 'fed_admin':
+                router.push('/dashboard');
+                break;
+              case 'coordinator':
+              case 'club_admin':
+                router.push('/dashboard/coordinator');
+                break;
+              case 'coach':
+                router.push('/dashboard/coach');
+                break;
+              case 'player':
+                router.push('/dashboard/player');
+                break;
+              default:
+                router.push('/dashboard/player');
             }
           } else {
-            // Usuario sin perfil en Firestore (posiblemente primer login anónimo)
             router.push('/dashboard');
           }
         } catch (e) {
@@ -51,7 +56,7 @@ export default function Home() {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-        <p className="text-muted-foreground font-bold animate-pulse">Cargando SportsManager...</p>
+        <p className="text-muted-foreground font-bold animate-pulse">Iniciando SportsManager...</p>
       </div>
     </div>
   );
