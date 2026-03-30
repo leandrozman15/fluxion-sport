@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -88,33 +87,34 @@ export default function ClubSettingsPage() {
     }
   };
 
-  if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
+  if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col gap-4">
-        <Link href={`/dashboard/clubs/${clubId}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors w-fit">
-          <ChevronLeft className="h-4 w-4" /> Volver al panel
+        <Link href={`/dashboard/clubs/${clubId}`} className="ambient-link group">
+          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver al panel del club
         </Link>
         <div>
-          <h1 className="text-3xl font-bold font-headline">Identidad Institucional</h1>
-          <p className="text-muted-foreground">Gestiona la información pública y visual de tu club.</p>
+          <h1 className="text-4xl font-bold font-headline">Identidad Institucional</h1>
+          <p className="ambient-text text-lg opacity-90">Gestiona la información pública y visual de tu institución.</p>
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-1 h-fit">
-          <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground">Logo Oficial</CardTitle>
+        <Card className="lg:col-span-1 h-fit shadow-2xl border-none">
+          <CardHeader className="bg-slate-50/50 border-b">
+            <CardTitle className="text-xs uppercase tracking-widest text-slate-500 font-black">Escudo / Logo Oficial</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center gap-6">
+          <CardContent className="flex flex-col items-center gap-6 pt-8 pb-8">
             <div className="relative group">
-              <Avatar className="h-40 w-40 border-4 border-muted shadow-xl">
-                <AvatarImage src={form.logoUrl} className="object-cover" />
-                <AvatarFallback className="bg-muted">
-                  <Building2 className="h-16 w-16 text-muted-foreground/30" />
-                </AvatarFallback>
-              </Avatar>
+              <div className="h-44 w-44 rounded-full border-4 border-slate-100 shadow-2xl overflow-hidden bg-white flex items-center justify-center">
+                {form.logoUrl ? (
+                  <img src={form.logoUrl} className="h-full w-full object-contain p-2" alt="Logo" />
+                ) : (
+                  <Building2 className="h-20 w-20 text-slate-200" />
+                )}
+              </div>
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -131,78 +131,82 @@ export default function ClubSettingsPage() {
               onChange={handleImageChange}
             />
 
-            <div className="text-center space-y-2">
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2">
-                <UploadCloud className="h-4 w-4" /> Subir Imagen
+            <div className="text-center space-y-3">
+              <Button variant="default" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2 font-bold h-10 px-6">
+                <UploadCloud className="h-4 w-4" /> Subir Logo
               </Button>
-              <p className="text-[10px] text-muted-foreground px-4 italic">
-                Formatos recomendados: PNG o JPG. Tamaño ideal: 512x512px.
+              <p className="text-[10px] text-slate-400 px-4 italic font-medium">
+                PNG transparente recomendado (512x512px).
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" /> Datos Generales
+        <Card className="lg:col-span-2 shadow-2xl border-none overflow-hidden">
+          <CardHeader className="bg-primary text-primary-foreground">
+            <CardTitle className="flex items-center gap-2 text-xl font-black uppercase tracking-tight">
+              <Building2 className="h-6 w-6" /> Información Base
             </CardTitle>
-            <CardDescription>Esta información aparecerá en los carnets de las jugadoras y planillas oficiales.</CardDescription>
+            <CardDescription className="text-primary-foreground/80 font-medium italic">Esta información se utilizará en carnets y documentos oficiales.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="clubName" className="font-bold">Nombre de la Institución</Label>
+          <CardContent className="space-y-8 p-8 bg-white">
+            <div className="space-y-3">
+              <Label htmlFor="clubName" className="text-xs font-black uppercase tracking-widest text-slate-400">Nombre de la Institución</Label>
               <Input 
                 id="clubName"
                 value={form.name} 
                 onChange={e => setForm({...form, name: e.target.value})} 
                 placeholder="Ej. Club Atlético Vicentinos"
-                className="h-12 text-lg"
+                className="h-14 text-xl font-bold border-2 focus:border-primary transition-all"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="clubAddress" className="flex items-center gap-2 font-bold">
-                  <MapPin className="h-4 w-4 text-muted-foreground" /> Dirección de la Sede
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label htmlFor="clubAddress" className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <MapPin className="h-3 w-3" /> Dirección de Sede
                 </Label>
                 <Input 
                   id="clubAddress"
                   value={form.address} 
                   onChange={e => setForm({...form, address: e.target.value})} 
-                  placeholder="Calle y Número, Ciudad"
+                  placeholder="Calle y Ciudad"
+                  className="h-12 border-2 font-medium"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="clubPhone" className="flex items-center gap-2 font-bold">
-                  <Phone className="h-4 w-4 text-muted-foreground" /> Teléfono de Contacto
+              <div className="space-y-3">
+                <Label htmlFor="clubPhone" className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <Phone className="h-3 w-3" /> Teléfono
                 </Label>
                 <Input 
                   id="clubPhone"
                   value={form.phone} 
                   onChange={e => setForm({...form, phone: e.target.value})} 
                   placeholder="+54 11..."
+                  className="h-12 border-2 font-medium"
                 />
               </div>
             </div>
 
             <div className="pt-6 border-t">
-              <div className="bg-muted/30 p-4 rounded-xl flex items-start gap-3">
-                <Globe className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex items-start gap-4">
+                <div className="bg-primary/10 p-2 rounded-full shrink-0">
+                  <Globe className="h-5 w-5 text-primary" />
+                </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-bold">Visibilidad en el Ecosistema</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Al actualizar estos datos, la Federación y la CAH verán tu información actualizada en el Padrón Nacional de Instituciones.
+                  <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Visibilidad del Ecosistema</p>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                    Los cambios realizados aquí se verán reflejados en el Padrón Nacional de Instituciones, permitiendo que la CAH y las Federaciones tengan sus datos actualizados.
                   </p>
                 </div>
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end gap-3 bg-muted/10 p-6 border-t">
-            <Button variant="ghost" onClick={() => router.back()}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving} className="h-11 px-8 font-bold gap-2">
+          <CardFooter className="flex justify-end gap-3 bg-slate-50/50 p-6 border-t">
+            <Button variant="ghost" onClick={() => router.back()} className="font-bold">Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving} className="h-12 px-10 font-black uppercase text-xs tracking-widest gap-2 shadow-xl shadow-primary/20">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Guardar Cambios
+              Actualizar Identidad
             </Button>
           </CardFooter>
         </Card>

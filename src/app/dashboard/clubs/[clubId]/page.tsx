@@ -79,7 +79,7 @@ export default function InstitutionDetailPage() {
       
       <div className="flex-1 space-y-8">
         <header className="flex flex-col gap-4">
-          <Link href="/dashboard/clubs" className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors w-fit group">
+          <Link href="/dashboard/clubs" className="ambient-link group">
             <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver a Instituciones
           </Link>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-xl border shadow-sm">
@@ -89,7 +89,7 @@ export default function InstitutionDetailPage() {
                 <AvatarFallback><Building2 /></AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-3xl font-bold font-headline text-slate-900">{club?.name}</h1>
+                <h1 className="text-3xl font-bold font-headline !text-slate-900 shadow-none" style={{ textShadow: 'none' }}>{club?.name}</h1>
                 <p className="text-slate-500 text-sm font-medium">{club?.address || "Sede oficial"}</p>
               </div>
             </div>
