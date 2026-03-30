@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -110,17 +109,17 @@ export default function InstitutionsPage() {
     deleteDocumentNonBlocking(doc(firestore, "clubs", id));
   };
 
-  if (isUserLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
+  if (isUserLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center h-[60vh]">
-        <div className="bg-primary/10 p-4 rounded-full mb-4">
-          <ShieldCheck className="h-12 w-12 text-primary" />
+        <div className="bg-primary/20 p-6 rounded-full mb-6 border border-primary/30 backdrop-blur-sm">
+          <ShieldCheck className="h-16 w-16 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold font-headline text-foreground">Instituciones Deportivas</h2>
-        <p className="text-muted-foreground mb-6 max-w-sm">Inicia sesión para gestionar el padrón de clubes e instituciones.</p>
-        <Button size="lg" onClick={() => initiateAnonymousSignIn(auth)}>Empezar ahora</Button>
+        <h2 className="text-4xl font-black text-white tracking-tighter mb-4">Instituciones Deportivas</h2>
+        <p className="text-slate-200 mb-8 max-w-sm font-medium">Inicia sesión para gestionar el padrón de clubes e instituciones.</p>
+        <Button size="lg" onClick={() => initiateAnonymousSignIn(auth)} className="h-14 px-10 text-lg font-black uppercase tracking-widest shadow-xl shadow-primary/20">Empezar ahora</Button>
       </div>
     );
   }
@@ -129,29 +128,29 @@ export default function InstitutionsPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline text-foreground">Instituciones</h1>
-          <p className="text-muted-foreground">Clubes y entidades vinculadas al sistema nacional.</p>
+          <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Instituciones</h1>
+          <p className="text-slate-200 font-bold uppercase tracking-widest text-xs mt-1">Clubes y entidades vinculadas al sistema nacional.</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if(open) fetchAssocs(); }}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Registrar Institución
+            <Button className="flex items-center gap-2 h-12 px-6 font-black uppercase text-xs tracking-widest shadow-lg">
+              <Plus className="h-5 w-5" /> Registrar Institución
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-white">
             <DialogHeader>
-              <DialogTitle>Nueva Institución</DialogTitle>
-              <DialogDescription>Completa los datos y vincula el club a su asociación regional.</DialogDescription>
+              <DialogTitle className="text-2xl font-black text-slate-900">Nueva Institución</DialogTitle>
+              <DialogDescription className="text-slate-500">Completa los datos y vincula el club a su asociación regional.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Nombre del Club</Label>
+                <Label className="text-slate-700 font-bold">Nombre del Club</Label>
                 <Input value={newClub.name} onChange={e => setNewClub({...newClub, name: e.target.value})} placeholder="Ej. Lomas Athletic Club" />
               </div>
               <div className="space-y-2">
-                <Label>Asociación Regional</Label>
+                <Label className="text-slate-700 font-bold">Asociación Regional</Label>
                 <Select value={newClub.associationId} onValueChange={v => setNewClub({...newClub, associationId: v})}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white">
                     <SelectValue placeholder={assocsLoading ? "Cargando..." : "Seleccionar Asociación"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -162,55 +161,55 @@ export default function InstitutionsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Dirección</Label>
-                <Input value={newClub.address} onChange={e => setNewClub({...newClub, address: e.target.value})} />
+                <Label className="text-slate-700 font-bold">Dirección</Label>
+                <Input value={newClub.address} onChange={e => setNewClub({...newClub, address: e.target.value})} placeholder="Calle y Ciudad" />
               </div>
               <div className="space-y-2">
-                <Label>URL Logo</Label>
+                <Label className="text-slate-700 font-bold">URL Logo</Label>
                 <Input value={newClub.logoUrl} onChange={e => setNewClub({...newClub, logoUrl: e.target.value})} placeholder="https://..." />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleCreateClub} disabled={!newClub.name || !newClub.associationId}>Registrar</Button>
+            <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6">
+              <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleCreateClub} disabled={!newClub.name || !newClub.associationId} className="font-bold">Registrar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </header>
 
       {isLoading ? (
-        <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>
+        <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clubs?.map((club: any) => (
-            <Card key={club.id} className="group hover:border-primary transition-all overflow-hidden border-l-4 border-l-primary">
+            <Card key={club.id} className="group hover:border-primary transition-all overflow-hidden border-l-4 border-l-primary bg-card">
               <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar className="h-14 w-14 border-2 border-primary/10">
-                  <AvatarImage src={club.logoUrl} alt={club.name} />
-                  <AvatarFallback><Building /></AvatarFallback>
+                <Avatar className="h-14 w-14 border-2 border-primary/10 shadow-sm">
+                  <AvatarImage src={club.logoUrl} alt={club.name} className="object-contain" />
+                  <AvatarFallback className="bg-muted"><Building className="text-slate-400" /></AvatarFallback>
                 </Avatar>
-                <div>
-                  <CardTitle className="text-lg">{club.name}</CardTitle>
-                  <CardDescription className="flex items-center gap-1 font-medium text-primary">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg font-black truncate text-slate-900">{club.name}</CardTitle>
+                  <CardDescription className="flex items-center gap-1 font-bold text-primary text-[10px] uppercase tracking-tight">
                     <Globe className="h-3 w-3" /> {associations.find(a => a.id === club.associationId)?.name || 'Asociación vinculada'}
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {club.address || "Sede oficial"}</div>
-                <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> {club.phone || "Sin contacto"}</div>
+              <CardContent className="space-y-2 text-sm text-slate-600">
+                <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-slate-400" /> {club.address || "Sede oficial"}</div>
+                <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-slate-400" /> {club.phone || "Sin contacto"}</div>
               </CardContent>
-              <CardFooter className="flex justify-between border-t bg-muted/10 pt-4">
+              <CardFooter className="flex justify-between border-t bg-slate-50/50 pt-4">
                 <div className="flex gap-1">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive">
+                      <Button variant="ghost" size="sm" className="text-destructive hover:bg-red-50">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent>
+                    <AlertDialogContent className="bg-white">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                        <AlertDialogTitle className="text-slate-900">¿Confirmas la eliminación?</AlertDialogTitle>
                         <AlertDialogDescription>
                           Esta acción eliminará a <strong>{club.name}</strong> del sistema. No se podrán recuperar los datos asociados.
                         </AlertDialogDescription>
@@ -224,12 +223,12 @@ export default function InstitutionsPage() {
                     </AlertDialogContent>
                   </AlertDialog>
                   
-                  <Button variant="ghost" size="sm" onClick={() => { setEditingClub(club); setIsEditOpen(true); fetchAssocs(); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingClub(club); setIsEditOpen(true); fetchAssocs(); }} className="text-slate-500 hover:text-primary">
                     <Pencil className="h-4 w-4" />
                   </Button>
                 </div>
-                <Button asChild size="sm">
-                  <Link href={`/dashboard/clubs/${club.id}`} className="flex items-center gap-2">
+                <Button asChild size="sm" className="font-bold gap-2">
+                  <Link href={`/dashboard/clubs/${club.id}`}>
                     Gestionar <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -237,43 +236,43 @@ export default function InstitutionsPage() {
             </Card>
           ))}
           {clubs?.length === 0 && (
-            <div className="col-span-full text-center py-20 border-2 border-dashed rounded-xl bg-muted/20">
-              <Building className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-              <p className="text-muted-foreground">No hay instituciones registradas todavía.</p>
+            <div className="col-span-full text-center py-24 border-2 border-dashed rounded-3xl bg-white/5 backdrop-blur-sm">
+              <Building className="h-16 w-16 mx-auto text-white opacity-20 mb-4" />
+              <p className="text-white/60 font-bold uppercase tracking-widest text-sm">No hay instituciones registradas todavía.</p>
             </div>
           )}
         </div>
       )}
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Editar Institución</DialogTitle></DialogHeader>
+        <DialogContent className="bg-white">
+          <DialogHeader><DialogTitle className="text-slate-900 font-black">Editar Institución</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Nombre</Label>
+              <Label className="text-slate-700 font-bold">Nombre</Label>
               <Input value={editingClub?.name || ""} onChange={e => setEditingClub({...editingClub, name: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Asociación Regional</Label>
+              <Label className="text-slate-700 font-bold">Asociación Regional</Label>
               <Select value={editingClub?.associationId || ""} onValueChange={v => setEditingClub({...editingClub, associationId: v})}>
-                <SelectTrigger><SelectValue placeholder="Cambiar Asociación" /></SelectTrigger>
+                <SelectTrigger className="bg-white"><SelectValue placeholder="Cambiar Asociación" /></SelectTrigger>
                 <SelectContent>
                   {associations.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Dirección</Label>
+              <Label className="text-slate-700 font-bold">Dirección</Label>
               <Input value={editingClub?.address || ""} onChange={e => setEditingClub({...editingClub, address: e.target.value})} />
             </div>
             <div className="space-y-2">
-              <Label>Teléfono</Label>
+              <Label className="text-slate-700 font-bold">Teléfono</Label>
               <Input value={editingClub?.phone || ""} onChange={e => setEditingClub({...editingClub, phone: e.target.value})} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6">
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateClub}>Guardar Cambios</Button>
+            <Button onClick={handleUpdateClub} className="font-bold">Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

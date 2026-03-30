@@ -4,34 +4,45 @@
 
 @layer base {
   :root {
-    /* Paleta Fluxion Sport: Optimizada para legibilidad sobre fondo deportivo */
+    /* Fondo oscuro para que resalte el texto blanco ambiental */
     --background: 210 25% 5%;
-    --foreground: 210 10% 98%; /* Texto principal ahora es blanco para el fondo */
+    --foreground: 0 0% 100%; /* Texto global es blanco */
+    
+    /* Tarjetas: Fondo blanco muy sólido para máxima legibilidad de datos */
     --card: 0 0% 100%;
-    --card-foreground: 210 25% 10%; /* Texto en tarjetas sigue siendo oscuro */
+    --card-foreground: 210 25% 10%; /* Texto dentro de tarjetas es casi negro */
+    
     --popover: 0 0% 100%;
     --popover-foreground: 210 25% 10%;
+    
     --primary: 210 85% 45%; 
-    --primary-foreground: 210 10% 98%;
-    --secondary: 210 20% 95%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 210 20% 96%;
     --secondary-foreground: 210 65% 25%;
-    --muted: 210 15% 15%;
-    --muted-foreground: 210 10% 80%; /* Gris muy claro para descripciones ambientales */
+    
+    /* Muted: Ajustado para que sea visible pero discreto */
+    --muted: 210 15% 90%;
+    --muted-foreground: 210 10% 40%; 
+    
     --accent: 185 90% 50%;
     --accent-foreground: 185 90% 10%;
+    
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 15% 20%;
-    --input: 210 15% 20%;
+    
+    --border: 210 15% 85%;
+    --input: 210 15% 80%;
     --ring: 210 85% 45%;
-    --radius: 1rem;
-    --sidebar-background: 210 20% 98%;
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 210 25% 15%;
     --sidebar-primary: 210 85% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 20% 94%;
     --sidebar-accent-foreground: 210 85% 40%;
-    --sidebar-border: 210 15% 92%;
+    --sidebar-border: 210 15% 90%;
     --sidebar-ring: 210 85% 40%;
   }
 }
@@ -41,42 +52,40 @@
     @apply border-border;
   }
   body {
-    @apply text-foreground font-body antialiased selection:bg-primary/20 bg-transparent;
+    @apply text-foreground font-body antialiased bg-slate-950;
   }
 }
 
-/* Transparencias refinadas para máxima claridad */
+/* Tarjetas con elevación y nitidez */
 .bg-card {
   background-color: hsl(var(--card) / 0.98);
-  backdrop-filter: blur(16px);
-  @apply shadow-xl border-white/50;
+  backdrop-filter: blur(8px);
+  @apply shadow-xl border-white/20;
 }
 
-/* Clases de utilidad para forzar texto brillante en fondos oscuros */
-.text-ambient {
-  @apply text-white drop-shadow-sm;
+/* Forzar que los inputs dentro de tarjetas se vean bien */
+input, textarea, select {
+  @apply bg-white text-slate-900 border-slate-300 !important;
 }
 
-.text-ambient-muted {
-  @apply text-white/70;
-}
-
-/* Tipografías con más fuerza */
+/* Estilos de títulos ambientales */
 .font-headline {
-  @apply tracking-tight font-black;
+  @apply tracking-tight font-black text-white drop-shadow-md;
 }
 
-/* Scrollbar personalizada minimalista */
+.text-muted-foreground {
+  /* Sobre fondo oscuro general, queremos que sea un gris claro */
+  color: hsl(210 10% 85%);
+}
+
+.bg-card .text-muted-foreground {
+  /* Dentro de tarjetas blancas, queremos que sea el gris estándar */
+  color: hsl(210 10% 40%);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300/30 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-300/50;
+  @apply bg-white/20 rounded-full;
 }
