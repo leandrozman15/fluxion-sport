@@ -19,9 +19,6 @@ import {
   ShieldCheck,
   CreditCard,
   LayoutDashboard,
-  Stethoscope,
-  TrendingUp,
-  AlertCircle,
   Clock,
   Calendar,
   Layers,
@@ -58,7 +55,6 @@ export default function InstitutionDetailPage() {
 
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
     { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
@@ -133,16 +129,6 @@ export default function InstitutionDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-none shadow-sm border-l-4 border-l-red-500">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Legajos Médicos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-black text-red-600">12</div>
-              <p className="text-[10px] text-red-600/70 font-bold uppercase mt-1">Vencidos o faltantes</p>
-            </CardContent>
-          </Card>
-
           <Card className="bg-white border-none shadow-sm border-l-4 border-l-slate-900">
             <CardHeader className="pb-2">
               <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Categorías</CardTitle>
@@ -150,6 +136,16 @@ export default function InstitutionDetailPage() {
             <CardContent>
               <div className="text-3xl font-black text-slate-900">{categories?.length || 0}</div>
               <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Ramas y divisiones</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-none shadow-sm border-l-4 border-l-primary">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Staff</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-black text-primary">Activo</div>
+              <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Profesores vinculados</p>
             </CardContent>
           </Card>
         </div>
@@ -189,31 +185,13 @@ export default function InstitutionDetailPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="bg-white border-none shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 text-slate-900">
-                  <AlertCircle className="h-4 w-4 text-orange-500" /> Alertas Críticas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl text-xs">
-                  <p className="font-black text-orange-800 mb-1">Pases Pendientes</p>
-                  <p className="text-orange-700 font-bold">3 jugadoras esperando validación de asociación regional.</p>
-                </div>
-                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-xs">
-                  <p className="font-black text-red-800 mb-1">Seguro Médico</p>
-                  <p className="text-red-700 font-bold">La póliza colectiva de hockey vence en 15 días.</p>
-                </div>
-              </CardContent>
-            </Card>
-
             <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none shadow-2xl relative overflow-hidden">
               <CardHeader className="relative z-10">
                 <CardTitle className="text-lg font-black uppercase tracking-tight">Accesos Directos</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-2 relative z-10">
                 <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-12 font-black uppercase text-[10px] tracking-widest transition-all" asChild>
-                  <Link href={`/dashboard/clubs/${clubId}/players`}><FileText className="h-4 w-4" /> Legajos Médicos</Link>
+                  <Link href={`/dashboard/clubs/${clubId}/players`}><FileText className="h-4 w-4" /> Padrón de Socios</Link>
                 </Button>
                 <Button variant="secondary" size="sm" className="justify-start gap-3 bg-white/10 hover:bg-white/20 border-none text-white h-12 font-black uppercase text-[10px] tracking-widest transition-all" asChild>
                   <Link href={`/dashboard/clubs/${clubId}/shop/admin`}><ShoppingBag className="h-4 w-4" /> Administrar Tienda</Link>

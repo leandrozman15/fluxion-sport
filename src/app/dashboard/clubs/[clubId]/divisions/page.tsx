@@ -11,19 +11,14 @@ import {
   Pencil,
   Layers,
   LayoutDashboard,
-  ShieldCheck,
   UserRound,
   Users,
   CreditCard,
-  Calendar,
   Clock,
   PlusCircle,
   X,
   ShoppingBag,
-  ChevronDown,
-  Trophy,
   ChevronLeft,
-  Settings2,
   Activity
 } from "lucide-react";
 import Link from "next/link";
@@ -72,7 +67,6 @@ export default function ClubCategoriesListPage() {
 
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
     { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
@@ -258,12 +252,6 @@ export default function ClubCategoriesListPage() {
               ))}
             </Accordion>
           )}
-          {categories?.length === 0 && !divsLoading && (
-            <div className="text-center py-20 border-2 border-dashed rounded-2xl bg-white/5 backdrop-blur-sm opacity-50">
-              <Layers className="h-12 w-12 mx-auto text-white mb-4" />
-              <p className="text-white font-black uppercase tracking-widest text-sm">Aún no hay categorías registradas.</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -341,7 +329,6 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   );
   const { data: teams, isLoading } = useCollection(teamsQuery);
 
-  // Cargamos el staff completo para el selector
   const coachesQuery = useMemoFirebase(() => 
     query(
       collection(db, "users"), 
@@ -357,7 +344,6 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
     const teamId = doc(collection(db, "clubs", clubId, "divisions", division.id, "teams")).id;
     const teamDoc = doc(db, "clubs", clubId, "divisions", division.id, "teams", teamId);
     
-    // El staff seleccionado garantiza que coachId y coachName estén sincronizados
     setDoc(teamDoc, {
       ...newTeam,
       id: teamId,
@@ -368,7 +354,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
     
     setNewTeam({ name: "", coachId: "", coachName: "", season: "2026" });
     setIsTeamDialogOpen(false);
-    toast({ title: "Equipo Creado", description: "El equipo ha sido vinculado correctamente al entrenador." });
+    toast({ title: "Equipo Creado" });
   };
 
   const handleDeleteTeam = (teamId: string) => {
@@ -430,7 +416,6 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
               <h4 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" /> Plantillas de Competición
               </h4>
-              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Gestión de equipos específicos para {division.name}.</p>
             </div>
             <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
               <DialogTrigger asChild>
@@ -443,7 +428,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                 <div className="space-y-6 py-6">
                   <div className="space-y-2">
                     <Label className="font-bold text-slate-700">Nombre del Equipo</Label>
-                    <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A, Sub 12 Blanca..." className="h-12 border-2 font-bold" />
+                    <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A..." className="h-12 border-2 font-bold" />
                   </div>
                   <div className="space-y-2">
                     <Label className="font-bold text-slate-700">Entrenador Responsable</Label>
@@ -452,7 +437,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                       <SelectContent>
                         {coaches?.map((c: any) => (
                           <SelectItem key={c.id} value={c.id} className="font-bold">
-                            {c.name || `${c.firstName} ${c.lastName}`} ({c.role === 'coach' ? 'Profesor' : c.role})
+                            {c.name || `${c.firstName} ${c.lastName}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -499,13 +484,6 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                   </CardFooter>
                 </Card>
               ))
-            )}
-            {teams?.length === 0 && !isLoading && (
-              <div className="col-span-full py-16 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center opacity-40 bg-white">
-                <Trophy className="h-12 w-12 mb-4 text-slate-300" />
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Sin equipos registrados</p>
-                <p className="text-[10px] font-bold text-slate-300 uppercase mt-2">Crea el primer plantel para competir.</p>
-              </div>
             )}
           </div>
         </div>

@@ -11,27 +11,16 @@ import {
   Mail,
   Phone,
   LayoutDashboard,
-  ShieldCheck,
   Layers,
   Users,
   CreditCard,
   Pencil,
-  ClipboardCheck,
-  ShoppingBag,
-  Lock,
-  Eye,
-  EyeOff,
-  UserCog,
-  Briefcase,
-  KeyRound,
-  AlertCircle,
-  FileBadge
+  ShoppingBag
 } from "lucide-react";
-import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, useAuth } from "@/firebase";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -39,10 +28,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { initiateEmailSignUp, initiatePasswordReset } from "@/firebase/non-blocking-login";
+import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
 import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 
 export default function ClubCoachesPage() {
@@ -52,7 +40,6 @@ export default function ClubCoachesPage() {
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [editingCoach, setEditingCoach] = useState<any>(null);
   const [newCoach, setNewCoach] = useState({ 
     name: "", 
@@ -69,7 +56,6 @@ export default function ClubCoachesPage() {
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
 
-  // Filtramos la colección global de usuarios para mostrar solo el staff de este club (Coaches/Coordinadores)
   const coachesQuery = useMemoFirebase(() => 
     query(
       collection(db, "users"), 
@@ -82,7 +68,6 @@ export default function ClubCoachesPage() {
 
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
     { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
@@ -245,7 +230,7 @@ export default function ClubCoachesPage() {
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                          <Briefcase className="h-3 w-3" /> {coach.specialty || 'Sin especialidad'}
+                          <UserRound className="h-3 w-3" /> {coach.specialty || 'Sin especialidad'}
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase">
                           <Mail className="h-3 w-3" /> {coach.email}
@@ -270,12 +255,6 @@ export default function ClubCoachesPage() {
                 </CardContent>
               </Card>
             ))
-          )}
-          {coaches?.length === 0 && !coachesLoading && (
-            <div className="text-center py-20 border-2 border-dashed rounded-3xl bg-white/5 backdrop-blur-sm opacity-50">
-              <UserRound className="h-12 w-12 mx-auto text-white mb-4" />
-              <p className="text-white font-black uppercase tracking-widest text-sm">Aún no hay miembros de staff registrados.</p>
-            </div>
           )}
         </div>
       </div>

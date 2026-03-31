@@ -7,7 +7,6 @@ import {
   CreditCard, 
   Loader2, 
   LayoutDashboard, 
-  ShieldCheck, 
   Layers, 
   UserRound, 
   Users,
@@ -23,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, setDoc, query, orderBy, limit, where } from "firebase/firestore";
+import { doc, collection, setDoc, query, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { SectionNav } from "@/components/layout/section-nav";
 import { Button } from "@/components/ui/button";
@@ -68,20 +67,17 @@ export default function ClubFinancesPage() {
   const playersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
   const { data: players } = useCollection(playersQuery);
 
-  // Consulta de transacciones reales (Libro Diario)
   const transactionsQuery = useMemoFirebase(() => 
     query(collection(db, "clubs", clubId, "transactions"), orderBy("createdAt", "desc"), limit(20)),
     [db, clubId]
   );
   const { data: transactions, isLoading: transLoading } = useCollection(transactionsQuery);
 
-  // Consulta de divisiones para el panel de efectividad
   const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
   const { data: divisions } = useCollection(divisionsQuery);
 
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Administración", href: `/dashboard/clubs/${clubId}/admin`, icon: ShieldCheck },
     { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
     { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
     { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
@@ -101,7 +97,6 @@ export default function ClubFinancesPage() {
       const now = new Date().toISOString();
       const transactionId = doc(collection(db, "clubs", clubId, "transactions")).id;
 
-      // 1. Registro en el historial del jugador
       const playerPaymentId = doc(collection(db, "clubs", clubId, "players", newPayment.playerId, "payments")).id;
       await setDoc(doc(db, "clubs", clubId, "players", newPayment.playerId, "payments", playerPaymentId), {
         ...newPayment,
@@ -111,7 +106,6 @@ export default function ClubFinancesPage() {
         createdAt: now
       });
 
-      // 2. Registro en el Libro Diario del Club
       await setDoc(doc(db, "clubs", clubId, "transactions", transactionId), {
         id: transactionId,
         type: "in",
@@ -138,10 +132,6 @@ export default function ClubFinancesPage() {
     }
   };
 
-  // Cálculos dinámicos de balance
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
-  
   const monthlyIn = transactions?.filter(t => t.type === 'in').reduce((acc, t) => acc + (t.amount || 0), 0) || 0;
   const monthlyOut = transactions?.filter(t => t.type === 'out').reduce((acc, t) => acc + (t.amount || 0), 0) || 0;
   const surplus = monthlyIn - monthlyOut;
@@ -160,9 +150,6 @@ export default function ClubFinancesPage() {
               <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{club?.name} • Control de ingresos y gastos operativos.</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
-                <Download className="h-4 w-4 mr-2" /> Balance PDF
-              </Button>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-8 shadow-2xl">
@@ -263,7 +250,6 @@ export default function ClubFinancesPage() {
               <div className="text-4xl font-black text-green-700">
                 ${hasMounted ? monthlyIn.toLocaleString() : '...'}
               </div>
-              <p className="text-[10px] text-green-600 font-bold uppercase mt-1">Registrados en plataforma</p>
             </CardContent>
           </Card>
           <Card className="bg-white border-none shadow-xl border-l-8 border-l-red-500">
@@ -275,7 +261,6 @@ export default function ClubFinancesPage() {
               <div className="text-4xl font-black text-red-700">
                 ${hasMounted ? monthlyOut.toLocaleString() : '...'}
               </div>
-              <p className="text-[10px] text-red-600 font-bold uppercase mt-1">Operativos y staff</p>
             </CardContent>
           </Card>
           <Card className="bg-primary text-primary-foreground border-none shadow-xl shadow-primary/30 relative overflow-hidden">
@@ -287,98 +272,50 @@ export default function ClubFinancesPage() {
               <div className="text-4xl font-black">
                 ${hasMounted ? surplus.toLocaleString() : '...'}
               </div>
-              <p className="text-[10px] opacity-70 font-bold uppercase mt-1">Disponible para gestión</p>
             </CardContent>
             <CircleDollarSign className="absolute right-[-20px] bottom-[-20px] h-32 w-32 opacity-10 rotate-12" />
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-2 border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md">
-            <CardHeader className="bg-slate-50 border-b pb-6">
-              <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
-                <ArrowRightLeft className="h-6 w-6 text-primary" /> Libro de Movimientos
-              </CardTitle>
-              <CardDescription className="font-medium text-slate-500">Últimas transacciones registradas.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-none bg-slate-100/50">
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400 pl-8">Fecha</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400">Concepto</TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400">Categoría</TableHead>
-                    <TableHead className="text-right font-black uppercase text-[10px] tracking-widest text-slate-400 pr-8">Monto</TableHead>
+        <Card className="border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md">
+          <CardHeader className="bg-slate-50 border-b pb-6">
+            <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
+              <ArrowRightLeft className="h-6 w-6 text-primary" /> Libro de Movimientos
+            </CardTitle>
+            <CardDescription className="font-medium text-slate-500">Últimas transacciones registradas.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-none bg-slate-100/50">
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400 pl-8">Fecha</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400">Concepto</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400">Categoría</TableHead>
+                  <TableHead className="text-right font-black uppercase text-[10px] tracking-widest text-slate-400 pr-8">Monto</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transLoading ? (
+                  <TableRow><TableCell colSpan={4} className="text-center py-10"><Loader2 className="animate-spin h-6 w-6 mx-auto text-primary" /></TableCell></TableRow>
+                ) : transactions?.map((t: any) => (
+                  <TableRow key={t.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    <TableCell className="text-xs font-bold text-slate-400 pl-8">
+                      {new Date(t.createdAt).toLocaleDateString([], { day: '2-digit', month: '2-digit' })}
+                    </TableCell>
+                    <TableCell className="font-black text-slate-900">{t.concept}</TableCell>
+                    <TableCell><Badge variant="secondary" className="text-[9px] font-black uppercase border-none">{t.category}</Badge></TableCell>
+                    <TableCell className={cn(
+                      "text-right font-black text-base pr-8",
+                      t.type === 'in' ? 'text-green-600' : 'text-red-600'
+                    )}>
+                      {t.type === 'in' ? '+' : '-'}${hasMounted ? t.amount.toLocaleString() : t.amount}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transLoading ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-10"><Loader2 className="animate-spin h-6 w-6 mx-auto text-primary" /></TableCell></TableRow>
-                  ) : transactions?.map((t: any) => (
-                    <TableRow key={t.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="text-xs font-bold text-slate-400 pl-8">
-                        {new Date(t.createdAt).toLocaleDateString([], { day: '2-digit', month: '2-digit' })}
-                      </TableCell>
-                      <TableCell className="font-black text-slate-900">{t.concept}</TableCell>
-                      <TableCell><Badge variant="secondary" className="text-[9px] font-black uppercase border-none">{t.category}</Badge></TableCell>
-                      <TableCell className={cn(
-                        "text-right font-black text-base pr-8",
-                        t.type === 'in' ? 'text-green-600' : 'text-red-600'
-                      )}>
-                        {t.type === 'in' ? '+' : '-'}${hasMounted ? t.amount.toLocaleString() : t.amount}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {(!transactions || transactions.length === 0) && !transLoading && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-20 text-slate-300 font-black uppercase tracking-widest text-xs italic">
-                        No hay movimientos registrados todavía.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border-none shadow-2xl h-fit">
-            <CardHeader className="border-b pb-6">
-              <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Efectividad por Categoría</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              {divisions?.length === 0 ? (
-                <div className="text-center py-10 text-slate-300 font-bold text-[10px] uppercase">Sin categorías para auditar</div>
-              ) : divisions?.map((d: any, i: number) => {
-                // Cálculo de ejemplo basado en si hay transacciones para esta categoría
-                const hasPayment = transactions?.some(t => t.concept.includes(d.name));
-                const perc = hasPayment ? 85 : 0; // Para el MVP usamos un indicador de actividad
-                
-                return (
-                  <div key={i} className="space-y-2">
-                    <div className="flex justify-between text-[11px] font-black uppercase tracking-tight">
-                      <span className="text-slate-900">{d.name}</span>
-                      <span className="text-slate-400">{perc}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
-                      <div 
-                        className={cn(
-                          "h-full transition-all duration-1000 shadow-lg",
-                          perc > 50 ? "bg-green-500" : "bg-primary"
-                        )} 
-                        style={{ width: `${perc}%` }} 
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-            <CardFooter className="bg-slate-50/50 border-t pt-6">
-              <Button variant="outline" size="sm" className="w-full text-[10px] font-black uppercase tracking-widest border-2 hover:bg-white" asChild>
-                <Link href={`/dashboard/clubs/${clubId}/players`}>Ver Morosidad en Padrón</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
