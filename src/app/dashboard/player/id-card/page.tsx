@@ -106,7 +106,6 @@ export default function GenericIdCardPage() {
     { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
     { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
-    { title: "Búsqueda Jugadores", href: "/dashboard/player/search", icon: Users },
   ];
 
   const playerNav = [

@@ -139,7 +139,6 @@ export default function CoachDashboard() {
     { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
     { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
-    { title: "Búsqueda Jugadores", href: "/dashboard/player/search", icon: Users },
   ];
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
@@ -162,7 +161,7 @@ export default function CoachDashboard() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-4">
-              <h1 className="text-4xl font-black font-headline text-white drop-shadow-2xl">{team.name}</h1>
+              <h1 className="text-4xl font-black font-headline tracking-tight text-white drop-shadow-2xl">{team.name}</h1>
               <Badge className="font-black bg-white text-primary border-none shadow-lg px-4 h-8 uppercase tracking-widest">{team.season}</Badge>
             </div>
             <p className="text-white font-black uppercase tracking-[0.3em] text-[11px] drop-shadow-md opacity-90">{team.clubName} • {team.divisionName}</p>
@@ -236,7 +235,7 @@ export default function CoachDashboard() {
                   )}
                 </CardHeader>
                 <CardContent className="p-0">
-                  {rosterLoading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" /></div> : (
+                  {rosterLoading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary h-8 w-8" /></div> : (
                     <div className="divide-y divide-slate-100">
                       {roster?.map((member: any) => {
                         const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
@@ -276,9 +275,7 @@ export default function CoachDashboard() {
                                    <HelpCircle className="h-7 w-7" />}
                                 </Button>
                               ) : (
-                                <Button variant="outline" size="sm" asChild className="h-10 text-[10px] font-black uppercase tracking-widest border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all px-5 rounded-xl shadow-sm">
-                                  <Link href={`/dashboard/player/search`}>Ver Ficha</Link>
-                                </Button>
+                                <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Activo</div>
                               )}
                             </div>
                           </div>
