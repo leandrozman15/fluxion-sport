@@ -41,29 +41,45 @@ export default function CoachDashboard() {
   const [selectedTeam, setSelectedTeam] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [todayEvent, setTodayEvent] = useState<any>(null);
+  const [staffProfile, setStaffProfile] = useState<any>(null);
 
   useEffect(() => {
     async function fetchAllMyTeams() {
       if (!user || !firestore) return;
       try {
-        const userId = user.uid;
-        const userDoc = await getDoc(doc(firestore, "users", userId));
-        const userData = userDoc.exists() ? userDoc.data() : null;
+        const userEmail = user.email?.toLowerCase().trim();
+        if (!userEmail) return;
+
+        // 1. Buscar el perfil de Staff por EMAIL (Búsqueda más segura que UID en este flujo)
+        const staffQuery = query(collection(firestore, "users"), where("email", "==", userEmail));
+        const staffSnap = await getDocs(staffQuery);
         
-        const clubId = userData?.clubId;
+        let profile = null;
+        if (!staffSnap.empty) {
+          profile = staffSnap.docs[0].data();
+          setStaffProfile(profile);
+        } else {
+          setLoading(false);
+          return;
+        }
+
+        const clubId = profile.clubId;
+        const staffIdInDb = profile.id; // El ID que se guarda en el campo coachId del equipo
+
         if (!clubId) {
           setLoading(false);
           return;
         }
 
         const teamsFound: any[] = [];
+        // Traemos todas las divisiones para buscar equipos asignados
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         
         for (const divDoc of divsSnap.docs) {
-          // Buscamos equipos por coachId (ID Real)
+          // Buscamos equipos donde este staffId sea el coachId
           const teamsSnap = await getDocs(query(
             collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams"),
-            where("coachId", "==", userId)
+            where("coachId", "==", staffIdInDb)
           ));
 
           teamsSnap.forEach(tDoc => {
@@ -76,26 +92,6 @@ export default function CoachDashboard() {
               sport: divDoc.data().sport || 'hockey'
             });
           });
-
-          // Fallback por nombre si no hay por ID (para datos antiguos o transiciones)
-          if (teamsSnap.empty && userData?.name) {
-            const fallbackSnap = await getDocs(query(
-              collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams"),
-              where("coachName", "==", userData.name)
-            ));
-            fallbackSnap.forEach(tDoc => {
-              teamsFound.push({
-                ...tDoc.data(),
-                id: tDoc.id,
-                clubId: clubId,
-                divisionId: divDoc.id,
-                divisionName: divDoc.data().name,
-                sport: divDoc.data().sport || 'hockey'
-              });
-              // Auto-actualizamos el ID para la próxima vez
-              updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "divisions", divDoc.id, "teams", tDoc.id), { coachId: userId });
-            });
-          }
         }
 
         setMyTeams(teamsFound);
@@ -158,7 +154,12 @@ export default function CoachDashboard() {
     { title: "Calendario", href: selectedTeam ? `/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events` : "/dashboard/coach", icon: Calendar },
   ];
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-screen space-y-4">
+      <Loader2 className="animate-spin text-white h-12 w-12" />
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Sincronizando Planteles...</p>
+    </div>
+  );
 
   if (myTeams.length === 0) return (
     <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6">
@@ -166,7 +167,10 @@ export default function CoachDashboard() {
         <ClipboardCheck className="h-16 w-16 text-white opacity-40" />
       </div>
       <h2 className="text-3xl font-black tracking-tight text-white font-headline">Sin Equipos Asignados</h2>
-      <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">No hemos encontrado planteles bajo tu dirección. El administrador debe asignarte como profesor en una categoría.</p>
+      <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">
+        Hola {staffProfile?.name || 'Profesor'}, no hemos encontrado categorías vinculadas a tu perfil. 
+        Solicita al administrador que te asigne como responsable en una División.
+      </p>
     </div>
   );
 
@@ -188,7 +192,7 @@ export default function CoachDashboard() {
             <div className="flex flex-wrap gap-3">
               {myTeams.length > 1 && (
                 <div className="flex items-center gap-2 bg-white/10 p-1.5 rounded-2xl border border-white/20 backdrop-blur-md">
-                  <span className="text-[9px] font-black text-white/60 uppercase pl-3">Cambiar Equipo:</span>
+                  <span className="text-[9px] font-black text-white/60 uppercase pl-3">Cambiar:</span>
                   {myTeams.map(t => (
                     <Button 
                       key={t.id} 
@@ -253,6 +257,7 @@ export default function CoachDashboard() {
               roster={roster || []} 
               initialPlayerCount={selectedTeam.tacticalPlayerCount || 11}
               initialSport={selectedTeam.tacticalSport || selectedTeam.sport}
+              captainId={selectedTeam.captainId}
               onSettingsChange={(s) => updateDocumentNonBlocking(doc(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id), { tacticalPlayerCount: s.playerCount, tacticalSport: s.sport })}
             />
           </TabsContent>
@@ -278,39 +283,69 @@ export default function CoachDashboard() {
                     <div className="divide-y divide-slate-100">
                       {roster?.map((member: any) => {
                         const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
+                        const isCaptain = selectedTeam?.captainId === member.playerId;
                         return (
-                          <div key={member.id} className="flex items-center justify-between p-5 group hover:bg-slate-50 transition-all">
-                            <div className="flex items-center gap-5">
-                              <Avatar className="h-16 w-14 border-2 border-slate-100 shadow-sm rounded-xl">
-                                <AvatarImage src={member.playerPhoto} className="object-cover" />
-                                <AvatarFallback className="font-black text-slate-300 bg-slate-50">{member.playerName[0]}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-black text-slate-900 text-lg">{member.playerName}</p>
-                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">DNI: {member.dni || '---'}</p>
+                          <div key={member.id} className="flex flex-col sm:flex-row items-center justify-between p-6 group hover:bg-slate-50/80 transition-all gap-4">
+                            <div className="flex items-center gap-5 w-full sm:w-auto">
+                              <div className="relative shrink-0">
+                                <Avatar className={cn(
+                                  "h-20 w-16 border-2 transition-all shadow-md rounded-2xl",
+                                  isCaptain ? "border-yellow-400 ring-4 ring-yellow-400/20" : "border-slate-100"
+                                )}>
+                                  <AvatarImage src={member.playerPhoto} className="object-cover" />
+                                  <AvatarFallback className="font-black text-slate-300 bg-slate-50 text-xl">{member.playerName[0]}</AvatarFallback>
+                                </Avatar>
+                                {isCaptain && (
+                                  <div className="absolute -top-3 -left-3 bg-yellow-500 text-white text-[11px] font-black h-8 w-8 flex items-center justify-center rounded-xl border-4 border-white shadow-xl animate-bounce">
+                                    C
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className={cn(
+                                  "font-black text-xl leading-none transition-colors",
+                                  isCaptain ? "text-yellow-600" : "text-slate-900"
+                                )}>
+                                  {member.playerName}
+                                </span>
+                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                                  <ShieldCheck className={cn("h-3 w-3", isCaptain ? "text-yellow-500" : "text-green-500")} />
+                                  Federado Activo 
+                                  {isCaptain && <span className="text-yellow-600 font-black">• CAPITÁN</span>}
+                                </p>
                               </div>
                             </div>
                             
-                            {todayEvent && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => handleToggleAttendance(member.playerId, member.playerName, status)}
-                                className={cn(
-                                  "h-14 w-14 p-0 rounded-2xl border-2 transition-all shadow-md",
-                                  status === 'going' ? "bg-green-500 text-white border-green-600 scale-110" :
-                                  status === 'not_going' ? "bg-red-500 text-white border-red-600" :
-                                  "bg-white text-slate-300 border-slate-100 hover:border-primary hover:text-primary"
-                                )}
-                              >
-                                {status === 'going' ? <CheckCircle2 className="h-7 w-7" /> : 
-                                 status === 'not_going' ? <XCircle className="h-7 w-7" /> : 
-                                 <HelpCircle className="h-7 w-7" />}
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                              {todayEvent ? (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => handleToggleAttendance(member.playerId, member.playerName, status)}
+                                  className={cn(
+                                    "h-14 w-14 p-0 rounded-2xl border-2 transition-all shadow-md",
+                                    status === 'going' ? "bg-green-500 text-white border-green-600 scale-110 shadow-green-500/20" :
+                                    status === 'not_going' ? "bg-red-500 text-white border-red-600 shadow-red-500/20" :
+                                    "bg-white text-slate-300 border-slate-100 hover:border-primary hover:text-primary"
+                                  )}
+                                >
+                                  {status === 'going' ? <CheckCircle2 className="h-7 w-7" /> : 
+                                   status === 'not_going' ? <XCircle className="h-7 w-7" /> : 
+                                   <HelpCircle className="h-7 w-7" />}
+                                </Button>
+                              ) : (
+                                <Badge variant="outline" className="h-10 px-4 font-black uppercase text-[10px] tracking-widest text-slate-400">Sin sesión activa</Badge>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
+                      {(!roster || roster.length === 0) && (
+                        <div className="py-24 text-center text-slate-400 font-black uppercase tracking-widest text-xs border-2 border-dashed m-8 rounded-3xl opacity-40 bg-slate-50/50">
+                          <Users className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                          <p>No hay jugadores asignados</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -319,15 +354,15 @@ export default function CoachDashboard() {
               <div className="space-y-8">
                 <Card className="bg-slate-900 text-white border-none shadow-2xl overflow-hidden relative">
                   <CardHeader className="relative z-10 pb-4">
-                    <CardTitle className="text-xs font-black uppercase tracking-[0.3em] opacity-60">Resumen Técnico</CardTitle>
+                    <CardTitle className="text-xs font-black uppercase tracking-[0.3em] opacity-60">Resumen del Plantel</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-8 relative z-10">
+                  <CardContent className="space-y-8 pt-4 relative z-10">
                     <div className="flex justify-between items-center border-b border-white/5 pb-6">
-                      <span className="text-xs font-black opacity-50 uppercase tracking-widest">Total Plantel</span>
+                      <span className="text-xs font-black opacity-50 uppercase tracking-widest text-slate-400">Total Jugadores</span>
                       <span className="text-5xl font-black text-primary tracking-tighter">{roster?.length || 0}</span>
                     </div>
-                    <Button asChild variant="secondary" className="w-full font-black uppercase text-[11px] tracking-widest h-14 shadow-xl">
-                      <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/stats`}>Estadísticas Temporada</Link>
+                    <Button asChild variant="outline" className="w-full h-14 font-black uppercase text-[11px] tracking-widest border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all shadow-xl rounded-xl">
+                      <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/stats`}>Ver Rankings Goleadores</Link>
                     </Button>
                   </CardContent>
                   <Flag className="absolute right-[-30px] bottom-[-30px] opacity-10 h-40 w-40" />
