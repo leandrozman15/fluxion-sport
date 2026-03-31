@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -19,7 +18,8 @@ import {
   Timer,
   AlertCircle,
   PlayCircle,
-  Star
+  Star,
+  ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where, getDocs } from "firebase/firestore";
@@ -241,44 +241,52 @@ export default function TeamDetailPage() {
                       const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
                       const isCaptain = team?.captainId === member.playerId;
                       return (
-                        <div key={member.id} className="flex items-center justify-between p-5 group hover:bg-slate-50/80 transition-all">
-                          <div className="flex items-center gap-5">
-                            <div className="relative">
+                        <div key={member.id} className="flex flex-col sm:flex-row items-center justify-between p-6 group hover:bg-slate-50/80 transition-all gap-4">
+                          <div className="flex items-center gap-5 w-full sm:w-auto">
+                            <div className="relative shrink-0">
                               <Avatar className={cn(
-                                "h-16 w-14 border-2 transition-all shadow-sm rounded-xl",
-                                isCaptain ? "border-yellow-400 ring-2 ring-yellow-400/20" : "border-slate-100"
+                                "h-20 w-16 border-2 transition-all shadow-md rounded-2xl",
+                                isCaptain ? "border-yellow-400 ring-4 ring-yellow-400/20" : "border-slate-100"
                               )}>
                                 <AvatarImage src={member.playerPhoto} className="object-cover" />
-                                <AvatarFallback className="font-black text-slate-300 bg-slate-50">{member.playerName[0]}</AvatarFallback>
+                                <AvatarFallback className="font-black text-slate-300 bg-slate-50 text-xl">{member.playerName[0]}</AvatarFallback>
                               </Avatar>
                               {isCaptain && (
-                                <div className="absolute -top-2 -left-2 bg-yellow-500 text-white text-[10px] font-black h-6 w-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg animate-bounce">
+                                <div className="absolute -top-3 -left-3 bg-yellow-500 text-white text-[11px] font-black h-8 w-8 flex items-center justify-center rounded-xl border-4 border-white shadow-xl animate-bounce">
                                   C
                                 </div>
                               )}
                               {member.jerseyNumber && (
-                                <div className="absolute -bottom-1 -right-1 bg-slate-900 text-white text-[9px] font-black h-6 w-6 flex items-center justify-center rounded-lg border-2 border-white shadow-md">
+                                <div className="absolute -bottom-2 -right-2 bg-slate-900 text-white text-[10px] font-black h-7 w-7 flex items-center justify-center rounded-lg border-2 border-white shadow-lg">
                                   #{member.jerseyNumber}
                                 </div>
                               )}
                             </div>
-                            <div>
-                              <span className="font-black text-slate-900 text-lg leading-none">{member.playerName}</span>
-                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                                Estado: Federado Activo 
-                                {isCaptain && <span className="text-yellow-600 flex items-center gap-1"><Star className="h-2.5 w-2.5 fill-current" /> Capitán</span>}
+                            <div className="flex flex-col">
+                              <span className={cn(
+                                "font-black text-xl leading-none transition-colors",
+                                isCaptain ? "text-yellow-600" : "text-slate-900"
+                              )}>
+                                {member.playerName}
+                              </span>
+                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                                <ShieldCheck className={cn("h-3 w-3", isCaptain ? "text-yellow-500" : "text-green-500")} />
+                                Federado Activo 
+                                {isCaptain && <span className="text-yellow-600 font-black">• CAPITÁN</span>}
                               </p>
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                             <Button 
-                              variant="ghost" 
+                              variant={isCaptain ? "default" : "outline"} 
                               size="sm" 
                               onClick={() => handleSetCaptain(member.playerId)}
                               className={cn(
-                                "h-10 px-3 gap-2 font-black uppercase text-[10px] tracking-widest transition-all",
-                                isCaptain ? "text-yellow-600 bg-yellow-50" : "text-slate-400 opacity-0 group-hover:opacity-100 hover:text-yellow-600 hover:bg-yellow-50"
+                                "h-11 px-5 gap-2 font-black uppercase text-[10px] tracking-[0.1em] transition-all rounded-xl shadow-sm",
+                                isCaptain 
+                                  ? "bg-yellow-500 hover:bg-yellow-600 text-white border-none shadow-yellow-500/20" 
+                                  : "text-slate-500 border-slate-200 hover:text-yellow-600 hover:border-yellow-400 hover:bg-yellow-50"
                               )}
                             >
                               <Star className={cn("h-4 w-4", isCaptain && "fill-current")} />
@@ -302,8 +310,13 @@ export default function TeamDetailPage() {
                                  <HelpCircle className="h-7 w-7" />}
                               </Button>
                             ) : (
-                              <Button variant="ghost" size="sm" className="text-destructive opacity-0 group-hover:opacity-100 transition-all h-12 w-12 p-0 hover:bg-red-50 rounded-xl" onClick={() => handleUnassignPlayer(member.id)}>
-                                <Trash2 className="h-6 w-6" />
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-destructive h-11 w-11 p-0 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100" 
+                                onClick={() => handleUnassignPlayer(member.id)}
+                              >
+                                <Trash2 className="h-5 w-5" />
                               </Button>
                             )}
                           </div>
