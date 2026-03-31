@@ -333,7 +333,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   const db = useFirestore();
   const { toast } = useToast();
   const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
-  const [newTeam, setNewTeam] = useState({ name: "", coachName: "", season: "2025" });
+  const [newTeam, setNewTeam] = useState({ name: "", coachId: "", coachName: "", season: "2026" });
 
   const teamsQuery = useMemoFirebase(() => 
     collection(db, "clubs", clubId, "divisions", division.id, "teams"),
@@ -342,12 +342,17 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   const { data: teams, isLoading } = useCollection(teamsQuery);
 
   const coachesQuery = useMemoFirebase(() => 
-    query(collection(db, "users"), where("clubId", "==", clubId), where("role", "==", "coach")),
+    query(
+      collection(db, "users"), 
+      where("clubId", "==", clubId), 
+      where("role", "in", ["coach", "coordinator"])
+    ),
     [db, clubId]
   );
   const { data: coaches } = useCollection(coachesQuery);
 
   const handleCreateTeam = () => {
+    if (!newTeam.name || !newTeam.coachId) return;
     const teamId = doc(collection(db, "clubs", clubId, "divisions", division.id, "teams")).id;
     const teamDoc = doc(db, "clubs", clubId, "divisions", division.id, "teams", teamId);
     
@@ -359,15 +364,22 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
       createdAt: new Date().toISOString()
     });
     
-    setNewTeam({ name: "", coachName: "", season: "2025" });
+    setNewTeam({ name: "", coachId: "", coachName: "", season: "2026" });
     setIsTeamDialogOpen(false);
-    toast({ title: "Equipo Creado" });
+    toast({ title: "Equipo Creado", description: "El equipo ha sido vinculado correctamente al entrenador." });
   };
 
   const handleDeleteTeam = (teamId: string) => {
     if(confirm("¿Eliminar este equipo?")) {
       deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", division.id, "teams", teamId));
       toast({ variant: "destructive", title: "Equipo Eliminado" });
+    }
+  };
+
+  const handleSelectCoach = (val: string) => {
+    const selected = coaches?.find(c => c.id === val);
+    if (selected) {
+      setNewTeam({ ...newTeam, coachId: selected.id, coachName: selected.name });
     }
   };
 
@@ -433,10 +445,10 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                   </div>
                   <div className="space-y-2">
                     <Label className="font-bold text-slate-700">Entrenador Responsable</Label>
-                    <Select value={newTeam.coachName} onValueChange={v => setNewTeam({...newTeam, coachName: v})}>
-                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                    <Select value={newTeam.coachId} onValueChange={handleSelectCoach}>
+                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
                       <SelectContent>
-                        {coaches?.map((c: any) => <SelectItem key={c.id} value={c.name} className="font-bold">{c.name}</SelectItem>)}
+                        {coaches?.map((c: any) => <SelectItem key={c.id} value={c.id} className="font-bold">{c.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -447,7 +459,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                 </div>
                 <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t">
                   <Button variant="outline" onClick={() => setIsTeamDialogOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachName} className="font-black uppercase text-xs tracking-widest h-12 px-8">Confirmar Equipo</Button>
+                  <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachId} className="font-black uppercase text-xs tracking-widest h-12 px-8">Confirmar Equipo</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

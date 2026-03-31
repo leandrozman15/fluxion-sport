@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,50 +41,57 @@ export default function CoachDashboard() {
     async function fetchMyTeam() {
       if (!user || !firestore) return;
       try {
-        const email = user.email?.toLowerCase().trim() || "";
-        const clubsSnap = await getDocs(collection(firestore, "clubs"));
-        let foundTeam = null;
+        const userId = user.uid;
+        const userDoc = await getDoc(doc(firestore, "users", userId));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+        
+        const clubId = userData?.clubId;
+        if (!clubId) {
+          setLoading(false);
+          return;
+        }
 
-        for (const clubDoc of clubsSnap.docs) {
-          const divsSnap = await getDocs(collection(firestore, "clubs", clubDoc.id, "divisions"));
+        let foundTeam = null;
+        const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
+        
+        for (const divDoc of divsSnap.docs) {
+          // Buscamos equipos donde este usuario sea el entrenador asignado (por ID)
+          const teamsSnap = await getDocs(query(
+            collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams"),
+            where("coachId", "==", userId)
+          ));
+
+          if (!teamsSnap.empty) {
+            const tDoc = teamsSnap.docs[0];
+            foundTeam = {
+              ...tDoc.data(),
+              id: tDoc.id,
+              clubId: clubId,
+              divisionId: divDoc.id,
+              clubName: clubId, // Se puede mejorar trayendo el nombre del club
+              divisionName: divDoc.data().name
+            };
+            break;
+          }
+        }
+
+        // Fallback: Si no hay equipo vinculado por ID, intentar por nombre como último recurso (Legacy)
+        if (!foundTeam) {
           for (const divDoc of divsSnap.docs) {
             const teamsSnap = await getDocs(query(
-              collection(firestore, "clubs", clubDoc.id, "divisions", divDoc.id, "teams"),
-              where("coachName", "==", user.displayName || email)
+              collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams"),
+              where("coachName", "==", userData?.name || user.displayName)
             ));
-
             if (!teamsSnap.empty) {
               const tDoc = teamsSnap.docs[0];
               foundTeam = {
                 ...tDoc.data(),
                 id: tDoc.id,
-                clubId: clubDoc.id,
+                clubId: clubId,
                 divisionId: divDoc.id,
-                clubName: clubDoc.data().name,
                 divisionName: divDoc.data().name
               };
               break;
-            }
-          }
-          if (foundTeam) break;
-        }
-        
-        if (!foundTeam && clubsSnap.docs.length > 0) {
-          const firstClubId = clubsSnap.docs[0].id;
-          const divsSnap = await getDocs(collection(firestore, "clubs", firstClubId, "divisions"));
-          if (!divsSnap.empty) {
-            const firstDivId = divsSnap.docs[0].id;
-            const teamsSnap = await getDocs(collection(firestore, "clubs", firstClubId, "divisions", firstDivId, "teams"));
-            if (!teamsSnap.empty) {
-              const tDoc = teamsSnap.docs[0];
-              foundTeam = {
-                ...tDoc.data(),
-                id: tDoc.id,
-                clubId: firstClubId,
-                divisionId: firstDivId,
-                clubName: clubsSnap.docs[0].data().name,
-                divisionName: divsSnap.docs[0].data().name
-              };
             }
           }
         }
@@ -149,7 +156,7 @@ export default function CoachDashboard() {
         <ClipboardCheck className="h-16 w-16 text-white opacity-40" />
       </div>
       <h2 className="text-3xl font-black tracking-tight text-white font-headline">Sin Equipo Asignado</h2>
-      <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">No hemos encontrado un plantel bajo tu dirección técnica. Contacta al administrador.</p>
+      <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">Robert, no hemos encontrado un plantel bajo tu dirección técnica. Contacta al administrador para que te asigne a una división.</p>
     </div>
   );
 

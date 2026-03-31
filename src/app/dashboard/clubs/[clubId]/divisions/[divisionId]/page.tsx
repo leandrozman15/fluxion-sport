@@ -31,7 +31,7 @@ export default function CategoryTeamsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<any>(null);
-  const [newTeam, setNewTeam] = useState({ name: "", coachName: "", season: "2025" });
+  const [newTeam, setNewTeam] = useState({ name: "", coachId: "", coachName: "", season: "2026" });
 
   const divRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId), [db, clubId, divisionId]);
   const { data: category, isLoading: divLoading } = useDoc(divRef);
@@ -39,14 +39,14 @@ export default function CategoryTeamsPage() {
   const teamsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams"), [db, clubId, divisionId]);
   const { data: teams, isLoading: teamsLoading } = useCollection(teamsQuery);
 
-  // Consultamos los entrenadores disponibles en el club para el selector
   const coachesQuery = useMemoFirebase(() => 
-    query(collection(db, "users"), where("clubId", "==", clubId), where("role", "==", "coach")),
+    query(collection(db, "users"), where("clubId", "==", clubId), where("role", "in", ["coach", "coordinator"])),
     [db, clubId]
   );
   const { data: coaches } = useCollection(coachesQuery);
 
   const handleCreateTeam = () => {
+    if (!newTeam.name || !newTeam.coachId) return;
     const teamId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams")).id;
     const teamDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId);
     
@@ -58,7 +58,7 @@ export default function CategoryTeamsPage() {
       createdAt: new Date().toISOString()
     });
     
-    setNewTeam({ name: "", coachName: "", season: "2025" });
+    setNewTeam({ name: "", coachId: "", coachName: "", season: "2026" });
     setIsCreateOpen(false);
   };
 
@@ -67,10 +67,22 @@ export default function CategoryTeamsPage() {
     const teamDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", editingTeam.id);
     updateDocumentNonBlocking(teamDoc, {
       name: editingTeam.name,
+      coachId: editingTeam.coachId,
       coachName: editingTeam.coachName,
       season: editingTeam.season
     });
     setIsEditOpen(false);
+  };
+
+  const handleSelectCoach = (val: string, isEdit = false) => {
+    const selected = coaches?.find(c => c.id === val);
+    if (selected) {
+      if (isEdit) {
+        setEditingTeam({ ...editingTeam, coachId: selected.id, coachName: selected.name });
+      } else {
+        setNewTeam({ ...newTeam, coachId: selected.id, coachName: selected.name });
+      }
+    }
   };
 
   const handleDeleteTeam = (id: string) => {
@@ -114,24 +126,18 @@ export default function CategoryTeamsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Entrenador Asignado</Label>
-                    <Select value={newTeam.coachName} onValueChange={v => setNewTeam({...newTeam, coachName: v})}>
+                    <Select value={newTeam.coachId} onValueChange={(val) => handleSelectCoach(val)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar Entrenador..." />
                       </SelectTrigger>
                       <SelectContent>
                         {coaches?.map((coach: any) => (
-                          <SelectItem key={coach.id} value={coach.name}>
-                            {coach.name} ({coach.specialty})
+                          <SelectItem key={coach.id} value={coach.id}>
+                            {coach.name} ({coach.role})
                           </SelectItem>
                         ))}
-                        {(!coaches || coaches.length === 0) && (
-                          <SelectItem value="_none" disabled>No hay entrenadores registrados</SelectItem>
-                        )}
                       </SelectContent>
                     </Select>
-                    {(!coaches || coaches.length === 0) && (
-                      <p className="text-[10px] text-destructive">Debes registrar entrenadores en la sección "Staff Técnico" primero.</p>
-                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Temporada</Label>
@@ -140,7 +146,7 @@ export default function CategoryTeamsPage() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachName}>Crear Equipo</Button>
+                  <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachId}>Crear Equipo</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -181,11 +187,6 @@ export default function CategoryTeamsPage() {
             </Card>
           ))
         )}
-        {teams?.length === 0 && !teamsLoading && (
-          <div className="col-span-full text-center py-12 border-2 border-dashed rounded-xl">
-            <p className="text-muted-foreground">Aún no hay equipos en esta categoría.</p>
-          </div>
-        )}
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
@@ -200,13 +201,13 @@ export default function CategoryTeamsPage() {
             </div>
             <div className="space-y-2">
               <Label>Entrenador Asignado</Label>
-              <Select value={editingTeam?.coachName || ""} onValueChange={v => setEditingTeam({...editingTeam, coachName: v})}>
+              <Select value={editingTeam?.coachId || ""} onValueChange={(val) => handleSelectCoach(val, true)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar Entrenador..." />
                 </SelectTrigger>
                 <SelectContent>
                   {coaches?.map((coach: any) => (
-                    <SelectItem key={coach.id} value={coach.name}>
+                    <SelectItem key={coach.id} value={coach.id}>
                       {coach.name}
                     </SelectItem>
                   ))}
