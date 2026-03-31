@@ -94,12 +94,15 @@ export default function ClubCoachesPage() {
     if (!newCoach.email || !newCoach.password || !newCoach.name) return;
 
     try {
-      initiateEmailSignUp(auth, newCoach.email, newCoach.password);
+      const normalizedEmail = newCoach.email.toLowerCase().trim();
+      initiateEmailSignUp(auth, normalizedEmail, newCoach.password);
+      
       const userId = doc(collection(db, "users")).id;
       const userDoc = doc(db, "users", userId);
       
       await setDoc(userDoc, {
         ...newCoach,
+        email: normalizedEmail,
         id: userId,
         clubId,
         requiresPasswordChange: true,
@@ -118,7 +121,10 @@ export default function ClubCoachesPage() {
   const handleUpdateCoach = () => {
     if (!editingCoach) return;
     const coachDoc = doc(db, "users", editingCoach.id);
-    updateDocumentNonBlocking(coachDoc, { ...editingCoach });
+    updateDocumentNonBlocking(coachDoc, { 
+      ...editingCoach, 
+      email: editingCoach.email.toLowerCase().trim() 
+    });
     setIsEditOpen(false);
     toast({ title: "Perfil Actualizado" });
   };

@@ -48,58 +48,58 @@ export default function CoachDashboard() {
       if (!user || !firestore) return;
       try {
         const userEmail = user.email?.toLowerCase().trim();
-        if (!userEmail) return;
-
-        // 1. Buscar el perfil de Staff por EMAIL (Búsqueda más segura que UID en este flujo)
-        const staffQuery = query(collection(firestore, "users"), where("email", "==", userEmail));
-        const staffSnap = await getDocs(staffQuery);
-        
-        let profile = null;
-        if (!staffSnap.empty) {
-          profile = staffSnap.docs[0].data();
-          setStaffProfile(profile);
-        } else {
+        if (!userEmail) {
           setLoading(false);
           return;
         }
 
+        // 1. Localizar Perfil de Staff por Email
+        const staffQuery = query(collection(firestore, "users"), where("email", "==", userEmail));
+        const staffSnap = await getDocs(staffQuery);
+        
+        if (staffSnap.empty) {
+          setLoading(false);
+          return;
+        }
+
+        const profile = staffSnap.docs[0].data();
+        setStaffProfile(profile);
+
         const clubId = profile.clubId;
-        const staffIdInDb = profile.id; // El ID que se guarda en el campo coachId del equipo
+        const staffIdInDb = profile.id; // ID único usado en coachId de los equipos
 
         if (!clubId) {
           setLoading(false);
           return;
         }
 
-        const teamsFound: any[] = [];
-        // Traemos todas las divisiones para buscar equipos asignados
+        // 2. Buscar Equipos de forma paralela en todas las divisiones
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         
-        for (const divDoc of divsSnap.docs) {
-          // Buscamos equipos donde este staffId sea el coachId
-          const teamsSnap = await getDocs(query(
+        const teamsPromises = divsSnap.docs.map(async (divDoc) => {
+          const tSnap = await getDocs(query(
             collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams"),
             where("coachId", "==", staffIdInDb)
           ));
+          return tSnap.docs.map(td => ({
+            ...td.data(),
+            id: td.id,
+            clubId,
+            divisionId: divDoc.id,
+            divisionName: divDoc.data().name,
+            sport: divDoc.data().sport || 'hockey'
+          }));
+        });
 
-          teamsSnap.forEach(tDoc => {
-            teamsFound.push({
-              ...tDoc.data(),
-              id: tDoc.id,
-              clubId: clubId,
-              divisionId: divDoc.id,
-              divisionName: divDoc.data().name,
-              sport: divDoc.data().sport || 'hockey'
-            });
-          });
-        }
+        const teamsResults = await Promise.all(teamsPromises);
+        const allTeams = teamsResults.flat();
 
-        setMyTeams(teamsFound);
-        if (teamsFound.length > 0) {
-          setSelectedTeam(teamsFound[0]);
+        setMyTeams(allTeams);
+        if (allTeams.length > 0) {
+          setSelectedTeam(allTeams[0]);
         }
       } catch (e) { 
-        console.error("Error cargando equipos del coach:", e); 
+        console.error("Critical: Error loading coach teams:", e); 
       } finally { 
         setLoading(false); 
       }
@@ -107,7 +107,7 @@ export default function CoachDashboard() {
     fetchAllMyTeams();
   }, [user, firestore]);
 
-  // Efecto para buscar eventos del equipo seleccionado
+  // Buscar evento del día para el equipo seleccionado
   useEffect(() => {
     async function fetchTodayEvent() {
       if (!selectedTeam || !firestore) return;
@@ -121,7 +121,7 @@ export default function CoachDashboard() {
         const found = eventsSnap.docs.find(d => d.data().date?.startsWith(todayStr));
         if (found) setTodayEvent({ ...found.data(), id: found.id });
       } catch (e) {
-        console.error(e);
+        console.error("Error fetching today event:", e);
       }
     }
     fetchTodayEvent();
@@ -168,7 +168,7 @@ export default function CoachDashboard() {
       </div>
       <h2 className="text-3xl font-black tracking-tight text-white font-headline">Sin Equipos Asignados</h2>
       <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">
-        Hola {staffProfile?.name || 'Profesor'}, no hemos encontrado categorías vinculadas a tu perfil. 
+        Hola {staffProfile?.name || 'Robert'}, no hemos encontrado categorías vinculadas a tu perfil. 
         Solicita al administrador que te asigne como responsable en una División.
       </p>
     </div>
