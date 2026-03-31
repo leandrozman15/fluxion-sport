@@ -46,12 +46,15 @@ export default function CoachDashboard() {
         const userDoc = await getDoc(doc(firestore, "users", userId));
         const userData = userDoc.exists() ? userDoc.data() : null;
         
+        // Priorizar clubId del perfil de usuario
         const clubId = userData?.clubId;
         if (!clubId) {
+          console.warn("Entrenador sin clubId asignado");
           setLoading(false);
           return;
         }
 
+        // Buscamos el equipo donde coachId == userId
         let foundTeam = null;
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         
@@ -68,18 +71,18 @@ export default function CoachDashboard() {
               id: tDoc.id,
               clubId: clubId,
               divisionId: divDoc.id,
-              clubName: clubId,
               divisionName: divDoc.data().name
             };
             break;
           }
         }
 
-        if (!foundTeam) {
+        // Fallback: si no lo encontramos por ID, intentamos por nombre (para datos antiguos)
+        if (!foundTeam && userData?.name) {
           for (const divDoc of divsSnap.docs) {
             const teamsSnap = await getDocs(query(
               collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams"),
-              where("coachName", "==", userData?.name || user.displayName)
+              where("coachName", "==", userData.name)
             ));
             if (!teamsSnap.empty) {
               const tDoc = teamsSnap.docs[0];
@@ -90,6 +93,8 @@ export default function CoachDashboard() {
                 divisionId: divDoc.id,
                 divisionName: divDoc.data().name
               };
+              // Actualizamos el coachId para futuras consultas
+              updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "divisions", divDoc.id, "teams", tDoc.id), { coachId: userId });
               break;
             }
           }
@@ -106,8 +111,11 @@ export default function CoachDashboard() {
           const found = eventsSnap.docs.find(d => d.data().date?.startsWith(todayStr));
           if (found) setTodayEvent({ ...found.data(), id: found.id });
         }
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
+      } catch (e) { 
+        console.error("Error cargando equipo del coach:", e); 
+      } finally { 
+        setLoading(false); 
+      }
     }
     fetchMyTeam();
   }, [user, firestore]);

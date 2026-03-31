@@ -341,11 +341,12 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   );
   const { data: teams, isLoading } = useCollection(teamsQuery);
 
+  // Cargamos el staff completo para el selector
   const coachesQuery = useMemoFirebase(() => 
     query(
       collection(db, "users"), 
       where("clubId", "==", clubId), 
-      where("role", "in", ["coach", "coordinator"])
+      where("role", "in", ["coach", "coordinator", "club_admin"])
     ),
     [db, clubId]
   );
@@ -356,6 +357,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
     const teamId = doc(collection(db, "clubs", clubId, "divisions", division.id, "teams")).id;
     const teamDoc = doc(db, "clubs", clubId, "divisions", division.id, "teams", teamId);
     
+    // El staff seleccionado garantiza que coachId y coachName estén sincronizados
     setDoc(teamDoc, {
       ...newTeam,
       id: teamId,
@@ -379,7 +381,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   const handleSelectCoach = (val: string) => {
     const selected = coaches?.find(c => c.id === val);
     if (selected) {
-      setNewTeam({ ...newTeam, coachId: selected.id, coachName: selected.name });
+      setNewTeam({ ...newTeam, coachId: selected.id, coachName: selected.name || selected.firstName + " " + selected.lastName });
     }
   };
 
@@ -448,7 +450,11 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                     <Select value={newTeam.coachId} onValueChange={handleSelectCoach}>
                       <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
                       <SelectContent>
-                        {coaches?.map((c: any) => <SelectItem key={c.id} value={c.id} className="font-bold">{c.name}</SelectItem>)}
+                        {coaches?.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id} className="font-bold">
+                            {c.name || `${c.firstName} ${c.lastName}`} ({c.role === 'coach' ? 'Profesor' : c.role})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
