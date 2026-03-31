@@ -297,7 +297,14 @@ export default function ShopAdminPage() {
                           </div>
                           <div className="space-y-2">
                             <Label>Precio ($)</Label>
-                            <Input type="number" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} />
+                            <Input 
+                              type="number" 
+                              value={isNaN(newProduct.price) ? "" : newProduct.price} 
+                              onChange={e => {
+                                const val = e.target.value === '' ? NaN : parseFloat(e.target.value);
+                                setNewProduct({...newProduct, price: val});
+                              }} 
+                            />
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -331,8 +338,11 @@ export default function ShopAdminPage() {
                                 <Label className="text-[10px] font-bold">Stock</Label>
                                 <Input 
                                   type="number" 
-                                  value={s.stock} 
-                                  onChange={e => updateSize(idx, 'stock', parseInt(e.target.value))} 
+                                  value={isNaN(s.stock) ? "" : s.stock} 
+                                  onChange={e => {
+                                    const val = e.target.value === '' ? NaN : parseInt(e.target.value);
+                                    updateSize(idx, 'stock', val);
+                                  }} 
                                   className="h-8 text-xs"
                                 />
                               </div>
@@ -353,7 +363,7 @@ export default function ShopAdminPage() {
                 </ScrollArea>
                 <DialogFooter className="border-t pt-4">
                   <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreateProduct} disabled={!newProduct.name || newProduct.price <= 0}>Publicar Producto</Button>
+                  <Button onClick={handleCreateProduct} disabled={!newProduct.name || isNaN(newProduct.price) || newProduct.price <= 0}>Publicar Producto</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -487,7 +497,14 @@ export default function ShopAdminPage() {
                         <SelectItem value="accesorios">Accesorios</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input type="number" value={editingProduct?.price || 0} onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value)})} />
+                    <Input 
+                      type="number" 
+                      value={isNaN(editingProduct?.price) ? "" : editingProduct?.price} 
+                      onChange={e => {
+                        const val = e.target.value === '' ? NaN : parseFloat(e.target.value);
+                        setEditingProduct({...editingProduct, price: val});
+                      }} 
+                    />
                   </div>
                   <Textarea value={editingProduct?.description || ""} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="h-24" />
                 </div>
@@ -505,7 +522,15 @@ export default function ShopAdminPage() {
                     {editingProduct?.sizes?.map((s: any, idx: number) => (
                       <div key={idx} className="flex gap-2 items-end bg-muted/30 p-2 rounded-lg border">
                         <Input value={s.label} onChange={e => updateSize(idx, 'label', e.target.value, true)} className="h-8 text-xs" />
-                        <Input type="number" value={s.stock} onChange={e => updateSize(idx, 'stock', parseInt(e.target.value), true)} className="h-8 text-xs w-24" />
+                        <Input 
+                          type="number" 
+                          value={isNaN(s.stock) ? "" : s.stock} 
+                          onChange={e => {
+                            const val = e.target.value === '' ? NaN : parseInt(e.target.value);
+                            updateSize(idx, 'stock', val, true);
+                          }} 
+                          className="h-8 text-xs w-24" 
+                        />
                         <Button variant="ghost" size="sm" onClick={() => removeSize(idx, true)} className="h-8 w-8 p-0 text-destructive"><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     ))}
@@ -516,7 +541,7 @@ export default function ShopAdminPage() {
           </ScrollArea>
           <DialogFooter className="border-t pt-4">
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateProduct} className="gap-2">
+            <Button onClick={handleUpdateProduct} className="gap-2" disabled={isNaN(editingProduct?.price)}>
               <Save className="h-4 w-4" /> Guardar Cambios
             </Button>
           </DialogFooter>

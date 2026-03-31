@@ -199,7 +199,15 @@ export default function ClubFinancesPage() {
                       </div>
                       <div className="space-y-2">
                         <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Año</Label>
-                        <Input type="number" value={newPayment.year} onChange={e => setNewPayment({...newPayment, year: parseInt(e.target.value)})} className="h-12 border-2 font-bold" />
+                        <Input 
+                          type="number" 
+                          value={isNaN(newPayment.year) ? "" : newPayment.year} 
+                          onChange={e => {
+                            const val = e.target.value === '' ? NaN : parseInt(e.target.value);
+                            setNewPayment({...newPayment, year: val});
+                          }} 
+                          className="h-12 border-2 font-bold" 
+                        />
                       </div>
                     </div>
 
@@ -208,7 +216,15 @@ export default function ClubFinancesPage() {
                         <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Monto Cobrado ($)</Label>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <Input type="number" value={newPayment.amount} onChange={e => setNewPayment({...newPayment, amount: parseInt(e.target.value)})} className="h-12 border-2 font-bold pl-10" />
+                          <Input 
+                            type="number" 
+                            value={isNaN(newPayment.amount) ? "" : newPayment.amount} 
+                            onChange={e => {
+                              const val = e.target.value === '' ? NaN : parseInt(e.target.value);
+                              setNewPayment({...newPayment, amount: val});
+                            }} 
+                            className="h-12 border-2 font-bold pl-10" 
+                          />
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -226,7 +242,7 @@ export default function ClubFinancesPage() {
                   </div>
                   <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
                     <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-                    <Button onClick={handleRegisterPayment} disabled={loading} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
+                    <Button onClick={handleRegisterPayment} disabled={loading || isNaN(newPayment.amount)} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
                       {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
                       Confirmar Cobro
                     </Button>
