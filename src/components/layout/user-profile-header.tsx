@@ -3,7 +3,7 @@
 
 import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Shield, UserCheck, UserCircle, Settings, Building2 } from "lucide-react";
 import { signOut } from "firebase/auth";
@@ -17,37 +17,39 @@ export function UserProfileHeader() {
   const router = useRouter();
 
   useEffect(() => {
-    async function fetchIdentity() {
-      if (!user || !firestore) return;
-      try {
-        const email = user.email?.toLowerCase().trim() || "";
-        let finalProfile = null;
+    if (!user || !firestore) return;
+    const email = user.email?.toLowerCase().trim() || "";
 
-        // 1. Buscamos primero en la colección de Staff (users)
-        const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-        const staffSnap = await getDocs(qStaff);
-        
-        if (!staffSnap.empty) {
-          finalProfile = staffSnap.docs[0].data();
-        } else {
-          // 2. Si no está en staff, buscamos en el índice global de jugadores
-          const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-          const playerSnap = await getDocs(qPlayer);
-          if (!playerSnap.empty) {
-            finalProfile = { ...playerSnap.docs[0].data(), role: 'player' };
-          }
-        }
-
-        if (finalProfile) {
-          setProfile(finalProfile);
-          if (finalProfile.clubId) {
-            const clubSnap = await getDoc(doc(firestore, "clubs", finalProfile.clubId));
+    // Escuchar cambios en el perfil de Staff (users)
+    const qStaff = query(collection(firestore, "users"), where("email", "==", email));
+    const unsubStaff = onSnapshot(qStaff, (snap) => {
+      if (!snap.empty) {
+        const staffData = snap.docs[0].data();
+        setProfile(staffData);
+        if (staffData.clubId) {
+          getDoc(doc(firestore, "clubs", staffData.clubId)).then(clubSnap => {
             if (clubSnap.exists()) setClub({ ...clubSnap.data(), id: clubSnap.id });
-          }
+          });
         }
-      } catch (e) { console.error("Error en cabecera de perfil:", e); }
-    }
-    fetchIdentity();
+      } else {
+        // Si no es staff, escuchar en el índice global de jugadores
+        const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
+        const unsubPlayer = onSnapshot(qPlayer, (pSnap) => {
+          if (!pSnap.empty) {
+            const pData = pSnap.docs[0].data();
+            setProfile({ ...pData, role: 'player' });
+            if (pData.clubId) {
+              getDoc(doc(firestore, "clubs", pData.clubId)).then(clubSnap => {
+                if (clubSnap.exists()) setClub({ ...clubSnap.data(), id: clubSnap.id });
+              });
+            }
+          }
+        });
+        return () => unsubPlayer();
+      }
+    });
+
+    return () => unsubStaff();
   }, [user, firestore]);
 
   const handleLogout = async () => {
@@ -86,10 +88,21 @@ export function UserProfileHeader() {
   return (
     <div className="w-full px-8 pt-6 flex justify-end items-center gap-4 z-50">
       <div className={cn(
-        "flex items-center gap-3 bg-white/95 backdrop-blur-md p-2 pl-4 pr-4 rounded-full border shadow-lg group transition-all",
+        "flex items-center gap-4 bg-white/95 backdrop-blur-md p-2 pl-2 pr-5 rounded-full border shadow-lg group transition-all",
         isAdminView ? "border-primary/30 ring-2 ring-primary/10" : "border-slate-200"
       )}>
-        <div className="flex flex-col items-end">
+        {/* Avatar a la izquierda como solicitó el usuario */}
+        <Avatar className={cn(
+          "h-10 w-10 border-2 transition-transform group-hover:scale-105 shadow-sm",
+          isAdminView ? "border-primary" : "border-slate-100"
+        )}>
+          <AvatarImage src={profile?.photoUrl} className="object-cover" />
+          <AvatarFallback className="bg-primary/5 text-primary text-xs font-black uppercase">
+            {profile?.firstName?.[0] || profile?.name?.[0] || 'U'}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="flex flex-col items-start">
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
             {profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}` : profile?.name || user.email}
           </span>
@@ -98,17 +111,6 @@ export function UserProfileHeader() {
             {display.label}
           </span>
         </div>
-
-        <Avatar className={cn(
-          "h-10 w-10 border-2 transition-transform group-hover:scale-105 shadow-sm",
-          isAdminView ? "border-primary" : "border-slate-100"
-        )}>
-          {/* Si es Admin muestra el logo del club, si no su foto o inicial */}
-          <AvatarImage src={isAdminView ? club?.logoUrl : profile?.photoUrl} className="object-cover" />
-          <AvatarFallback className="bg-primary/5 text-primary text-xs font-black">
-            {isAdminView ? <Building2 className="h-4 w-4" /> : (profile?.firstName?.[0] || 'U')}
-          </AvatarFallback>
-        </Avatar>
         
         <div className="h-6 w-px bg-slate-200 mx-1" />
         
