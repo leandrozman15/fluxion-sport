@@ -105,6 +105,7 @@ export default function GenericIdCardPage() {
   const coachNav = [
     { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
+    { title: "Tienda Club", href: clubInfo ? `/dashboard/clubs/${clubInfo.id}/shop` : "/dashboard/coach", icon: ShoppingBag },
     { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
   ];
 
@@ -125,10 +126,10 @@ export default function GenericIdCardPage() {
   const isAdmin = roleInfo.role === 'admin' || roleInfo.role === 'club_admin';
 
   return (
-    <div className="flex gap-8 animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={currentNav} basePath={isStaff ? "/dashboard/coach" : "/dashboard/player"} />
       
-      <div className="flex-1 flex flex-col items-center justify-center space-y-8 max-w-md mx-auto pb-20">
+      <div className="flex-1 flex flex-col items-center justify-center space-y-8 max-w-md mx-auto pb-24 md:pb-20">
         <header className="text-center space-y-2">
           <h1 className="text-4xl font-black font-headline text-white drop-shadow-xl">Credencial Digital</h1>
           <p className="ambient-text text-lg opacity-80">Identificación oficial para competencia y sede.</p>

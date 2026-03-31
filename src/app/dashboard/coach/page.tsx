@@ -16,7 +16,8 @@ import {
   XCircle,
   HelpCircle,
   Flag,
-  ShieldCheck
+  ShieldCheck,
+  ShoppingBag
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -55,7 +56,6 @@ export default function CoachDashboard() {
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         
         for (const divDoc of divsSnap.docs) {
-          // Buscamos equipos donde este usuario sea el entrenador asignado (por ID)
           const teamsSnap = await getDocs(query(
             collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams"),
             where("coachId", "==", userId)
@@ -68,14 +68,13 @@ export default function CoachDashboard() {
               id: tDoc.id,
               clubId: clubId,
               divisionId: divDoc.id,
-              clubName: clubId, // Se puede mejorar trayendo el nombre del club
+              clubName: clubId,
               divisionName: divDoc.data().name
             };
             break;
           }
         }
 
-        // Fallback: Si no hay equipo vinculado por ID, intentar por nombre como último recurso (Legacy)
         if (!foundTeam) {
           for (const divDoc of divsSnap.docs) {
             const teamsSnap = await getDocs(query(
@@ -145,7 +144,8 @@ export default function CoachDashboard() {
   const coachNav = [
     { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-    { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
+    { title: "Tienda Club", href: team ? `/dashboard/clubs/${team.clubId}/shop` : "/dashboard/coach", icon: ShoppingBag },
+    { title: "Calendario", href: team ? `/dashboard/clubs/${team.clubId}/divisions/${team.divisionId}/teams/${team.id}/events` : "/dashboard/coach", icon: Calendar },
   ];
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
@@ -156,12 +156,12 @@ export default function CoachDashboard() {
         <ClipboardCheck className="h-16 w-16 text-white opacity-40" />
       </div>
       <h2 className="text-3xl font-black tracking-tight text-white font-headline">Sin Equipo Asignado</h2>
-      <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">Robert, no hemos encontrado un plantel bajo tu dirección técnica. Contacta al administrador para que te asigne a una división.</p>
+      <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">No hemos encontrado un plantel bajo tu dirección técnica. Contacta al administrador para que te asigne a una división.</p>
     </div>
   );
 
   return (
-    <div className="flex gap-8 animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={coachNav} basePath="/dashboard/coach" />
       
       <div className="flex-1 space-y-10 pb-20">
@@ -211,7 +211,7 @@ export default function CoachDashboard() {
         )}
 
         <Tabs defaultValue="tactical" className="w-full">
-          <TabsList className="bg-white/15 backdrop-blur-xl p-1.5 mb-8 border border-white/20 shadow-2xl inline-flex rounded-2xl">
+          <TabsList className="bg-white/15 backdrop-blur-xl p-1.5 mb-8 border border-white/20 shadow-2xl inline-flex rounded-2xl overflow-x-auto max-w-full">
             <TabsTrigger value="tactical" className="gap-3 px-10 h-12 font-black uppercase text-[11px] tracking-widest text-white data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-xl transition-all rounded-xl"><Settings2 className="h-4 w-4" /> Pizarra Táctica</TabsTrigger>
             <TabsTrigger value="roster" className="gap-3 px-10 h-12 font-black uppercase text-[11px] tracking-widest text-white data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-xl transition-all rounded-xl"><Users className="h-4 w-4" /> Plantilla</TabsTrigger>
           </TabsList>
