@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { 
   CreditCard, 
@@ -48,6 +48,11 @@ export default function ClubFinancesPage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const [newPayment, setNewPayment] = useState({ 
     playerId: "",
@@ -219,7 +224,7 @@ export default function ClubFinancesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-4xl font-black text-red-700">$98.200</div>
-              <p className="text-[10px] text-red-600 font-bold uppercase mt-1">Salarios y Mantenimiento</p>
+              <p className="text-[10px] text-green-600 font-bold uppercase mt-1">Salarios y Mantenimiento</p>
             </CardContent>
           </Card>
           <Card className="bg-primary text-primary-foreground border-none shadow-xl shadow-primary/30 relative overflow-hidden">
@@ -265,7 +270,7 @@ export default function ClubFinancesPage() {
                       <TableCell className="font-black text-slate-900">{m.desc}</TableCell>
                       <TableCell><Badge variant="secondary" className="text-[9px] font-black uppercase border-none">{m.cat}</Badge></TableCell>
                       <TableCell className={`text-right font-black text-base pr-8 ${m.type === 'in' ? 'text-green-600' : 'text-red-600'}`}>
-                        {m.type === 'in' ? '+' : '-'}${m.amt.toLocaleString()}
+                        {m.type === 'in' ? '+' : '-'}${hasMounted ? m.amt.toLocaleString() : m.amt}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -273,7 +278,7 @@ export default function ClubFinancesPage() {
               </Table>
             </CardContent>
             <CardFooter className="bg-slate-50 border-t py-4 justify-center">
-              <Button variant="link" className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-primary">Cargar más movimientos</Button>
+              <Button variant="link" className="text-xs font-black uppercase tracking-widest text-slate-500 hover:text-primary">Cargar más movimientos</Button>
             </CardFooter>
           </Card>
 
