@@ -18,7 +18,8 @@ import {
   HelpCircle,
   Timer,
   AlertCircle,
-  PlayCircle
+  PlayCircle,
+  Star
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where, getDocs } from "firebase/firestore";
@@ -86,6 +87,16 @@ export default function TeamDetailPage() {
     const nextStatus = currentStatus === 'going' ? 'not_going' : currentStatus === 'not_going' ? 'unknown' : 'going';
     const attDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", todayEvent.id, "attendance", playerId);
     setDoc(attDoc, { playerId, playerName, status: nextStatus, updatedAt: new Date().toISOString() }, { merge: true });
+  };
+
+  const handleSetCaptain = (playerId: string) => {
+    if (!teamRef) return;
+    const isCurrentCaptain = team?.captainId === playerId;
+    updateDocumentNonBlocking(teamRef, { captainId: isCurrentCaptain ? null : playerId });
+    toast({ 
+      title: isCurrentCaptain ? "Liderazgo removido" : "Capitán Designado", 
+      description: isCurrentCaptain ? "El equipo se queda sin capitán por ahora." : "Se ha asignado el brazalete oficial."
+    });
   };
 
   const handleTacticalSettingsSave = (settings: { playerCount: number; sport: 'hockey' | 'rugby' }) => {
@@ -228,14 +239,23 @@ export default function TeamDetailPage() {
                   <div className="divide-y divide-slate-100">
                     {roster?.map((member: any) => {
                       const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
+                      const isCaptain = team?.captainId === member.playerId;
                       return (
                         <div key={member.id} className="flex items-center justify-between p-5 group hover:bg-slate-50/80 transition-all">
                           <div className="flex items-center gap-5">
                             <div className="relative">
-                              <Avatar className="h-16 w-14 border-2 border-slate-100 shadow-sm rounded-xl">
+                              <Avatar className={cn(
+                                "h-16 w-14 border-2 transition-all shadow-sm rounded-xl",
+                                isCaptain ? "border-yellow-400 ring-2 ring-yellow-400/20" : "border-slate-100"
+                              )}>
                                 <AvatarImage src={member.playerPhoto} className="object-cover" />
                                 <AvatarFallback className="font-black text-slate-300 bg-slate-50">{member.playerName[0]}</AvatarFallback>
                               </Avatar>
+                              {isCaptain && (
+                                <div className="absolute -top-2 -left-2 bg-yellow-500 text-white text-[10px] font-black h-6 w-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg animate-bounce">
+                                  C
+                                </div>
+                              )}
                               {member.jerseyNumber && (
                                 <div className="absolute -bottom-1 -right-1 bg-slate-900 text-white text-[9px] font-black h-6 w-6 flex items-center justify-center rounded-lg border-2 border-white shadow-md">
                                   #{member.jerseyNumber}
@@ -244,11 +264,27 @@ export default function TeamDetailPage() {
                             </div>
                             <div>
                               <span className="font-black text-slate-900 text-lg leading-none">{member.playerName}</span>
-                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1.5">Estado: Federado Activo</p>
+                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                                Estado: Federado Activo 
+                                {isCaptain && <span className="text-yellow-600 flex items-center gap-1"><Star className="h-2.5 w-2.5 fill-current" /> Capitán</span>}
+                              </p>
                             </div>
                           </div>
                           
                           <div className="flex items-center gap-3">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleSetCaptain(member.playerId)}
+                              className={cn(
+                                "h-10 px-3 gap-2 font-black uppercase text-[10px] tracking-widest transition-all",
+                                isCaptain ? "text-yellow-600 bg-yellow-50" : "text-slate-400 opacity-0 group-hover:opacity-100 hover:text-yellow-600 hover:bg-yellow-50"
+                              )}
+                            >
+                              <Star className={cn("h-4 w-4", isCaptain && "fill-current")} />
+                              {isCaptain ? "Capitán" : "Hacer Capitán"}
+                            </Button>
+
                             {todayEvent ? (
                               <Button 
                                 variant="ghost" 
@@ -334,6 +370,7 @@ export default function TeamDetailPage() {
             roster={roster || []} 
             initialPlayerCount={team?.tacticalPlayerCount || 11}
             initialSport={team?.tacticalSport || 'hockey'}
+            captainId={team?.captainId}
             onSettingsChange={handleTacticalSettingsSave}
           />
         </TabsContent>

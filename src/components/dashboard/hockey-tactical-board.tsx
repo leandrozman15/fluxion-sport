@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Users, GripVertical, RefreshCw, Save } from "lucide-react";
+import { Users, GripVertical, RefreshCw, Save, Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,7 @@ interface TacticalBoardProps {
   roster: any[];
   initialPlayerCount?: number;
   initialSport?: 'hockey' | 'rugby';
+  captainId?: string | null;
   onSettingsChange?: (settings: { playerCount: number; sport: 'hockey' | 'rugby' }) => void;
 }
 
@@ -29,6 +30,7 @@ export function HockeyTacticalBoard({
   roster = [], 
   initialPlayerCount = 11, 
   initialSport = 'hockey',
+  captainId = null,
   onSettingsChange 
 }: TacticalBoardProps) {
   const [playerCount, setPlayerCount] = useState(initialPlayerCount);
@@ -152,6 +154,7 @@ export function HockeyTacticalBoard({
 
           {positions.map((p) => {
             const player = roster.find(r => r.playerId === p.assignedPlayerId);
+            const isCaptain = p.assignedPlayerId === captainId;
             return (
               <div
                 key={p.id}
@@ -168,13 +171,18 @@ export function HockeyTacticalBoard({
                   <div className="relative">
                     <Avatar className={cn(
                       "h-14 w-14 border-2 shadow-[0_8px_20px_rgba(0,0,0,0.4)] bg-white transition-colors",
-                      player ? "border-primary" : "border-dashed border-white/40 bg-white/5"
+                      player ? (isCaptain ? "border-yellow-400 ring-4 ring-yellow-400/20" : "border-primary") : "border-dashed border-white/40 bg-white/5"
                     )}>
                       <AvatarImage src={player?.playerPhoto} className="object-cover" />
                       <AvatarFallback className="text-[10px] font-black opacity-50 bg-slate-100 text-slate-900">
                         {p.label}
                       </AvatarFallback>
                     </Avatar>
+                    {isCaptain && (
+                      <div className="absolute -top-2 -left-2 h-6 w-6 rounded-full bg-yellow-500 border-2 border-white flex items-center justify-center shadow-lg animate-pulse">
+                        <span className="text-[10px] font-black text-white">C</span>
+                      </div>
+                    )}
                     {player && (
                       <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-accent border-2 border-white flex items-center justify-center shadow-md">
                         <span className="text-[10px] font-black text-accent-foreground">
@@ -184,7 +192,10 @@ export function HockeyTacticalBoard({
                     )}
                   </div>
                   {player && (
-                    <span className="mt-1 px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-black shadow-lg border border-white/20 whitespace-nowrap">
+                    <span className={cn(
+                      "mt-1 px-3 py-1 rounded-full text-[10px] font-black shadow-lg border border-white/20 whitespace-nowrap transition-colors",
+                      isCaptain ? "bg-yellow-500 text-white" : "bg-slate-900 text-white"
+                    )}>
                       {player.playerName.split(' ')[0]}
                     </span>
                   )}
@@ -234,6 +245,7 @@ export function HockeyTacticalBoard({
               <div className="max-h-[350px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                 {roster.map((player: any) => {
                   const isAssigned = positions.some(p => p.assignedPlayerId === player.playerId);
+                  const isCaptain = player.playerId === captainId;
                   return (
                     <div 
                       key={player.id} 
@@ -247,10 +259,20 @@ export function HockeyTacticalBoard({
                       )}
                     >
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border shadow-sm">
-                          <AvatarImage src={player.playerPhoto} className="object-cover" />
-                          <AvatarFallback className="font-bold text-slate-400">{player.playerName[0]}</AvatarFallback>
-                        </Avatar>
+                        <div className="relative">
+                          <Avatar className={cn(
+                            "h-10 w-10 border shadow-sm",
+                            isCaptain ? "border-yellow-400" : ""
+                          )}>
+                            <AvatarImage src={player.playerPhoto} className="object-cover" />
+                            <AvatarFallback className="font-bold text-slate-400">{player.playerName[0]}</AvatarFallback>
+                          </Avatar>
+                          {isCaptain && (
+                            <div className="absolute -top-1 -left-1 bg-yellow-500 text-white text-[7px] font-black h-4 w-4 flex items-center justify-center rounded-full border border-white">
+                              C
+                            </div>
+                          )}
+                        </div>
                         <div className="flex flex-col">
                           <span className="text-sm font-black text-slate-900 leading-none">{player.playerName}</span>
                           {isAssigned && (
