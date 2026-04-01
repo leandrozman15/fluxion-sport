@@ -55,6 +55,8 @@ export default function LoginPage() {
 
         if (role === 'admin' || role === 'fed_admin') {
           router.replace('/dashboard/superadmin');
+        } else if (role === 'coordinator') {
+          router.replace('/dashboard/coordinator');
         } else if (role === 'coach') {
           router.replace('/dashboard/coach');
         } else if (clubId) {
