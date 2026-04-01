@@ -3,13 +3,17 @@
 
 import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
-import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Shield, UserCheck, UserCircle, Settings, Building2 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+/**
+ * Cabecera de Perfil Unificada.
+ * Detecta y muestra el Rol Real del usuario basándose en su email institucional.
+ */
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
   const [profile, setProfile] = useState<any>(null);
@@ -20,7 +24,7 @@ export function UserProfileHeader() {
     if (!user || !firestore) return;
     const email = user.email?.toLowerCase().trim() || "";
 
-    // Escuchar cambios en el perfil de Staff (users)
+    // 1. Escuchar cambios en el perfil de STAFF (users) por Email
     const qStaff = query(collection(firestore, "users"), where("email", "==", email));
     const unsubStaff = onSnapshot(qStaff, (snap) => {
       if (!snap.empty) {
@@ -32,7 +36,7 @@ export function UserProfileHeader() {
           });
         }
       } else {
-        // Si no es staff, escuchar en el índice global de jugadores
+        // 2. Si no es staff, escuchar en el JUGADORES (all_players_index) por Email
         const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
         const unsubPlayer = onSnapshot(qPlayer, (pSnap) => {
           if (!pSnap.empty) {
@@ -43,6 +47,9 @@ export function UserProfileHeader() {
                 if (clubSnap.exists()) setClub({ ...clubSnap.data(), id: clubSnap.id });
               });
             }
+          } else {
+            // 3. Fallback: Usuario sin rol vinculado
+            setProfile({ name: user.email, role: 'guest' });
           }
         });
         return () => unsubPlayer();
@@ -78,7 +85,7 @@ export function UserProfileHeader() {
       case 'player': 
         return { label: "Jugador Federado", icon: UserCircle, color: "text-green-600" };
       default: 
-        return { label: "Usuario Registrado", icon: UserCircle, color: "text-slate-500" };
+        return { label: "Usuario Fluxion", icon: UserCircle, color: "text-slate-500" };
     }
   };
 
@@ -91,7 +98,6 @@ export function UserProfileHeader() {
         "flex items-center gap-4 bg-white/95 backdrop-blur-md p-2 pl-2 pr-5 rounded-full border shadow-lg group transition-all",
         isAdminView ? "border-primary/30 ring-2 ring-primary/10" : "border-slate-200"
       )}>
-        {/* Avatar a la izquierda como solicitó el usuario */}
         <Avatar className={cn(
           "h-10 w-10 border-2 transition-transform group-hover:scale-105 shadow-sm",
           isAdminView ? "border-primary" : "border-slate-100"

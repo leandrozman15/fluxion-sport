@@ -53,11 +53,12 @@ export default function CoachDashboard() {
           return;
         }
 
-        // 1. Localizar Perfil de Staff por Email
+        // 1. Localizar Perfil de Staff por Email (Robert/Camila)
         const staffQuery = query(collection(firestore, "users"), where("email", "==", userEmail));
         const staffSnap = await getDocs(staffQuery);
         
         if (staffSnap.empty) {
+          console.warn("Staff profile not found for email:", userEmail);
           setLoading(false);
           return;
         }
@@ -66,14 +67,14 @@ export default function CoachDashboard() {
         setStaffProfile(profile);
 
         const clubId = profile.clubId;
-        const staffIdInDb = profile.id; // ID único usado en coachId de los equipos
+        const staffIdInDb = profile.id; // Este es el ID que Robert tiene en la base de datos
 
         if (!clubId) {
           setLoading(false);
           return;
         }
 
-        // 2. Buscar Equipos de forma paralela en todas las divisiones
+        // 2. Buscar Equipos donde este profesor sea el responsable (coachId)
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         
         const teamsPromises = divsSnap.docs.map(async (divDoc) => {
@@ -168,7 +169,7 @@ export default function CoachDashboard() {
       </div>
       <h2 className="text-3xl font-black tracking-tight text-white font-headline">Sin Equipos Asignados</h2>
       <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">
-        Hola {staffProfile?.name || 'Robert'}, no hemos encontrado categorías vinculadas a tu perfil. 
+        Hola {staffProfile?.name || 'Profesor'}, no hemos encontrado categorías vinculadas a tu perfil de email ({user?.email}). 
         Solicita al administrador que te asigne como responsable en una División.
       </p>
     </div>
