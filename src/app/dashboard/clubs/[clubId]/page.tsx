@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { 
   Plus, 
   ArrowRight,
@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   Users,
   Share2,
-  LayoutGrid,
   Building2,
   UserRound,
   FileText,
@@ -22,28 +21,48 @@ import {
   Clock,
   Calendar,
   Layers,
-  Save,
-  Globe,
-  Phone,
-  MapPin,
   ShoppingBag
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc } from "firebase/firestore";
-import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { collection, doc, query, where, getDocs } from "firebase/firestore";
+import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
 
+/**
+ * Panel Administrativo Institucional.
+ * Versión 2.0 - Con Escudo de Roles para prevenir accesos indebidos.
+ */
 export default function InstitutionDetailPage() {
   const { clubId } = useParams() as { clubId: string };
+  const { firestore, user } = useFirebase();
   const db = useFirestore();
+  const router = useRouter();
   const { toast } = useToast();
   
+  // ESCUDO DE ROLES: Los coordinadores y entrenadores NO deben estar aquí.
+  useEffect(() => {
+    async function checkRoleAndBounce() {
+      if (!user || !firestore) return;
+      try {
+        const email = user.email?.toLowerCase().trim();
+        const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
+        if (!staffSnap.empty) {
+          const role = staffSnap.docs[0].data().role;
+          if (role === 'coordinator') {
+            router.replace('/dashboard/coordinator');
+          } else if (role === 'coach') {
+            router.replace('/dashboard/coach');
+          }
+        }
+      } catch (e) { console.error(e); }
+    }
+    checkRoleAndBounce();
+  }, [user, firestore, router]);
+
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
 
@@ -71,7 +90,7 @@ export default function InstitutionDetailPage() {
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   return (
-    <div className="flex gap-8 animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
       
       <div className="flex-1 space-y-8">
@@ -86,7 +105,7 @@ export default function InstitutionDetailPage() {
                 <AvatarFallback className="bg-primary/5 text-primary"><Building2 /></AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-3xl font-black font-headline !text-slate-900 shadow-none !text-shadow-none" style={{ textShadow: 'none' }}>{club?.name}</h1>
+                <h1 className="text-3xl font-black font-headline !text-slate-900 shadow-none" style={{ textShadow: 'none' }}>{club?.name}</h1>
                 <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">{club?.address || "Sede oficial del club"}</p>
               </div>
             </div>
@@ -141,10 +160,10 @@ export default function InstitutionDetailPage() {
 
           <Card className="bg-white border-none shadow-sm border-l-4 border-l-primary">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Staff</CardTitle>
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Staff Técnico</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-black text-primary">Activo</div>
+              <div className="text-3xl font-black text-primary">Operativo</div>
               <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Profesores vinculados</p>
             </CardContent>
           </Card>
@@ -185,7 +204,7 @@ export default function InstitutionDetailPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none shadow-2xl relative overflow-hidden">
+            <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none shadow-2xl relative overflow-hidden rounded-[2rem]">
               <CardHeader className="relative z-10">
                 <CardTitle className="text-lg font-black uppercase tracking-tight">Accesos Directos</CardTitle>
               </CardHeader>

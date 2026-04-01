@@ -39,33 +39,26 @@ export default function LoginPage() {
     try {
       const userEmail = currentUser.email?.toLowerCase().trim() || "";
       
-      // Intentamos obtener el perfil por UID primero
-      const userDoc = await getDocs(query(collection(firestore, "users"), where("id", "==", currentUser.uid)));
-      let data = !userDoc.empty ? userDoc.docs[0].data() : null;
-
-      if (!data && userEmail) {
-        // Fallback por email
-        const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", userEmail)));
-        if (!staffSnap.empty) data = staffSnap.docs[0].data();
-      }
-
-      if (data) {
+      const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", userEmail)));
+      
+      if (!staffSnap.empty) {
+        const data = staffSnap.docs[0].data();
         const role = data.role;
         const clubId = data.clubId;
 
+        // PRIORIDAD ABSOLUTA DE ROLES
         if (role === 'admin' || role === 'fed_admin') {
           router.replace('/dashboard/superadmin');
         } else if (role === 'coordinator') {
           router.replace('/dashboard/coordinator');
         } else if (role === 'coach') {
           router.replace('/dashboard/coach');
-        } else if (clubId) {
-          router.replace(`/dashboard/clubs/${clubId}`);
+        } else if (role === 'club_admin' || clubId) {
+          router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
         } else {
           router.replace('/dashboard/clubs');
         }
       } else {
-        // Si no es staff, buscar en Jugadores
         const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", userEmail)));
         if (!playerSnap.empty) {
           router.replace('/dashboard/player');
@@ -73,9 +66,8 @@ export default function LoginPage() {
           router.replace('/dashboard/clubs');
         }
       }
-
     } catch (e) {
-      console.error("Error en redirección:", e);
+      console.error("Error en redirección de login:", e);
       router.replace('/dashboard/clubs');
     }
   };
@@ -99,8 +91,6 @@ export default function LoginPage() {
     try {
       const cred = await signInAnonymously(auth);
       const user = cred.user;
-      
-      // Creamos/Actualizamos el perfil de Super Admin en Firestore
       await setDoc(doc(firestore, "users", user.uid), {
         id: user.uid,
         email: "admin@fluxionsport.com",
@@ -109,10 +99,7 @@ export default function LoginPage() {
         createdAt: new Date().toISOString()
       }, { merge: true });
 
-      toast({ 
-        title: "Perfil de Super Admin Activo", 
-        description: "Has ingresado con permisos totales de gestión." 
-      });
+      toast({ title: "Perfil de Super Admin Activo" });
       router.replace('/dashboard/superadmin');
     } catch (err) {
       console.error(err);
@@ -142,7 +129,7 @@ export default function LoginPage() {
         <Card className="shadow-2xl border-none bg-white/95 backdrop-blur-md overflow-hidden">
           <CardHeader className="bg-slate-50 border-b pb-6">
             <CardTitle className="text-2xl font-black text-slate-900">Acceso Institucional</CardTitle>
-            <CardDescription className="font-medium">Ingresa a la consola de gestión de tu club.</CardDescription>
+            <CardDescription className="font-medium">Ingresa a la consola de tu club.</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4 pt-6">
@@ -161,23 +148,16 @@ export default function LoginPage() {
                 {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
                 Ingresar al Club
               </Button>
-              
-              <div className="relative w-full py-4">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-400 font-black">Opciones de Soporte</span></div>
-              </div>
-
               <Button 
                 type="button" 
                 variant="outline" 
-                className="w-full h-12 text-xs font-black uppercase tracking-widest border-2 border-red-100 text-red-600 hover:bg-red-50 gap-2 transition-all" 
+                className="w-full h-12 text-xs font-black uppercase tracking-widest border-2 border-red-100 text-red-600 hover:bg-red-50 gap-2" 
                 onClick={handleSuperAdminAccess}
                 disabled={loading}
               >
                 <ShieldAlert className="h-4 w-4" />
                 Acceso Super Administrador
               </Button>
-
               <Button type="button" variant="ghost" className="w-full text-slate-400 text-[10px] font-bold uppercase" onClick={() => router.push('/')}>
                 <Zap className="h-3 w-3 mr-2" /> Volver al Inicio
               </Button>

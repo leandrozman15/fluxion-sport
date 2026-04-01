@@ -8,8 +8,8 @@ import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
 /**
- * Motor de Redireccionamiento Inteligente.
- * Identifica el rol real del usuario cruzando datos de Staff y Jugadores por Email.
+ * Motor de Redireccionamiento Maestro.
+ * Prioriza Roles Deportivos (Coordinador/Coach) sobre los Administrativos.
  */
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -22,7 +22,7 @@ export default function DashboardRedirectPage() {
       try {
         const email = user.email?.toLowerCase().trim() || "";
         
-        // 1. Buscar en STAFF (Administradores, Coordinadores, Entrenadores)
+        // 1. Buscar en STAFF (Jerarquía: SuperAdmin -> Coordinador -> Coach -> ClubAdmin)
         const staffQuery = query(collection(firestore, "users"), where("email", "==", email));
         const staffSnap = await getDocs(staffQuery);
         
@@ -31,39 +31,42 @@ export default function DashboardRedirectPage() {
           const role = staffData.role;
           const clubId = staffData.clubId;
 
-          console.log("Role detectado en Staff:", role);
+          console.log("Fluxion Auth - Role Detectado:", role);
 
+          // PRIORIDAD 1: Super Administradores
           if (role === 'admin' || role === 'fed_admin') {
-            router.replace('/dashboard/superadmin');
-          } else if (role === 'club_admin') {
-            router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
-          } else if (role === 'coordinator') {
-            router.replace('/dashboard/coordinator');
-          } else if (role === 'coach') {
-            router.replace('/dashboard/coach');
-          } else {
-            // Fallback para roles de staff no específicos
-            router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
+            return router.replace('/dashboard/superadmin');
+          } 
+          
+          // PRIORIDAD 2: Coordinadores (Consola Deportiva)
+          if (role === 'coordinator') {
+            return router.replace('/dashboard/coordinator');
+          } 
+          
+          // PRIORIDAD 3: Entrenadores (Consola Técnica)
+          if (role === 'coach') {
+            return router.replace('/dashboard/coach');
+          } 
+
+          // PRIORIDAD 4: Directores de Club (Panel Administrativo)
+          if (role === 'club_admin' || clubId) {
+            return router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
           }
-          return;
         }
 
-        // 2. Si no es staff, buscar en JUGADORES (Índice Global)
+        // 2. JUGADORES (Hub del Socio)
         const playerQuery = query(collection(firestore, "all_players_index"), where("email", "==", email));
         const playerSnap = await getDocs(playerQuery);
         
         if (!playerSnap.empty) {
-          console.log("Role detectado: Player");
-          router.replace('/dashboard/player');
-          return;
+          return router.replace('/dashboard/player');
         }
 
-        // 3. Usuario sin vinculación (Desarrollador o Usuario nuevo)
-        console.log("Usuario sin vinculación institucional previa.");
+        // 3. Fallback: Sin vinculación institucional
         router.replace('/dashboard/clubs');
 
       } catch (e) {
-        console.error("Error crítico en redireccionamiento de roles:", e);
+        console.error("Error crítico en redireccionamiento:", e);
         router.replace('/login');
       }
     }
@@ -78,7 +81,7 @@ export default function DashboardRedirectPage() {
     <div className="flex flex-col h-[60vh] items-center justify-center space-y-4 text-center">
       <Loader2 className="h-10 w-10 animate-spin text-white opacity-50" />
       <p className="text-white font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
-        Sincronizando Consola de Gestión...
+        Identificando Perfil Deportivo...
       </p>
     </div>
   );
