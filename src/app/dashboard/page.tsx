@@ -34,7 +34,7 @@ export default function DashboardRedirectPage() {
           console.log("Role detectado en Staff:", role);
 
           if (role === 'admin' || role === 'fed_admin') {
-            router.replace('/dashboard/clubs');
+            router.replace('/dashboard/superadmin');
           } else if (role === 'club_admin') {
             router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
           } else if (role === 'coordinator') {
@@ -75,10 +75,10 @@ export default function DashboardRedirectPage() {
   }, [user, isUserLoading, firestore, router]);
 
   return (
-    <div className="flex flex-col h-[60vh] items-center justify-center space-y-4">
+    <div className="flex flex-col h-[60vh] items-center justify-center space-y-4 text-center">
       <Loader2 className="h-10 w-10 animate-spin text-white opacity-50" />
       <p className="text-white font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
-        Verificando Credenciales...
+        Sincronizando Consola de Gestión...
       </p>
     </div>
   );
