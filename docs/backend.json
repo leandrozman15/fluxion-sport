@@ -11,6 +11,7 @@
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "email": { "type": "string" },
+        "phone": { "type": "string", "description": "Teléfono de contacto personal." },
         "role": { 
           "type": "string", 
           "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee", "coordinator"],
