@@ -61,6 +61,7 @@ input, textarea, select {
   @apply text-slate-900 !important;
   @apply border-slate-300 !important;
   @apply opacity-100 !important;
+  font-size: 16px !important; /* Evita zoom automático en iOS */
 }
 
 /* Estilos de títulos ambientales con sombra de seguridad */
@@ -90,4 +91,9 @@ input, textarea, select {
 }
 ::-webkit-scrollbar-thumb {
   @apply bg-white/20 rounded-full;
+}
+
+/* Ajustes para notch y barras de sistema en móviles */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }

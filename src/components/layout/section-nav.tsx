@@ -1,18 +1,17 @@
-
 "use client";
 
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LucideIcon, LogOut, Camera, Loader2, UserCircle, Upload, Check, CameraIcon } from "lucide-react";
+import { LucideIcon, LogOut, Camera, Loader2, UserCircle, Upload, CameraIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc } from "firebase/firestore";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 interface NavItem {
@@ -51,18 +50,14 @@ export function SectionNav({ items }: SectionNavProps) {
       const email = user.email?.toLowerCase().trim();
 
       try {
-        // 1. Actualizar en colección de Staff (users) si existe
         const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
         staffSnap.forEach(d => {
           updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: base64 });
         });
 
-        // 2. Actualizar en índice global de jugadores
         const indexSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
         indexSnap.forEach(d => {
           updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: base64 });
-          
-          // 3. Buscar y actualizar en la colección específica del club para ese jugador
           const clubId = d.data().clubId;
           if (clubId) {
             updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "players", d.id), { photoUrl: base64 });
@@ -82,7 +77,7 @@ export function SectionNav({ items }: SectionNavProps) {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] md:relative md:z-auto md:flex md:flex-col gap-3 bg-card/95 backdrop-blur-xl md:bg-card/80 border-t md:border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl p-2 md:rounded-2xl h-16 md:h-fit md:sticky md:top-8 animate-in slide-in-from-bottom md:slide-in-from-left duration-500 flex flex-row items-center justify-around md:justify-start md:min-w-[64px]">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] md:relative md:z-auto md:flex md:flex-col gap-3 bg-card/95 backdrop-blur-xl md:bg-card/80 border-t md:border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl p-2 md:rounded-2xl h-[72px] md:h-fit md:sticky md:top-8 animate-in slide-in-from-bottom md:slide-in-from-left duration-500 flex flex-row items-center justify-around md:justify-start md:min-w-[64px] pb-safe">
       <TooltipProvider delayDuration={0}>
         <div className="flex flex-row md:flex-col gap-1 md:gap-3 w-full items-center justify-around md:justify-start">
           {items.map((item) => {
@@ -101,7 +96,7 @@ export function SectionNav({ items }: SectionNavProps) {
                         : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
                     )}
                   >
-                    {Icon && <Icon className={cn("h-5 w-5", isReallyActive ? "scale-110" : "group-hover:scale-110")} />}
+                    {Icon && <Icon className={cn("h-6 w-6 md:h-5 md:w-5", isReallyActive ? "scale-110" : "group-hover:scale-110")} />}
                     {isReallyActive && (
                       <span className="absolute -top-1 -right-1 md:hidden w-2 h-2 bg-accent rounded-full animate-pulse shadow-sm" />
                     )}
@@ -118,15 +113,12 @@ export function SectionNav({ items }: SectionNavProps) {
         <div className="hidden md:block w-8 h-px bg-slate-200 my-2" />
 
         <div className="flex flex-row md:flex-col gap-1 md:gap-3 items-center">
-          {/* Botón de Cámara para Selfie / Foto */}
           <Tooltip>
             <Dialog open={isPhotoOpen} onOpenChange={setIsPhotoOpen}>
               <TooltipTrigger asChild>
-                <DialogTrigger asChild>
-                  <button className="flex items-center justify-center w-12 h-12 rounded-xl text-slate-500 hover:bg-primary/10 hover:text-primary transition-all duration-200 group">
-                    <Camera className="h-5 w-5 group-hover:scale-110" />
-                  </button>
-                </DialogTrigger>
+                <button className="flex items-center justify-center w-12 h-12 rounded-xl text-slate-500 hover:bg-primary/10 hover:text-primary transition-all duration-200 group">
+                  <Camera className="h-6 w-6 md:h-5 md:w-5 group-hover:scale-110" />
+                </button>
               </TooltipTrigger>
               <DialogContent className="max-w-sm bg-white">
                 <DialogHeader>
@@ -140,48 +132,27 @@ export function SectionNav({ items }: SectionNavProps) {
                       <Upload className="h-8 w-8 text-white" />
                     </div>
                   </div>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*" 
-                    capture="user" 
-                    onChange={handlePhotoUpload} 
-                  />
+                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="user" onChange={handlePhotoUpload} />
                   <div className="grid grid-cols-1 w-full gap-2">
-                    <Button 
-                      onClick={() => fileInputRef.current?.click()} 
-                      disabled={uploading}
-                      className="font-black uppercase text-[10px] tracking-widest h-12 gap-2"
-                    >
+                    <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="font-black uppercase text-[10px] tracking-widest h-12 gap-2">
                       {uploading ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4" />}
                       Tomar Selfie / Subir Foto
                     </Button>
-                    <Button variant="ghost" onClick={() => setIsPhotoOpen(false)} className="text-[10px] font-bold uppercase tracking-widest">
-                      Cancelar
-                    </Button>
+                    <Button variant="ghost" onClick={() => setIsPhotoOpen(false)} className="text-[10px] font-bold uppercase tracking-widest">Cancelar</Button>
                   </div>
                 </div>
               </DialogContent>
             </Dialog>
-            <TooltipContent side="right" className="hidden md:block font-bold bg-slate-900 text-white border-none">
-              Actualizar Mi Foto
-            </TooltipContent>
+            <TooltipContent side="right" className="hidden md:block font-bold bg-slate-900 text-white border-none">Actualizar Mi Foto</TooltipContent>
           </Tooltip>
 
-          {/* Salir */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                onClick={handleLogout}
-                className="flex items-center justify-center w-12 h-12 rounded-xl text-destructive hover:bg-red-50 transition-all duration-200 group"
-              >
-                <LogOut className="h-5 w-5 group-hover:scale-110" />
+              <button onClick={handleLogout} className="flex items-center justify-center w-12 h-12 rounded-xl text-destructive hover:bg-red-50 transition-all duration-200 group">
+                <LogOut className="h-6 w-6 md:h-5 md:w-5 group-hover:scale-110" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right" className="hidden md:block font-bold bg-destructive text-white border-none">
-              Cerrar Sesión
-            </TooltipContent>
+            <TooltipContent side="right" className="hidden md:block font-bold bg-destructive text-white border-none">Cerrar Sesión</TooltipContent>
           </Tooltip>
         </div>
       </TooltipProvider>

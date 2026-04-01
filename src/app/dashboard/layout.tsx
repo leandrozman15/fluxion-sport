@@ -1,4 +1,3 @@
-
 "use client";
 
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -42,7 +41,7 @@ export default function DashboardLayout({
           {/* Encabezado con Perfil y Salir visible para todos en la pantalla */}
           <UserProfileHeader />
           
-          <main className="p-6 md:p-8 flex-1">
+          <main className="p-4 md:p-8 flex-1 pb-24 md:pb-8">
             {children}
           </main>
         </div>
