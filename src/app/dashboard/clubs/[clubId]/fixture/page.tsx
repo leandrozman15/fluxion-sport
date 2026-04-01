@@ -15,7 +15,8 @@ import {
   CalendarDays,
   Shield,
   Building2,
-  ExternalLink
+  ExternalLink,
+  MapPinned
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, getDocs, query, orderBy } from "firebase/firestore";
@@ -48,7 +49,10 @@ export default function GlobalFixtureManagerPage() {
     title: ""
   });
 
-  const opponentsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "opponents"), [db, clubId]);
+  const opponentsQuery = useMemoFirebase(() => 
+    query(collection(db, "clubs", clubId, "opponents"), orderBy("name", "asc")), 
+    [db, clubId]
+  );
   const { data: opponents } = useCollection(opponentsQuery);
 
   useEffect(() => {
@@ -59,7 +63,12 @@ export default function GlobalFixtureManagerPage() {
         const teams: any[] = [];
         for (const divDoc of divsSnap.docs) {
           const tSnap = await getDocs(collection(db, "clubs", clubId, "divisions", divDoc.id, "teams"));
-          tSnap.forEach(td => teams.push({ ...td.data(), id: td.id, divisionId: divDoc.id, divisionName: divDoc.data().name }));
+          tSnap.forEach(td => teams.push({ 
+            ...td.data(), 
+            id: td.id, 
+            divisionId: divDoc.id, 
+            divisionName: divDoc.data().name 
+          }));
         }
         setAllTeams(teams);
       } catch (e) { console.error(e); }
@@ -86,6 +95,7 @@ export default function GlobalFixtureManagerPage() {
         ...newMatch,
         id: matchId,
         opponent: selectedOpp.name,
+        opponentId: selectedOpp.id,
         opponentLogo: selectedOpp.logoUrl || "",
         location: selectedOpp.city || "Sede Rival",
         address: selectedOpp.address || "",
@@ -94,7 +104,7 @@ export default function GlobalFixtureManagerPage() {
         createdAt: new Date().toISOString()
       });
 
-      toast({ title: "Partido Programado", description: `Se agendó el encuentro para ${selectedTeam.name}.` });
+      toast({ title: "Partido Programado", description: `Se agendó el encuentro para ${selectedTeam.name} vs ${selectedOpp.name}.` });
       setIsDialogOpen(false);
       setNewMatch({ teamId: "", opponentId: "", date: "", location: "", type: "match", title: "" });
     } catch (e) {
@@ -114,7 +124,7 @@ export default function GlobalFixtureManagerPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Gestor de Fixture Anual</h1>
-            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Planificación masiva de encuentros competitivos.</p>
+            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Planificación masiva vinculada a base de rivales.</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
@@ -129,7 +139,7 @@ export default function GlobalFixtureManagerPage() {
               <DialogContent className="max-w-md bg-white border-none shadow-2xl">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black text-slate-900">Programar Encuentro</DialogTitle>
-                  <DialogDescription className="font-bold text-slate-500">Los datos del rival se cargarán automáticamente.</DialogDescription>
+                  <DialogDescription className="font-bold text-slate-500">Selecciona un rival de la base para cargar sus datos automáticamente.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-6">
                   <div className="space-y-2">
@@ -144,7 +154,7 @@ export default function GlobalFixtureManagerPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival (Liga)</Label>
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival</Label>
                     <Select value={newMatch.opponentId} onValueChange={v => setNewMatch({...newMatch, opponentId: v})}>
                       <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir rival..." /></SelectTrigger>
                       <SelectContent>
@@ -159,7 +169,7 @@ export default function GlobalFixtureManagerPage() {
                       </SelectContent>
                     </Select>
                     {(!opponents || opponents.length === 0) && (
-                      <p className="text-[10px] text-destructive font-black uppercase mt-1">Debes cargar rivales primero en la sección "Gestionar Rivales".</p>
+                      <p className="text-[10px] text-destructive font-black uppercase mt-1">Debes cargar rivales primero para armar el fixture.</p>
                     )}
                   </div>
                   <div className="grid grid-cols-1 gap-4">
@@ -171,7 +181,7 @@ export default function GlobalFixtureManagerPage() {
                 </div>
                 <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
                   <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-                  <Button onClick={handleCreateMatch} disabled={!newMatch.teamId || !newMatch.opponentId || !newMatch.date} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Guardar en Fixture</Button>
+                  <Button onClick={handleCreateMatch} disabled={!newMatch.teamId || !newMatch.opponentId || !newMatch.date} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Confirmar en Fixture</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -183,15 +193,19 @@ export default function GlobalFixtureManagerPage() {
         <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-md overflow-hidden">
           <CardHeader className="bg-slate-900 text-white pb-6">
             <CardTitle className="text-xl font-black flex items-center gap-3">
-              <CalendarDays className="h-6 w-6 text-primary" /> Calendario de Competencia
+              <CalendarDays className="h-6 w-6 text-primary" /> Calendario Unificado de Competencia
             </CardTitle>
-            <CardDescription className="text-white/60 font-bold italic">Vista consolidada de todos los partidos del club.</CardDescription>
+            <CardDescription className="text-white/60 font-bold italic">Monitor de partidos programados en todas las categorías.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="p-16 text-center space-y-4 opacity-60">
-              <Trophy className="h-20 w-20 mx-auto text-primary" />
-              <p className="font-black text-slate-900 uppercase tracking-widest text-sm">Consola de Fixture Unificada</p>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium">Usa el botón superior para programar encuentros. Al seleccionar un rival, se cargarán sus escudos y direcciones de sede automáticamente para todas las jugadoras.</p>
+            <div className="p-16 text-center space-y-4">
+              <div className="bg-primary/5 p-8 rounded-full inline-block mb-4">
+                <Trophy className="h-20 w-20 text-primary opacity-40" />
+              </div>
+              <p className="font-black text-slate-900 uppercase tracking-widest text-sm">Gestor de Partidos Activo</p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium leading-relaxed">
+                Al seleccionar un rival desde la base maestra, Fluxion Sport cargará automáticamente su **escudo oficial** y **dirección de sede** para que las jugadoras puedan utilizar el GPS desde sus perfiles.
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -14,7 +14,8 @@ import {
   ImagePlus,
   Search,
   Building2,
-  Pencil
+  Pencil,
+  ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, orderBy } from "firebase/firestore";
@@ -27,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 export default function OpponentsManagerPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -100,8 +102,8 @@ export default function OpponentsManagerPage() {
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Registro de Rivales</h1>
-            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Base de datos de clubes competidores y sedes.</p>
+            <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Base de Clubes Rivales</h1>
+            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Gestión centralizada de escudos y sedes de la liga.</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -111,8 +113,8 @@ export default function OpponentsManagerPage() {
             </DialogTrigger>
             <DialogContent className="max-w-md bg-white border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-slate-900">Nuevo Club Competidor</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Registra los datos para el fixture y mapas.</DialogDescription>
+                <DialogTitle className="text-2xl font-black text-slate-900">Nuevo Oponente</DialogTitle>
+                <DialogDescription className="font-bold text-slate-500">Registra el escudo y la dirección para los mapas del plantel.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-6">
                 <div className="flex flex-col items-center gap-4">
@@ -128,36 +130,36 @@ export default function OpponentsManagerPage() {
                       <ImagePlus className="h-6 w-6 text-white" />
                     </button>
                   </div>
-                  <p className="text-[10px] font-black uppercase text-slate-400">Escudo del Club</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400">Escudo Oficial</p>
                 </div>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Oficial</Label>
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Club</Label>
                     <Input value={newOpp.name} onChange={e => setNewOpp({...newOpp, name: e.target.value})} placeholder="Ej. Lomas Athletic Club" className="h-12 border-2 font-bold" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Siglas / Corto</Label>
+                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Siglas</Label>
                       <Input value={newOpp.shortName} onChange={e => setNewOpp({...newOpp, shortName: e.target.value})} placeholder="Ej. LAC" className="h-12 border-2" />
                     </div>
                     <div className="space-y-2">
                       <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Ciudad</Label>
-                      <Input value={newOpp.city} onChange={e => setNewOpp({...newOpp, city: e.target.value})} placeholder="Ej. Lomas" className="h-12 border-2" />
+                      <Input value={newOpp.city} onChange={e => setNewOpp({...newOpp, city: e.target.value})} placeholder="Ej. Lomas de Zamora" className="h-12 border-2" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-primary" /> Dirección de Sede (para GPS)
+                      <MapPin className="h-3.5 w-3.5 text-primary" /> Dirección de Sede (GPS)
                     </Label>
-                    <Input value={newOpp.address} onChange={e => setNewOpp({...newOpp, address: e.target.value})} placeholder="Calle y Altura" className="h-12 border-2" />
+                    <Input value={newOpp.address} onChange={e => setNewOpp({...newOpp, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
                   </div>
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e)} />
               </div>
               <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
                 <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold">Cancelar</Button>
-                <Button onClick={handleCreateOpponent} disabled={!newOpp.name} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Registrar Rival</Button>
+                <Button onClick={handleCreateOpponent} disabled={!newOpp.name} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Guardar Rival</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -165,7 +167,7 @@ export default function OpponentsManagerPage() {
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
           <Input 
-            placeholder="Buscar club rival..." 
+            placeholder="Buscar por nombre o sigla..." 
             className="pl-10 h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-primary backdrop-blur-md"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -178,33 +180,42 @@ export default function OpponentsManagerPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredOpponents?.map((opp: any) => (
-            <Card key={opp.id} className="group hover:border-primary/50 transition-all border-none shadow-2xl bg-white/95 backdrop-blur-md overflow-hidden">
+            <Card key={opp.id} className="group hover:border-primary/50 transition-all border-none shadow-2xl bg-white/95 backdrop-blur-md overflow-hidden flex flex-col">
               <CardHeader className="flex flex-row items-center gap-5 pb-4">
                 <Avatar className="h-16 w-16 border-2 border-slate-100 shadow-lg rounded-2xl bg-white group-hover:scale-105 transition-transform">
                   <AvatarImage src={opp.logoUrl} className="object-contain p-2" />
                   <AvatarFallback className="bg-slate-50 text-slate-200"><Shield className="h-8 w-8" /></AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-widest px-2">{opp.shortName || 'RIVAL'}</Badge>
-                  </div>
+                  <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-widest px-2 mb-1">{opp.shortName || 'RIVAL'}</Badge>
                   <CardTitle className="text-xl font-black truncate text-slate-900 leading-none">{opp.name}</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 pb-6">
-                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                  <div className="flex flex-col">
-                    <p className="text-xs font-black text-slate-900 uppercase tracking-tight">{opp.city || 'Sede Rival'}</p>
-                    <p className="text-[10px] text-slate-500 font-bold truncate max-w-[200px]">{opp.address || 'Dirección no cargada'}</p>
+              <CardContent className="space-y-3 pb-6 flex-1">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest">
+                    <MapPin className="h-3.5 w-3.5 text-primary" /> {opp.city || 'Sede'}
                   </div>
+                  <p className="text-sm font-bold text-slate-700 leading-tight">
+                    {opp.address || 'Sin dirección cargada'}
+                  </p>
+                  {opp.address && (
+                    <a 
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${opp.name} ${opp.address} ${opp.city}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-primary hover:underline pt-1"
+                    >
+                      <ExternalLink className="h-3 w-3" /> Ver en Google Maps
+                    </a>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="bg-slate-50/50 border-t flex justify-end gap-2 p-4">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-primary" onClick={() => { setEditingOpp(opp); setIsEditOpen(true); }}>
+                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingOpp(opp); setIsEditOpen(true); }}>
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-destructive" onClick={() => deleteDocumentNonBlocking(doc(db, "clubs", clubId, "opponents", opp.id))}>
+                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-destructive rounded-xl" onClick={() => deleteDocumentNonBlocking(doc(db, "clubs", clubId, "opponents", opp.id))}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </CardFooter>
@@ -214,7 +225,7 @@ export default function OpponentsManagerPage() {
             <div className="col-span-full text-center py-32 border-2 border-dashed rounded-[2.5rem] bg-white/5 opacity-50">
               <Building2 className="h-20 w-20 mx-auto text-white mb-6 opacity-20" />
               <p className="text-white font-black uppercase tracking-[0.3em] text-sm">No hay rivales registrados</p>
-              <p className="text-white/60 text-xs mt-2 font-bold uppercase tracking-widest">Carga los clubes de la liga para armar el fixture.</p>
+              <p className="text-white/60 text-xs mt-2 font-bold uppercase tracking-widest">Registra los clubes de la liga para automatizar fixture y mapas.</p>
             </div>
           )}
         </div>
@@ -222,7 +233,7 @@ export default function OpponentsManagerPage() {
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-md bg-white border-none shadow-2xl">
-          <DialogHeader><DialogTitle className="text-xl font-black">Editar Club Rival</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xl font-black">Editar Oponente</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
             <div className="flex flex-col items-center gap-4">
               <div className="relative group">
@@ -237,11 +248,11 @@ export default function OpponentsManagerPage() {
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="font-bold">Nombre</Label>
+                <Label className="font-bold">Nombre Oficial</Label>
                 <Input value={editingOpp?.name || ""} onChange={e => setEditingOpp({...editingOpp, name: e.target.value})} className="h-12 border-2" />
               </div>
               <div className="space-y-2">
-                <Label className="font-bold">Dirección</Label>
+                <Label className="font-bold">Dirección de Sede</Label>
                 <Input value={editingOpp?.address || ""} onChange={e => setEditingOpp({...editingOpp, address: e.target.value})} className="h-12 border-2" />
               </div>
             </div>

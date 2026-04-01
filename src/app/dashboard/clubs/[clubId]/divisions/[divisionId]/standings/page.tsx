@@ -11,10 +11,11 @@ import {
   Table as TableIcon,
   Trophy,
   Shield,
-  ArrowUpCircle
+  ArrowUpCircle,
+  Building2
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, query, orderBy } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +53,10 @@ export default function AdminStandingsPage() {
   const standingsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "standings"), [db, clubId, divisionId]);
   const { data: standings, isLoading: standingsLoading } = useCollection(standingsQuery);
 
-  const opponentsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "opponents"), [db, clubId]);
+  const opponentsQuery = useMemoFirebase(() => 
+    query(collection(db, "clubs", clubId, "opponents"), orderBy("name", "asc")), 
+    [db, clubId]
+  );
   const { data: opponents } = useCollection(opponentsQuery);
 
   const handleAddStanding = async () => {
@@ -100,38 +104,43 @@ export default function AdminStandingsPage() {
   if (divLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20 px-4 md:px-0">
       <header className="flex flex-col gap-4">
         <Link href={`/dashboard/clubs/${clubId}/divisions`} className="ambient-link group w-fit">
-          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver a ramas
+          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver a categorías
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Posiciones: {division?.name}</h1>
+              <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Tabla de Posiciones: {division?.name}</h1>
               <Badge className="bg-primary text-white border-none uppercase font-black px-3 py-1">OFICIAL</Badge>
             </div>
-            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Gestión competitiva de la tabla de clasificación.</p>
+            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Carga de puntos y clasificación competitiva.</p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-8 shadow-2xl">
-                <Plus className="h-5 w-5 mr-2" /> Agregar Equipo a Tabla
+                <Plus className="h-5 w-5 mr-2" /> Agregar Club a Tabla
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md bg-white border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-slate-900">Entrada de Clasificación</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Selecciona un club registrado o ingresa el nombre.</DialogDescription>
+                <DialogTitle className="text-2xl font-black text-slate-900">Registro de Clasificación</DialogTitle>
+                <DialogDescription className="font-bold text-slate-500">Selecciona un club de la base para vincular su escudo oficial.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-2">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival (Registrado)</Label>
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival (Vinculado)</Label>
                   <Select value={newTeam.opponentId} onValueChange={v => setNewTeam({...newTeam, opponentId: v})}>
                     <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir club..." /></SelectTrigger>
                     <SelectContent>
                       {opponents?.map(o => (
-                        <SelectItem key={o.id} value={o.id} className="font-bold">{o.name}</SelectItem>
+                        <SelectItem key={o.id} value={o.id} className="font-bold">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={o.logoUrl} className="object-contain" /></Avatar>
+                            {o.name}
+                          </div>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -155,17 +164,17 @@ export default function AdminStandingsPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-center">
                     <Label className="text-[10px] font-black uppercase text-green-600">G</Label>
-                    <Input type="number" value={newTeam.won} onChange={e => setNewTeam({...newTeam, won: parseInt(e.target.value) || 0})} className="h-10" />
+                    <Input type="number" value={newTeam.won} onChange={e => setNewTeam({...newTeam, won: parseInt(e.target.value) || 0})} className="h-10 text-center" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-center">
                     <Label className="text-[10px] font-black uppercase text-orange-600">E</Label>
-                    <Input type="number" value={newTeam.drawn} onChange={e => setNewTeam({...newTeam, drawn: parseInt(e.target.value) || 0})} className="h-10" />
+                    <Input type="number" value={newTeam.drawn} onChange={e => setNewTeam({...newTeam, drawn: parseInt(e.target.value) || 0})} className="h-10 text-center" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-center">
                     <Label className="text-[10px] font-black uppercase text-red-600">P</Label>
-                    <Input type="number" value={newTeam.lost} onChange={e => setNewTeam({...newTeam, lost: parseInt(e.target.value) || 0})} className="h-10" />
+                    <Input type="number" value={newTeam.lost} onChange={e => setNewTeam({...newTeam, lost: parseInt(e.target.value) || 0})} className="h-10 text-center" />
                   </div>
                 </div>
               </div>
@@ -181,9 +190,9 @@ export default function AdminStandingsPage() {
       <Card className="border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md">
         <CardHeader className="bg-slate-900 text-white pb-6">
           <CardTitle className="text-xl font-black flex items-center gap-3">
-            <Trophy className="h-6 w-6 text-yellow-500" /> Clasificación Actual
+            <Trophy className="h-6 w-6 text-yellow-500" /> Posiciones de Liga
           </CardTitle>
-          <CardDescription className="text-white/60 font-bold italic">Tabla de posiciones oficial del torneo.</CardDescription>
+          <CardDescription className="text-white/60 font-bold italic">Tabla oficial actualizada para los socios.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {standingsLoading ? (
@@ -242,7 +251,7 @@ export default function AdminStandingsPage() {
                 {(!sortedStandings || sortedStandings.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-32 text-slate-300 font-black uppercase tracking-widest text-xs italic">
-                      La clasificación oficial está vacía.
+                      No hay equipos registrados en la tabla oficial.
                     </TableCell>
                   </TableRow>
                 )}
