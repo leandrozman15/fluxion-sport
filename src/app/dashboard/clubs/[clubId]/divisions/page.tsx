@@ -321,7 +321,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   const db = useFirestore();
   const { toast } = useToast();
   const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
-  const [newTeam, setNewTeam] = useState({ name: "", coachId: "", coachName: "", season: "2026" });
+  const [newTeam, setNewTeam] = useState({ name: "", coachId: "", coachName: "", coachEmail: "", season: "2026" });
 
   const teamsQuery = useMemoFirebase(() => 
     collection(db, "clubs", clubId, "divisions", division.id, "teams"),
@@ -352,7 +352,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
       createdAt: new Date().toISOString()
     });
     
-    setNewTeam({ name: "", coachId: "", coachName: "", season: "2026" });
+    setNewTeam({ name: "", coachId: "", coachName: "", coachEmail: "", season: "2026" });
     setIsTeamDialogOpen(false);
     toast({ title: "Equipo Creado" });
   };
@@ -367,7 +367,12 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   const handleSelectCoach = (val: string) => {
     const selected = coaches?.find(c => c.id === val);
     if (selected) {
-      setNewTeam({ ...newTeam, coachId: selected.id, coachName: selected.name || selected.firstName + " " + selected.lastName });
+      setNewTeam({ 
+        ...newTeam, 
+        coachId: selected.id, 
+        coachName: selected.name || (selected.firstName + " " + selected.lastName),
+        coachEmail: selected.email || ""
+      });
     }
   };
 

@@ -53,43 +53,57 @@ export default function CoachDashboard() {
           return;
         }
 
-        // 1. Localizar Perfil de Staff por Email (Robert/Camila)
+        // 1. Localizar Perfil de Staff (Robert/Camila)
         const staffQuery = query(collection(firestore, "users"), where("email", "==", userEmail));
         const staffSnap = await getDocs(staffQuery);
         
-        if (staffSnap.empty) {
-          console.warn("Staff profile not found for email:", userEmail);
+        let profile = staffSnap.empty ? null : staffSnap.docs[0].data();
+        
+        // Fallback: Si no lo encuentra por email, intentamos por UID
+        if (!profile) {
+          const uidDoc = await getDoc(doc(firestore, "users", user.uid));
+          if (uidDoc.exists()) profile = uidDoc.data();
+        }
+
+        if (!profile) {
+          console.warn("Staff profile not found for coach access.");
           setLoading(false);
           return;
         }
 
-        const profile = staffSnap.docs[0].data();
         setStaffProfile(profile);
-
         const clubId = profile.clubId;
-        const staffIdInDb = profile.id; // Este es el ID que Robert tiene en la base de datos
+        const staffIdInDb = profile.id || user.uid;
+        const staffName = profile.name || `${profile.firstName} ${profile.lastName}`;
 
         if (!clubId) {
           setLoading(false);
           return;
         }
 
-        // 2. Buscar Equipos donde este profesor sea el responsable (coachId)
+        // 2. BUSCADOR INTELIGENTE DE EQUIPOS
+        // Buscamos en todas las divisiones del club
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         
         const teamsPromises = divsSnap.docs.map(async (divDoc) => {
-          const tSnap = await getDocs(query(
-            collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams"),
-            where("coachId", "==", staffIdInDb)
-          ));
-          return tSnap.docs.map(td => ({
-            ...td.data(),
-            id: td.id,
-            clubId,
-            divisionId: divDoc.id,
-            divisionName: divDoc.data().name,
-            sport: divDoc.data().sport || 'hockey'
-          }));
+          // Buscamos equipos por ID de Coach O por Nombre (Resiliencia)
+          const teamsRef = collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams");
+          const tSnap = await getDocs(teamsRef);
+          
+          return tSnap.docs
+            .map(td => ({
+              ...td.data(),
+              id: td.id,
+              clubId,
+              divisionId: divDoc.id,
+              divisionName: divDoc.data().name,
+              sport: divDoc.data().sport || 'hockey'
+            }))
+            .filter(t => 
+              t.coachId === staffIdInDb || 
+              t.coachName === staffName ||
+              t.coachEmail === userEmail
+            );
         });
 
         const teamsResults = await Promise.all(teamsPromises);
@@ -158,20 +172,23 @@ export default function CoachDashboard() {
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-screen space-y-4">
       <Loader2 className="animate-spin text-white h-12 w-12" />
-      <p className="text-white font-black uppercase tracking-widest text-[10px]">Sincronizando Planteles...</p>
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Identificando Responsable...</p>
     </div>
   );
 
   if (myTeams.length === 0) return (
     <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6">
       <div className="bg-white/10 p-8 rounded-full mb-6 border border-white/20 backdrop-blur-md">
-        <ClipboardCheck className="h-16 w-16 text-white opacity-40" />
+        <AlertCircle className="h-16 w-16 text-white opacity-40" />
       </div>
-      <h2 className="text-3xl font-black tracking-tight text-white font-headline">Sin Equipos Asignados</h2>
+      <h2 className="text-3xl font-black tracking-tight text-white font-headline">Equipos Pendientes</h2>
       <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">
-        Hola {staffProfile?.name || 'Profesor'}, no hemos encontrado categorías vinculadas a tu perfil de email ({user?.email}). 
-        Solicita al administrador que te asigne como responsable en una División.
+        Hola {staffProfile?.name || 'Profesor'}, tu perfil está activo pero aún no tienes categorías asignadas en el club. 
+        Solicita al Director que te vincule como responsable de equipo.
       </p>
+      <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10 text-[10px] text-white/40 uppercase font-black tracking-widest">
+        ID de Sistema: {staffProfile?.id || user?.uid}
+      </div>
     </div>
   );
 
@@ -187,7 +204,7 @@ export default function CoachDashboard() {
                 <h1 className="text-4xl font-black font-headline tracking-tight text-white drop-shadow-2xl">{selectedTeam.name}</h1>
                 <Badge className="font-black bg-white text-primary border-none shadow-lg px-4 h-8 uppercase tracking-widest">{selectedTeam.season}</Badge>
               </div>
-              <p className="text-white font-black uppercase tracking-[0.3em] text-[11px] drop-shadow-md opacity-90">{selectedTeam.divisionName} • Responsable Técnico</p>
+              <p className="text-white font-black uppercase tracking-[0.3em] text-[11px] drop-shadow-md opacity-90">{selectedTeam.divisionName} • Consola Técnica</p>
             </div>
             
             <div className="flex flex-wrap gap-3">
