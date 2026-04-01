@@ -225,7 +225,7 @@ export default function TeamEventsPage() {
                         <Clock className="h-3 w-3" /> Fecha y Horario
                       </p>
                       <p className="text-sm font-black text-slate-900">
-                        {date.toLocaleDateString([], { day: '2-digit', month: 'short' })} • {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs
+                        {date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} • {date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })} hs
                         {ev.duration && ev.duration > 0 && (
                           <span className="ml-2 text-primary font-bold">({ev.duration} min)</span>
                         )}

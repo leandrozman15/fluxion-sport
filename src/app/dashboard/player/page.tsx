@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -157,7 +158,7 @@ export default function PlayerDashboardHub() {
                     <p className="text-[9px] font-black text-primary uppercase tracking-widest">{nextEvent.type === 'match' ? 'PARTIDO' : 'ENTRENAMIENTO'}</p>
                     <h3 className="font-black text-base leading-tight">{nextEvent.title}</h3>
                     <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground font-bold">
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(nextEvent.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(nextEvent.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })} hs</span>
                       <span className="flex items-center gap-1 truncate max-w-[100px]"><MapPin className="h-3 w-3" /> {nextEvent.location}</span>
                     </div>
                   </div>

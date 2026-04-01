@@ -150,7 +150,14 @@ export default function EventAttendancePage() {
               <Badge variant={isTraining ? "secondary" : "default"}>{event?.type?.toUpperCase()}</Badge>
             </div>
             <div className="flex items-center flex-wrap gap-x-6 gap-y-2 mt-2 text-muted-foreground">
-              <span className="flex items-center gap-1 text-sm font-bold"><CalendarIcon className="h-4 w-4" /> {new Date(event?.date).toLocaleString()}</span>
+              <span className="flex items-center gap-1 text-sm font-bold">
+                <CalendarIcon className="h-4 w-4" /> 
+                {event?.date ? (
+                  <>
+                    {new Date(event.date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} - {new Date(event.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })} hs
+                  </>
+                ) : '-'}
+              </span>
               <span className="flex items-center gap-1 text-sm font-bold">
                 <MapPin className="h-4 w-4" /> 
                 {event?.location}
