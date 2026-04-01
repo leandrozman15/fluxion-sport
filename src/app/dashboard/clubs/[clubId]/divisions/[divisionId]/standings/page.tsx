@@ -9,17 +9,15 @@ import {
   Trash2,
   ChevronLeft,
   Table as TableIcon,
-  Save,
   Trophy,
-  Activity,
-  ArrowUpCircle,
-  TrendingUp
+  Shield,
+  ArrowUpCircle
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -27,6 +25,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export default function AdminStandingsPage() {
   const { clubId, divisionId } = useParams() as { clubId: string, divisionId: string };
@@ -35,6 +36,7 @@ export default function AdminStandingsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newTeam, setNewTeam] = useState({ 
     teamName: "", 
+    opponentId: "",
     played: 0, 
     won: 0, 
     drawn: 0, 
@@ -50,21 +52,37 @@ export default function AdminStandingsPage() {
   const standingsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "standings"), [db, clubId, divisionId]);
   const { data: standings, isLoading: standingsLoading } = useCollection(standingsQuery);
 
+  const opponentsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "opponents"), [db, clubId]);
+  const { data: opponents } = useCollection(opponentsQuery);
+
   const handleAddStanding = async () => {
-    if (!newTeam.teamName) return;
+    if (!newTeam.teamName && !newTeam.opponentId) return;
     
+    let finalName = newTeam.teamName;
+    let finalLogo = "";
+
+    if (newTeam.opponentId) {
+      const opp = opponents?.find(o => o.id === newTeam.opponentId);
+      if (opp) {
+        finalName = opp.name;
+        finalLogo = opp.logoUrl || "";
+      }
+    }
+
     try {
       const standingId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "standings")).id;
       const standingDoc = doc(db, "clubs", clubId, "divisions", divisionId, "standings", standingId);
       
       await setDoc(standingDoc, {
         ...newTeam,
+        teamName: finalName,
+        teamLogo: finalLogo,
         id: standingId,
         createdAt: new Date().toISOString()
       });
       
-      toast({ title: "Tabla Actualizada", description: `${newTeam.teamName} añadido a la clasificación.` });
-      setNewTeam({ teamName: "", played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 });
+      toast({ title: "Tabla Actualizada", description: `${finalName} añadido.` });
+      setNewTeam({ teamName: "", opponentId: "", played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 });
       setIsCreateOpen(false);
     } catch (e) {
       console.error(e);
@@ -103,40 +121,51 @@ export default function AdminStandingsPage() {
             </DialogTrigger>
             <DialogContent className="max-w-md bg-white border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-black">Clasificación de Equipo</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Ingresa los puntos y estadísticas del equipo en el torneo.</DialogDescription>
+                <DialogTitle className="text-2xl font-black text-slate-900">Entrada de Clasificación</DialogTitle>
+                <DialogDescription className="font-bold text-slate-500">Selecciona un club registrado o ingresa el nombre.</DialogDescription>
               </DialogHeader>
-              <div className="space-y-6 py-6">
+              <div className="space-y-6 py-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-2">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Equipo</Label>
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival (Registrado)</Label>
+                  <Select value={newTeam.opponentId} onValueChange={v => setNewTeam({...newTeam, opponentId: v})}>
+                    <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir club..." /></SelectTrigger>
+                    <SelectContent>
+                      {opponents?.map(o => (
+                        <SelectItem key={o.id} value={o.id} className="font-bold">{o.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="relative py-2">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                  <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-2 text-slate-400 font-black">O escribe manualmente</span></div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Alternativo</Label>
                   <Input value={newTeam.teamName} onChange={e => setNewTeam({...newTeam, teamName: e.target.value})} placeholder="Ej. Lomas Athletic..." className="h-12 border-2 font-bold" />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="font-black text-[9px] uppercase tracking-widest text-slate-400">PJ</Label>
-                    <Input type="number" value={newTeam.played} onChange={e => setNewTeam({...newTeam, played: parseInt(e.target.value) || 0})} className="h-10 border-2 font-bold" />
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">PJ</Label>
+                    <Input type="number" value={newTeam.played} onChange={e => setNewTeam({...newTeam, played: parseInt(e.target.value) || 0})} className="h-12 border-2 font-bold" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-black text-[9px] uppercase tracking-widest text-slate-400">Puntos</Label>
-                    <Input type="number" value={newTeam.points} onChange={e => setNewTeam({...newTeam, points: parseInt(e.target.value) || 0})} className="h-10 border-2 font-bold bg-primary/5 border-primary/20" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-black text-[9px] uppercase tracking-widest text-slate-400">Dif. Gol</Label>
-                    <Input type="number" value={newTeam.goalsFor - newTeam.goalsAgainst} disabled className="h-10 border-2 font-bold bg-slate-50" />
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">PTS</Label>
+                    <Input type="number" value={newTeam.points} onChange={e => setNewTeam({...newTeam, points: parseInt(e.target.value) || 0})} className="h-12 border-2 font-black bg-primary/5 border-primary/30" />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
                     <Label className="text-[10px] font-black uppercase text-green-600">G</Label>
-                    <Input type="number" value={newTeam.won} onChange={e => setNewTeam({...newTeam, won: parseInt(e.target.value) || 0})} className="h-9 border-2" />
+                    <Input type="number" value={newTeam.won} onChange={e => setNewTeam({...newTeam, won: parseInt(e.target.value) || 0})} className="h-10" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] font-black uppercase text-orange-600">E</Label>
-                    <Input type="number" value={newTeam.drawn} onChange={e => setNewTeam({...newTeam, drawn: parseInt(e.target.value) || 0})} className="h-9 border-2" />
+                    <Input type="number" value={newTeam.drawn} onChange={e => setNewTeam({...newTeam, drawn: parseInt(e.target.value) || 0})} className="h-10" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] font-black uppercase text-red-600">P</Label>
-                    <Input type="number" value={newTeam.lost} onChange={e => setNewTeam({...newTeam, lost: parseInt(e.target.value) || 0})} className="h-9 border-2" />
+                    <Input type="number" value={newTeam.lost} onChange={e => setNewTeam({...newTeam, lost: parseInt(e.target.value) || 0})} className="h-10" />
                   </div>
                 </div>
               </div>
@@ -164,7 +193,7 @@ export default function AdminStandingsPage() {
               <TableHeader>
                 <TableRow className="border-none bg-slate-50/50">
                   <TableHead className="w-16 text-center font-black uppercase text-[10px] tracking-widest text-slate-400">Pos</TableHead>
-                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400">Equipo</TableHead>
+                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400">Club</TableHead>
                   <TableHead className="text-center font-black uppercase text-[10px] tracking-widest text-slate-400">PJ</TableHead>
                   <TableHead className="text-center font-black uppercase text-[10px] tracking-widest text-slate-400">G</TableHead>
                   <TableHead className="text-center font-black uppercase text-[10px] tracking-widest text-slate-400">E</TableHead>
@@ -178,14 +207,22 @@ export default function AdminStandingsPage() {
                   <TableRow key={s.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <TableCell className="text-center">
                       <div className={cn(
-                        "h-8 w-8 rounded-full flex items-center justify-center mx-auto font-black text-xs",
-                        i === 0 ? "bg-yellow-500 text-white shadow-lg" : 
+                        "h-8 w-8 rounded-full flex items-center justify-center mx-auto font-black text-xs shadow-sm",
+                        i === 0 ? "bg-yellow-500 text-white shadow-yellow-500/20" : 
                         i < 4 ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-400"
                       )}>
                         {i + 1}
                       </div>
                     </TableCell>
-                    <TableCell className="font-black text-slate-900 text-base">{s.teamName}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8 rounded-lg border bg-white">
+                          <AvatarImage src={s.teamLogo} className="object-contain p-1" />
+                          <AvatarFallback className="bg-slate-50 text-[10px] text-slate-300 font-black">{s.teamName[0]}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-black text-slate-900 text-base">{s.teamName}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center font-bold text-slate-500">{s.played}</TableCell>
                     <TableCell className="text-center font-bold text-green-600">{s.won}</TableCell>
                     <TableCell className="text-center font-bold text-orange-600">{s.drawn}</TableCell>
@@ -205,7 +242,7 @@ export default function AdminStandingsPage() {
                 {(!sortedStandings || sortedStandings.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-32 text-slate-300 font-black uppercase tracking-widest text-xs italic">
-                      No hay equipos registrados en la tabla oficial.
+                      La clasificación oficial está vacía.
                     </TableCell>
                   </TableRow>
                 )}

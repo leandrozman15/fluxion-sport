@@ -55,6 +55,21 @@
         "phone": { "type": "string" }
       }
     },
+    "Opponent": {
+      "title": "Club Rival",
+      "description": "Institución contra la que se compite en la liga.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "shortName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name"]
+    },
     "Division": {
       "title": "Categoría / Rama",
       "description": "Rama deportiva del club (ej. Damas, Caballeros).",
@@ -104,6 +119,10 @@
     "/clubs/{clubId}": {
       "schema": "#/backend/entities/Club",
       "description": "Instituciones deportivas."
+    },
+    "/clubs/{clubId}/opponents/{opponentId}": {
+      "schema": "#/backend/entities/Opponent",
+      "description": "Listado de clubes rivales registrados."
     },
     "/clubs/{clubId}/players/{playerId}": {
       "schema": "#/backend/entities/UserProfile",

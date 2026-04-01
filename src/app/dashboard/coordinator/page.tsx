@@ -21,7 +21,8 @@ import {
   Activity,
   Plus,
   Table as TableIcon,
-  CalendarDays
+  CalendarDays,
+  Shield
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -88,6 +89,7 @@ export default function CoordinatorDashboard() {
 
   const coordNav = [
     { title: "Dashboard", href: "/dashboard/coordinator", icon: Trophy },
+    { title: "Rivales", href: club ? `/dashboard/clubs/${club.id}/opponents` : "#", icon: Shield },
     { title: "Gestor Fixture", href: club ? `/dashboard/clubs/${club.id}/fixture` : "#", icon: CalendarDays },
     { title: "Categorías", href: club ? `/dashboard/clubs/${club.id}/divisions` : "#", icon: Layers },
     { title: "Staff Técnico", href: club ? `/dashboard/clubs/${club.id}/coaches` : "#", icon: Users },
@@ -120,6 +122,9 @@ export default function CoordinatorDashboard() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" asChild className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
+              <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 mr-2" /> Clubes Rivales</Link>
+            </Button>
             <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 font-black uppercase text-[10px] tracking-widest h-12 px-6 shadow-xl">
               <Link href={`/dashboard/clubs/${club?.id}/fixture`}><Plus className="h-4 w-4 mr-2" /> Armar Fixture</Link>
             </Button>
@@ -135,10 +140,10 @@ export default function CoordinatorDashboard() {
             </CardContent>
           </Card>
           <Card className="bg-white/95 backdrop-blur-md border-none shadow-xl border-l-8 border-l-accent">
-            <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Partidos Totales</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Monitor Liga</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-4xl font-black text-slate-900">42</div>
-              <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Programados esta temporada</p>
+              <div className="text-4xl font-black text-slate-900">Activo</div>
+              <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Sedes y Rivales OK</p>
             </CardContent>
           </Card>
           <Card className="bg-white/95 backdrop-blur-md border-none shadow-xl border-l-8 border-l-green-500">
@@ -237,13 +242,13 @@ export default function CoordinatorDashboard() {
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-2">
                 <Button variant="secondary" className="justify-start gap-3 h-14 bg-white/10 hover:bg-white/20 border-none text-white font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
+                  <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4" /> Base de Clubes Rivales</Link>
+                </Button>
+                <Button variant="secondary" className="justify-start gap-3 h-14 bg-white/10 hover:bg-white/20 border-none text-white font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
                   <Link href={`/dashboard/clubs/${club?.id}/fixture`}><CalendarDays className="h-4 w-4" /> Armar Fixture Anual</Link>
                 </Button>
                 <Button variant="secondary" className="justify-start gap-3 h-14 bg-white/10 hover:bg-white/20 border-none text-white font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4" /> Subdivisiones y Equipos</Link>
-                </Button>
-                <Button variant="secondary" className="justify-start gap-3 h-14 bg-white/10 hover:bg-white/20 border-none text-white font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/players`}><Briefcase className="h-4 w-4" /> Legajos de Jugadoras</Link>
+                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4" /> subdivisiones y Equipos</Link>
                 </Button>
               </CardContent>
             </Card>
