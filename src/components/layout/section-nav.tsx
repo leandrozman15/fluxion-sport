@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from "react";
@@ -77,7 +78,7 @@ export function SectionNav({ items }: SectionNavProps) {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] md:relative md:z-auto md:flex md:flex-col gap-3 bg-card/95 backdrop-blur-xl md:bg-card/80 border-t md:border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl p-2 md:rounded-2xl h-[72px] md:h-fit md:sticky md:top-8 animate-in slide-in-from-bottom md:slide-in-from-left duration-500 flex flex-row items-center justify-around md:justify-start md:min-w-[64px] pb-safe">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] md:relative md:z-auto md:flex md:flex-col gap-3 bg-white/95 backdrop-blur-xl md:bg-white/80 border-t md:border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl p-2 md:rounded-2xl h-[72px] md:h-fit md:sticky md:top-8 md:min-w-[72px] md:max-w-[72px] animate-in slide-in-from-bottom md:slide-in-from-left duration-500 flex flex-row items-center justify-around md:justify-start pb-safe">
       <TooltipProvider delayDuration={0}>
         <div className="flex flex-row md:flex-col gap-1 md:gap-3 w-full items-center justify-around md:justify-start">
           {items.map((item) => {

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -107,13 +108,12 @@ export default function SuperAdminPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-24">
+    <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-24 px-4 md:px-0">
       <header className="space-y-2">
         <h1 className="text-4xl font-black font-headline text-white drop-shadow-2xl tracking-tight">Consola de Control Global</h1>
         <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] drop-shadow-md">Fluxion Sport • Administración de infraestructura y clientes.</p>
       </header>
 
-      {/* Monitor de Partidos Live Global */}
       <LiveMatchesCard />
 
       <form onSubmit={handleCreateClient}>

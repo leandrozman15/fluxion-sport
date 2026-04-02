@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -175,10 +176,10 @@ export default function CoachDashboard() {
   );
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={coachNav} basePath="/dashboard/coach" />
       
-      <div className="flex-1 space-y-6 md:space-y-10 pb-24">
+      <div className="flex-1 space-y-6 md:space-y-10 pb-24 px-4 md:px-0">
         <header className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <div className="space-y-1">
@@ -228,7 +229,6 @@ export default function CoachDashboard() {
           </div>
         </header>
 
-        {/* Monitor Live (Para ver otros equipos del club) */}
         <LiveMatchesCard clubId={selectedTeam.clubId} />
 
         {todayEvent && (
@@ -324,7 +324,7 @@ export default function CoachDashboard() {
               </Card>
 
               <div className="space-y-6">
-                <Card className="bg-white border-none shadow-2xl p-6 rounded-[2rem]">
+                <Card className="bg-white border-none shadow-2xl p-6 rounded-[2rem] border-l-8 border-l-primary">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Total Plantel</p>
                   <p className="text-5xl font-black text-primary mt-2">{roster?.length || 0}</p>
                   <Button asChild variant="outline" className="w-full h-12 font-black uppercase text-[10px] tracking-widest border-primary text-primary hover:bg-primary hover:text-white mt-6 rounded-xl">

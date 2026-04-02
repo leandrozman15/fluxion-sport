@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -108,10 +109,10 @@ export default function PlayerDashboardHub() {
   );
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={playerNav} basePath="/dashboard/player" />
       
-      <div className="flex-1 max-w-3xl mx-auto space-y-8 pb-24 w-full">
+      <div className="flex-1 max-w-3xl mx-auto space-y-8 pb-24 w-full px-4 md:px-0">
         <header className="flex items-center gap-4 bg-white p-6 rounded-[2rem] shadow-xl border border-white/50">
           <div className="relative">
             <Avatar className="h-16 w-16 md:h-24 md:w-24 border-4 border-primary/10 shadow-inner">
@@ -132,7 +133,6 @@ export default function PlayerDashboardHub() {
           </div>
         </header>
 
-        {/* Monitor de Partidos Live del Club */}
         <LiveMatchesCard clubId={playerInfo.clubId} />
 
         {pendingCount > 0 && (
