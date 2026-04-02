@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -148,11 +149,7 @@ export default function MatchLiveTrackerPage() {
     if (isActive || seconds > 0) {
       updateLiveIndex();
     }
-
-    return () => {
-      // No borramos al salir, borramos al "Finalizar" el partido
-    };
-  }, [isActive, seconds, homeScore, awayScore, opponentName, team, club, db]);
+  }, [isActive, seconds, homeScore, awayScore, opponentName, team, club, db, clubId, divisionId, teamId]);
 
   useEffect(() => {
     if (roster && Object.keys(playerStats).length === 0) {
@@ -173,7 +170,7 @@ export default function MatchLiveTrackerPage() {
       });
       setPlayerStats(initialStats);
     }
-  }, [roster]);
+  }, [roster, playerStats]);
 
   useEffect(() => {
     const newPositions: PositionSlot[] = [];
@@ -481,10 +478,10 @@ export default function MatchLiveTrackerPage() {
               <Input 
                 value={opponentName} 
                 onChange={(e) => setOpponentName(e.target.value)} 
-                className="bg-transparent border-none text-center text-2xl font-black text-slate-900 focus-visible:ring-0 p-0 h-auto"
+                className="bg-white border-2 text-center text-2xl font-black text-slate-900 focus-visible:ring-primary h-14"
                 placeholder="Nombre Rival..."
               />
-              <div className="flex items-center justify-center gap-6">
+              <div className="flex items-center justify-center gap-6 mt-4">
                 <div className="text-7xl font-black tabular-nums text-slate-900 tracking-tighter">{awayScore}</div>
                 <div className="flex flex-col gap-2">
                   {sport === 'rugby' ? (
@@ -687,9 +684,9 @@ export default function MatchLiveTrackerPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-2xl border-none bg-slate-900 text-white rounded-[2rem] overflow-hidden">
-            <CardHeader className="pb-3 border-b border-white/5 pt-6 px-6">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 opacity-60">
+          <Card className="shadow-2xl border-none bg-white rounded-[2rem] overflow-hidden">
+            <CardHeader className="bg-slate-50 pb-3 border-b pt-6 px-6">
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 text-slate-400">
                 <History className="h-4 w-4 text-primary" /> Acta del Encuentro
               </CardTitle>
             </CardHeader>
@@ -697,10 +694,10 @@ export default function MatchLiveTrackerPage() {
               <ScrollArea className="h-[200px]">
                 <div className="p-4 space-y-2">
                   {matchEvents.map((ev) => (
-                    <div key={ev.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
+                    <div key={ev.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border-2 border-slate-100 group hover:border-primary/20 transition-all">
                       <div className="flex items-center gap-3">
                         <span className="text-base font-black text-primary tabular-nums">{ev.minute}'</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">
                           {ev.type === 'goal' ? '⚽ GOL' : 
                            ev.type === 'try' ? '🏉 TRY' : 
                            ev.type === 'conversion' ? '🎯 CONV' : 
@@ -708,11 +705,11 @@ export default function MatchLiveTrackerPage() {
                            ev.type === 'yellow' ? '🟨 AMARILLA' : '🟥 ROJA'}
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold opacity-60 truncate max-w-[100px]">{ev.playerName}</span>
+                      <span className="text-[10px] font-bold text-slate-500 truncate max-w-[100px]">{ev.playerName}</span>
                     </div>
                   ))}
                   {matchEvents.length === 0 && (
-                    <div className="text-center py-10 opacity-30 text-[10px] font-black uppercase tracking-widest">Sin incidencias</div>
+                    <div className="text-center py-10 opacity-30 text-[10px] font-black uppercase tracking-widest text-slate-400">Sin incidencias</div>
                   )}
                 </div>
               </ScrollArea>

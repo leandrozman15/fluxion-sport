@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -125,7 +126,6 @@ export default function CoordinatorDashboard() {
           </div>
         </header>
 
-        {/* Monitor de Partidos Live del Club */}
         <LiveMatchesCard clubId={club?.id} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -163,7 +163,7 @@ export default function CoordinatorDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-3xl">
-              <CardHeader className="border-b border-slate-50 py-6 px-8">
+              <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 px-8">
                 <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
                   <Layers className="h-6 w-6 text-primary" /> Organización por Ramas
                 </CardTitle>
@@ -200,8 +200,8 @@ export default function CoordinatorDashboard() {
             </Card>
 
             <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-3xl">
-              <CardHeader className="border-b border-slate-50 py-6 px-8">
-                <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
+              <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 px-8">
+                <CardTitle className="text-xl font-black flex items-center gap-3 text-green-600">
                   <TrendingUp className="h-6 w-6 text-green-600" /> Monitor de Competencia
                 </CardTitle>
               </CardHeader>
@@ -253,7 +253,7 @@ export default function CoordinatorDashboard() {
             <div className="p-8 bg-white/10 backdrop-blur-md rounded-[2.5rem] border border-white/20 text-center space-y-4 shadow-xl">
               <Calendar className="h-10 w-10 text-white mx-auto opacity-50" />
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Configuración de Ramas</p>
-              <Button variant="outline" asChild className="w-full bg-white text-slate-900 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest h-12 border-none shadow-lg">
+              <Button variant="outline" asChild className="w-full bg-white text-slate-900 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest h-12 border-none shadow-lg rounded-xl">
                 <Link href={`/dashboard/clubs/${club?.id}/divisions`}>Administrar Categorías</Link>
               </Button>
             </div>

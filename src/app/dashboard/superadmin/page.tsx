@@ -119,7 +119,7 @@ export default function SuperAdminPage() {
       <form onSubmit={handleCreateClient}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-[2.5rem]">
-            <CardHeader className="bg-slate-50 border-b pb-8 pt-8 px-8">
+            <CardHeader className="bg-slate-50 border-b border-slate-100 pb-8 pt-8 px-8">
               <CardTitle className="flex items-center gap-4 text-xl font-black text-slate-900 tracking-tight">
                 <div className="bg-primary/10 p-3 rounded-2xl">
                   <Building2 className="h-6 w-6 text-primary" />
@@ -131,11 +131,11 @@ export default function SuperAdminPage() {
             <CardContent className="space-y-8 pt-8 px-8 pb-8">
               <div className="space-y-2">
                 <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Club</Label>
-                <Input required value={form.clubName} onChange={e => setForm({...form, clubName: e.target.value})} placeholder="Ej. Lomas Athletic Club" className="h-14 border-2 font-black text-lg focus:border-primary transition-all" />
+                <Input required value={form.clubName} onChange={e => setForm({...form, clubName: e.target.value})} placeholder="Ej. Lomas Athletic Club" className="h-14 border-2 font-black text-lg focus:border-primary transition-all bg-white" />
               </div>
               <div className="space-y-2">
                 <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Ubicación / Ciudad</Label>
-                <Input value={form.clubAddress} onChange={e => setForm({...form, clubAddress: e.target.value})} placeholder="Ej. Lomas de Zamora, Buenos Aires" className="h-14 border-2 font-bold" />
+                <Input value={form.clubAddress} onChange={e => setForm({...form, clubAddress: e.target.value})} placeholder="Ej. Lomas de Zamora, Buenos Aires" className="h-14 border-2 font-bold bg-white" />
               </div>
               <div className="space-y-4 pt-4 border-t">
                 <Label className="font-black text-xs uppercase tracking-widest text-primary flex items-center gap-2">
@@ -166,14 +166,14 @@ export default function SuperAdminPage() {
                 <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Completo</Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
-                  <Input required value={form.adminName} onChange={e => setForm({...form, adminName: e.target.value})} placeholder="Ej. Juan Director" className="h-14 border-2 pl-12 font-black text-slate-900" />
+                  <Input required value={form.adminName} onChange={e => setForm({...form, adminName: e.target.value})} placeholder="Ej. Juan Director" className="h-14 border-2 pl-12 font-black text-slate-900 bg-white" />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Teléfono de Contacto</Label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
-                  <Input value={form.adminPhone} onChange={e => setForm({...form, adminPhone: e.target.value})} placeholder="+54 11..." className="h-14 border-2 pl-12 font-bold" />
+                  <Input value={form.adminPhone} onChange={e => setForm({...form, adminPhone: e.target.value})} placeholder="+54 11..." className="h-14 border-2 pl-12 font-bold bg-white" />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
@@ -181,14 +181,14 @@ export default function SuperAdminPage() {
                   <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Email de Acceso</Label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
-                    <Input required type="email" value={form.adminEmail} onChange={e => setForm({...form, adminEmail: e.target.value})} placeholder="admin@club.com" className="h-14 border-2 pl-12 font-medium" />
+                    <Input required type="email" value={form.adminEmail} onChange={e => setForm({...form, adminEmail: e.target.value})} placeholder="admin@club.com" className="h-14 border-2 pl-12 font-medium bg-white" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Clave Temporal</Label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
-                    <Input required type="password" value={form.adminPassword} onChange={e => setForm({...form, adminPassword: e.target.value})} placeholder="Min. 6 car." className="h-14 border-2 pl-12 font-medium" />
+                    <Input required type="password" value={form.adminPassword} onChange={e => setForm({...form, adminPassword: e.target.value})} placeholder="Min. 6 car." className="h-14 border-2 pl-12 font-medium bg-white" />
                   </div>
                 </div>
               </div>

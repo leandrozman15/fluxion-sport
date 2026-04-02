@@ -47,6 +47,14 @@ export default function CoachDashboard() {
       try {
         const userEmail = user.email?.toLowerCase().trim();
         if (!userEmail) {
+          // Intentar por UID para SuperAdmins anónimos
+          const uidDoc = await getDoc(doc(firestore, "users", user.uid));
+          if (uidDoc.exists()) {
+            const profile = uidDoc.data();
+            setStaffProfile(profile);
+            setLoading(false);
+            return;
+          }
           setLoading(false);
           return;
         }
@@ -164,14 +172,19 @@ export default function CoachDashboard() {
   );
 
   if (myTeams.length === 0) return (
-    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6">
-      <div className="bg-white/10 p-8 rounded-full mb-6 border border-white/20 backdrop-blur-md">
-        <AlertCircle className="h-16 w-16 text-white opacity-40" />
+    <div className="flex flex-col md:flex-row gap-8 min-h-screen">
+      <SectionNav items={coachNav} basePath="/dashboard/coach" />
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6">
+        <div className="bg-white/10 p-8 rounded-full border border-white/20 backdrop-blur-md">
+          <AlertCircle className="h-16 w-16 text-white opacity-40" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-3xl font-black tracking-tight text-white font-headline">Categorías Pendientes</h2>
+          <p className="text-white/80 max-w-sm font-bold ambient-text">
+            {staffProfile?.name || staffProfile?.firstName}, tu perfil está activo pero aún no tienes equipos asignados por coordinación.
+          </p>
+        </div>
       </div>
-      <h2 className="text-3xl font-black tracking-tight text-white font-headline">Equipos Pendientes</h2>
-      <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">
-        {staffProfile?.name}, tu perfil está activo pero aún no tienes categorías asignadas.
-      </p>
     </div>
   );
 
@@ -266,7 +279,7 @@ export default function CoachDashboard() {
           <TabsContent value="roster" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card className="lg:col-span-2 border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md rounded-[2rem]">
-                <CardHeader className="border-b border-slate-100 pb-4">
+                <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
                   <CardTitle className="flex items-center gap-3 text-xl font-black text-slate-900">
                     <Users className="h-6 w-6 text-primary" /> Jugadoras
                   </CardTitle>
@@ -278,7 +291,7 @@ export default function CoachDashboard() {
                         const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
                         const isCaptain = selectedTeam?.captainId === member.playerId;
                         return (
-                          <div key={member.id} className="flex items-center justify-between p-4 md:p-6 group">
+                          <div key={member.id} className="flex items-center justify-between p-4 md:p-6 group hover:bg-slate-50/50 transition-colors">
                             <div className="flex items-center gap-4">
                               <div className="relative">
                                 <Avatar className={cn(
@@ -324,10 +337,10 @@ export default function CoachDashboard() {
               </Card>
 
               <div className="space-y-6">
-                <Card className="bg-white border-none shadow-2xl p-6 rounded-[2rem] border-l-8 border-l-primary">
+                <Card className="bg-white border-none shadow-2xl p-8 rounded-[2rem] border-l-8 border-l-primary">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Total Plantel</p>
-                  <p className="text-5xl font-black text-primary mt-2">{roster?.length || 0}</p>
-                  <Button asChild variant="outline" className="w-full h-12 font-black uppercase text-[10px] tracking-widest border-primary text-primary hover:bg-primary hover:text-white mt-6 rounded-xl">
+                  <p className="text-6xl font-black text-primary mt-2 tracking-tighter">{roster?.length || 0}</p>
+                  <Button asChild variant="outline" className="w-full h-12 font-black uppercase text-[10px] tracking-widest border-primary text-primary hover:bg-primary hover:text-white mt-8 rounded-xl transition-all">
                     <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/stats`}>Rankings Goleadores</Link>
                   </Button>
                 </Card>

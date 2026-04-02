@@ -132,7 +132,7 @@ export default function AdminStandingsPage() {
                 <div className="space-y-2">
                   <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival (Vinculado)</Label>
                   <Select value={newTeam.opponentId} onValueChange={v => setNewTeam({...newTeam, opponentId: v})}>
-                    <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir club..." /></SelectTrigger>
+                    <SelectTrigger className="h-12 border-2 font-bold bg-white"><SelectValue placeholder="Elegir club..." /></SelectTrigger>
                     <SelectContent>
                       {opponents?.map(o => (
                         <SelectItem key={o.id} value={o.id} className="font-bold">
@@ -151,12 +151,12 @@ export default function AdminStandingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Alternativo</Label>
-                  <Input value={newTeam.teamName} onChange={e => setNewTeam({...newTeam, teamName: e.target.value})} placeholder="Ej. Lomas Athletic..." className="h-12 border-2 font-bold" />
+                  <Input value={newTeam.teamName} onChange={e => setNewTeam({...newTeam, teamName: e.target.value})} placeholder="Ej. Lomas Athletic..." className="h-12 border-2 font-bold bg-white" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="font-black text-xs uppercase tracking-widest text-slate-400">PJ</Label>
-                    <Input type="number" value={newTeam.played} onChange={e => setNewTeam({...newTeam, played: parseInt(e.target.value) || 0})} className="h-12 border-2 font-bold" />
+                    <Input type="number" value={newTeam.played} onChange={e => setNewTeam({...newTeam, played: parseInt(e.target.value) || 0})} className="h-12 border-2 font-bold bg-white" />
                   </div>
                   <div className="space-y-2">
                     <Label className="font-black text-xs uppercase tracking-widest text-slate-400">PTS</Label>
@@ -166,20 +166,20 @@ export default function AdminStandingsPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1 text-center">
                     <Label className="text-[10px] font-black uppercase text-green-600">G</Label>
-                    <Input type="number" value={newTeam.won} onChange={e => setNewTeam({...newTeam, won: parseInt(e.target.value) || 0})} className="h-10 text-center" />
+                    <Input type="number" value={newTeam.won} onChange={e => setNewTeam({...newTeam, won: parseInt(e.target.value) || 0})} className="h-10 text-center bg-white" />
                   </div>
                   <div className="space-y-1 text-center">
                     <Label className="text-[10px] font-black uppercase text-orange-600">E</Label>
-                    <Input type="number" value={newTeam.drawn} onChange={e => setNewTeam({...newTeam, drawn: parseInt(e.target.value) || 0})} className="h-10 text-center" />
+                    <Input type="number" value={newTeam.drawn} onChange={e => setNewTeam({...newTeam, drawn: parseInt(e.target.value) || 0})} className="h-10 text-center bg-white" />
                   </div>
                   <div className="space-y-1 text-center">
                     <Label className="text-[10px] font-black uppercase text-red-600">P</Label>
-                    <Input type="number" value={newTeam.lost} onChange={e => setNewTeam({...newTeam, lost: parseInt(e.target.value) || 0})} className="h-10 text-center" />
+                    <Input type="number" value={newTeam.lost} onChange={e => setNewTeam({...newTeam, lost: parseInt(e.target.value) || 0})} className="h-10 text-center bg-white" />
                   </div>
                 </div>
               </div>
               <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
-                <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold">Cancelar</Button>
+                <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
                 <Button onClick={handleAddStanding} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Guardar en Tabla</Button>
               </DialogFooter>
             </DialogContent>
@@ -188,11 +188,11 @@ export default function AdminStandingsPage() {
       </header>
 
       <Card className="border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md">
-        <CardHeader className="bg-slate-900 text-white pb-6">
-          <CardTitle className="text-xl font-black flex items-center gap-3">
+        <CardHeader className="bg-slate-50 border-b pb-6">
+          <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
             <Trophy className="h-6 w-6 text-yellow-500" /> Posiciones de Liga
           </CardTitle>
-          <CardDescription className="text-white/60 font-bold italic">Tabla oficial actualizada para los socios.</CardDescription>
+          <CardDescription className="text-slate-500 font-bold italic">Tabla oficial actualizada para los socios.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {standingsLoading ? (
