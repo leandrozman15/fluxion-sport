@@ -14,7 +14,8 @@ import {
   Table as TableIcon,
   CalendarDays,
   Shield,
-  ArrowRight
+  ArrowRight,
+  Users // Se añade el icono faltante que causaba el error
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -114,7 +115,7 @@ export default function CoordinatorDashboard() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" asChild className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
+            <Button variant="outline" asChild className="bg-white text-primary hover:bg-slate-50 border-none h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
               <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 mr-2" /> Clubes Rivales</Link>
             </Button>
             <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 font-black uppercase text-[10px] tracking-widest h-12 px-6 shadow-xl">
@@ -162,7 +163,7 @@ export default function CoordinatorDashboard() {
                 <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
                   <Layers className="h-6 w-6 text-primary" /> Organización por Ramas
                 </CardTitle>
-                <CardDescription className="font-medium">Gestión de divisiones, subcategorías y tablas.</CardDescription>
+                <CardDescription className="font-medium text-slate-500">Gestión de divisiones, subcategorías y tablas.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
                 {divisions?.map((div: any) => (
@@ -175,16 +176,16 @@ export default function CoordinatorDashboard() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <Badge className="bg-slate-900 text-white text-[8px] font-black uppercase px-2 h-4">{div.sport?.toUpperCase()}</Badge>
-                            <Badge variant="outline" className="text-[8px] font-black uppercase px-2 h-4">{div.gender || 'Femenino'}</Badge>
+                            <Badge variant="outline" className="text-[8px] font-black uppercase px-2 h-4 border-primary text-primary">{div.gender || 'Femenino'}</Badge>
                           </div>
                           <p className="font-black text-lg text-slate-900 leading-none">{div.name}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" asChild className="h-9 gap-2 text-[9px] font-black uppercase border-slate-200">
+                        <Button variant="outline" size="sm" asChild className="h-9 gap-2 text-[9px] font-black uppercase border-slate-200 text-slate-600 hover:bg-slate-50">
                           <Link href={`/dashboard/clubs/${club.id}/divisions/${div.id}/standings`}><TableIcon className="h-3 w-3" /> Tabla Pos.</Link>
                         </Button>
-                        <Button variant="ghost" size="sm" asChild className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-white">
+                        <Button variant="ghost" size="sm" asChild className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-white transition-colors">
                           <Link href={`/dashboard/clubs/${club.id}/divisions`}><ArrowRight className="h-5 w-5" /></Link>
                         </Button>
                       </div>
@@ -211,7 +212,7 @@ export default function CoordinatorDashboard() {
                           <p className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Calendar className="h-3 w-3" /> {new Date(res.date).toLocaleDateString()}</p>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-3 bg-slate-50 text-slate-900 px-5 py-2.5 rounded-2xl border-2">
+                          <div className="flex items-center gap-3 bg-slate-50 text-slate-900 px-5 py-2.5 rounded-2xl border-2 border-slate-100">
                             <span className="text-2xl font-black">{res.homeScore}</span>
                             <span className="text-xs font-black opacity-40">-</span>
                             <span className="text-2xl font-black">{res.awayScore}</span>
@@ -229,26 +230,26 @@ export default function CoordinatorDashboard() {
 
           <div className="space-y-6">
             <Card className="bg-white border-none shadow-2xl rounded-[2rem] overflow-hidden">
-              <CardHeader className="bg-primary text-white">
-                <CardTitle className="text-xs font-black uppercase tracking-[0.2em]">Gestión Competitiva</CardTitle>
+              <CardHeader className="bg-slate-50 border-b border-slate-100">
+                <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Gestión Competitiva</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-2 pt-6">
-                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm" asChild>
+                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
                   <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 text-primary" /> Base de Clubes Rivales</Link>
                 </Button>
-                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm" asChild>
+                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
                   <Link href={`/dashboard/clubs/${club?.id}/fixture`}><CalendarDays className="h-4 w-4 text-primary" /> Armar Fixture Anual</Link>
                 </Button>
-                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm" asChild>
+                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
                   <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4 text-primary" /> subdivisiones y Equipos</Link>
                 </Button>
               </CardContent>
             </Card>
 
-            <div className="p-8 bg-white/10 backdrop-blur-md rounded-[2.5rem] border border-white/20 text-center space-y-4">
+            <div className="p-8 bg-white/10 backdrop-blur-md rounded-[2.5rem] border border-white/20 text-center space-y-4 shadow-xl">
               <Calendar className="h-10 w-10 text-white mx-auto opacity-50" />
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Configuración de Ramas</p>
-              <Button variant="outline" asChild className="w-full bg-white text-slate-900 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest h-12 border-none">
+              <Button variant="outline" asChild className="w-full bg-white text-slate-900 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest h-12 border-none shadow-lg">
                 <Link href={`/dashboard/clubs/${club?.id}/divisions`}>Administrar Categorías</Link>
               </Button>
             </div>
