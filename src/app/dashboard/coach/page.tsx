@@ -30,6 +30,7 @@ import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-boar
 import { cn } from "@/lib/utils";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 
 export default function CoachDashboard() {
   const { firestore, user } = useFirebase();
@@ -177,7 +178,7 @@ export default function CoachDashboard() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       <SectionNav items={coachNav} basePath="/dashboard/coach" />
       
-      <div className="flex-1 space-y-6 md:space-y-10 pb-20">
+      <div className="flex-1 space-y-6 md:space-y-10 pb-24">
         <header className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <div className="space-y-1">
@@ -227,8 +228,11 @@ export default function CoachDashboard() {
           </div>
         </header>
 
+        {/* Monitor Live (Para ver otros equipos del club) */}
+        <LiveMatchesCard clubId={selectedTeam.clubId} />
+
         {todayEvent && (
-          <Card className="border-none bg-primary shadow-2xl overflow-hidden">
+          <Card className="border-none bg-primary shadow-2xl overflow-hidden rounded-[2rem]">
             <CardHeader className="py-4 md:py-6 flex flex-row items-center justify-between text-white relative">
               <div className="flex items-center gap-3 md:gap-5 relative z-10">
                 <div className="bg-white/25 p-3 rounded-xl backdrop-blur-md">
@@ -261,7 +265,7 @@ export default function CoachDashboard() {
 
           <TabsContent value="roster" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-2 border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md">
+              <Card className="lg:col-span-2 border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md rounded-[2rem]">
                 <CardHeader className="border-b border-slate-100 pb-4">
                   <CardTitle className="flex items-center gap-3 text-xl font-black text-slate-900">
                     <Users className="h-6 w-6 text-primary" /> Jugadoras
@@ -320,7 +324,7 @@ export default function CoachDashboard() {
               </Card>
 
               <div className="space-y-6">
-                <Card className="bg-white border-none shadow-2xl p-6">
+                <Card className="bg-white border-none shadow-2xl p-6 rounded-[2rem]">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Total Plantel</p>
                   <p className="text-5xl font-black text-primary mt-2">{roster?.length || 0}</p>
                   <Button asChild variant="outline" className="w-full h-12 font-black uppercase text-[10px] tracking-widest border-primary text-primary hover:bg-primary hover:text-white mt-6 rounded-xl">

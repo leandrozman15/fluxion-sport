@@ -15,7 +15,7 @@ import {
   CalendarDays,
   Shield,
   ArrowRight,
-  Users // Se añade el icono faltante que causaba el error
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
+import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 
 export default function CoordinatorDashboard() {
   const { firestore, user } = useFirebase();
@@ -124,29 +125,32 @@ export default function CoordinatorDashboard() {
           </div>
         </header>
 
+        {/* Monitor de Partidos Live del Club */}
+        <LiveMatchesCard clubId={club?.id} />
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-primary">
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-primary rounded-2xl">
             <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ramas Activas</CardTitle></CardHeader>
             <CardContent>
               <div className="text-4xl font-black text-slate-900">{divisions?.length || 0}</div>
               <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Divisiones en torneo</p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-accent">
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-accent rounded-2xl">
             <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Monitor Liga</CardTitle></CardHeader>
             <CardContent>
               <div className="text-4xl font-black text-slate-900">Activo</div>
               <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Sedes y Rivales OK</p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-green-500">
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-green-500 rounded-2xl">
             <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tablas OK</CardTitle></CardHeader>
             <CardContent>
               <div className="text-4xl font-black text-green-600">100%</div>
               <p className="text-[9px] text-green-600 font-bold uppercase mt-1">Posiciones actualizadas</p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-blue-600 relative overflow-hidden">
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-blue-600 relative overflow-hidden rounded-2xl">
             <CardHeader className="pb-2 relative z-10"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fixture 2025</CardTitle></CardHeader>
             <CardContent className="relative z-10">
               <div className="text-4xl font-black text-blue-600">Activo</div>
@@ -158,14 +162,14 @@ export default function CoordinatorDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="border-none shadow-2xl bg-white overflow-hidden">
-              <CardHeader className="border-b border-slate-50">
+            <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-3xl">
+              <CardHeader className="border-b border-slate-50 py-6 px-8">
                 <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
                   <Layers className="h-6 w-6 text-primary" /> Organización por Ramas
                 </CardTitle>
                 <CardDescription className="font-medium text-slate-500">Gestión de divisiones, subcategorías y tablas.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 pt-6">
+              <CardContent className="space-y-4 pt-6 px-8 pb-8">
                 {divisions?.map((div: any) => (
                   <div key={div.id} className="flex flex-col p-5 rounded-2xl border-2 border-slate-50 hover:border-primary/20 bg-white transition-all group">
                     <div className="flex items-center justify-between">
@@ -195,8 +199,8 @@ export default function CoordinatorDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-2xl bg-white overflow-hidden">
-              <CardHeader className="border-b border-slate-50">
+            <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-3xl">
+              <CardHeader className="border-b border-slate-50 py-6 px-8">
                 <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
                   <TrendingUp className="h-6 w-6 text-green-600" /> Monitor de Competencia
                 </CardTitle>
@@ -230,10 +234,10 @@ export default function CoordinatorDashboard() {
 
           <div className="space-y-6">
             <Card className="bg-white border-none shadow-2xl rounded-[2rem] overflow-hidden">
-              <CardHeader className="bg-slate-50 border-b border-slate-100">
+              <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 px-8">
                 <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Gestión Competitiva</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-2 pt-6">
+              <CardContent className="grid grid-cols-1 gap-2 pt-6 px-8 pb-8">
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
                   <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 text-primary" /> Base de Clubes Rivales</Link>
                 </Button>
@@ -241,7 +245,7 @@ export default function CoordinatorDashboard() {
                   <Link href={`/dashboard/clubs/${club?.id}/fixture`}><CalendarDays className="h-4 w-4 text-primary" /> Armar Fixture Anual</Link>
                 </Button>
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4 text-primary" /> subdivisiones y Equipos</Link>
+                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4 text-primary" /> Subdivisiones y Equipos</Link>
                 </Button>
               </CardContent>
             </Card>
