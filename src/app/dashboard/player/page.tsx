@@ -35,6 +35,7 @@ export default function PlayerDashboardHub() {
   const [teamInfo, setTeamInfo] = useState<any>(null);
   const [nextEvent, setNextEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [rank, setRank] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchPlayerData() {
@@ -53,7 +54,16 @@ export default function PlayerDashboardHub() {
                 where("playerId", "==", pData.id)
               ));
               if (!rosterSnap.empty) {
-                setTeamInfo({ ...tDoc.data(), divisionName: dDoc.data().name, id: tDoc.id, clubId: pData.clubId, divisionId: dDoc.id });
+                const teamData = { ...tDoc.data(), divisionName: dDoc.data().name, id: tDoc.id, clubId: pData.clubId, divisionId: dDoc.id };
+                setTeamInfo(teamData);
+                
+                // Fetch Standings to determine rank
+                const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "standings"));
+                const standings = standingsSnap.docs.map(doc => doc.data());
+                const sorted = standings.sort((a: any, b: any) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst));
+                const teamRank = sorted.findIndex((s: any) => s.teamName.toLowerCase().includes(teamData.name.toLowerCase())) + 1;
+                if (teamRank > 0) setRank(teamRank);
+
                 const eventsSnap = await getDocs(query(
                   collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "teams", tDoc.id, "events"),
                   where("date", ">=", new Date().toISOString()),
@@ -125,9 +135,12 @@ export default function PlayerDashboardHub() {
             <h1 className="text-xl md:text-3xl font-black font-headline tracking-tight text-slate-900">{playerInfo.firstName} {playerInfo.lastName}</h1>
             <p className="text-slate-500 text-sm font-semibold flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-primary" /> {playerInfo.clubName}</p>
             {teamInfo && (
-              <div className="flex gap-1.5 pt-1">
+              <div className="flex flex-wrap gap-1.5 pt-1">
                 <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-widest px-2">{teamInfo.divisionName}</Badge>
                 <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase tracking-widest px-2">{teamInfo.name}</Badge>
+                {rank && (
+                  <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest px-2 border-yellow-500 text-yellow-600">Puesto #{rank}</Badge>
+                )}
               </div>
             )}
           </div>

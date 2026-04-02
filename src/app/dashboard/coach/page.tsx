@@ -16,7 +16,8 @@ import {
   XCircle,
   HelpCircle,
   ShieldCheck,
-  ShoppingBag
+  ShoppingBag,
+  Trophy
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -40,6 +41,7 @@ export default function CoachDashboard() {
   const [loading, setLoading] = useState(true);
   const [todayEvent, setTodayEvent] = useState<any>(null);
   const [staffProfile, setStaffProfile] = useState<any>(null);
+  const [rank, setRank] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchAllMyTeams() {
@@ -47,7 +49,6 @@ export default function CoachDashboard() {
       try {
         const userEmail = user.email?.toLowerCase().trim();
         if (!userEmail) {
-          // Intentar por UID para SuperAdmins anónimos
           const uidDoc = await getDoc(doc(firestore, "users", user.uid));
           if (uidDoc.exists()) {
             const profile = uidDoc.data();
@@ -120,9 +121,10 @@ export default function CoachDashboard() {
   }, [user, firestore]);
 
   useEffect(() => {
-    async function fetchTodayEvent() {
+    async function fetchTeamContext() {
       if (!selectedTeam || !firestore) return;
       setTodayEvent(null);
+      setRank(null);
       try {
         const todayStr = new Date().toISOString().split('T')[0];
         const eventsSnap = await getDocs(query(
@@ -131,11 +133,18 @@ export default function CoachDashboard() {
         ));
         const found = eventsSnap.docs.find(d => d.data().date?.startsWith(todayStr));
         if (found) setTodayEvent({ ...found.data(), id: found.id });
+
+        // Fetch Standings
+        const standingsSnap = await getDocs(collection(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "standings"));
+        const standings = standingsSnap.docs.map(doc => doc.data());
+        const sorted = standings.sort((a: any, b: any) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst));
+        const teamRank = sorted.findIndex((s: any) => s.teamName.toLowerCase().includes(selectedTeam.name.toLowerCase())) + 1;
+        if (teamRank > 0) setRank(teamRank);
       } catch (e) {
         console.error(e);
       }
     }
-    fetchTodayEvent();
+    fetchTeamContext();
   }, [selectedTeam, firestore]);
 
   const rosterQuery = useMemoFirebase(() => {
@@ -199,6 +208,11 @@ export default function CoachDashboard() {
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl md:text-4xl font-black font-headline tracking-tight text-white drop-shadow-2xl">{selectedTeam.name}</h1>
                 <Badge className="font-black bg-white text-primary border-none shadow-lg px-3 h-7 uppercase tracking-widest text-[10px]">{selectedTeam.season}</Badge>
+                {rank && (
+                  <Badge variant="outline" className="bg-white/10 backdrop-blur-md text-white border-yellow-500 font-black text-[10px] px-3 h-7 uppercase tracking-widest flex items-center gap-1.5">
+                    <Trophy className="h-3 w-3 text-yellow-500" /> Puesto #{rank}
+                  </Badge>
+                )}
               </div>
               <p className="text-white font-black uppercase tracking-[0.3em] text-[9px] md:text-[11px] drop-shadow-md opacity-90">{selectedTeam.divisionName} • Consola Técnica</p>
             </div>
