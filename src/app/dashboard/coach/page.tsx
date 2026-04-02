@@ -14,17 +14,13 @@ import {
   CheckCircle2,
   XCircle,
   HelpCircle,
-  Flag,
   ShieldCheck,
-  ShoppingBag,
-  ArrowRight,
-  Trophy,
-  LayoutGrid
+  ShoppingBag
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -172,7 +168,7 @@ export default function CoachDashboard() {
       </div>
       <h2 className="text-3xl font-black tracking-tight text-white font-headline">Equipos Pendientes</h2>
       <p className="text-white/80 max-w-sm mt-2 font-bold ambient-text">
-        Robert, tu perfil está activo pero aún no tienes categorías asignadas.
+        {staffProfile?.name}, tu perfil está activo pero aún no tienes categorías asignadas.
       </p>
     </div>
   );
@@ -324,8 +320,8 @@ export default function CoachDashboard() {
               </Card>
 
               <div className="space-y-6">
-                <Card className="bg-slate-900 text-white border-none shadow-2xl p-6">
-                  <p className="text-[10px] font-black opacity-50 uppercase tracking-[0.3em]">Total Plantel</p>
+                <Card className="bg-white border-none shadow-2xl p-6">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Total Plantel</p>
                   <p className="text-5xl font-black text-primary mt-2">{roster?.length || 0}</p>
                   <Button asChild variant="outline" className="w-full h-12 font-black uppercase text-[10px] tracking-widest border-primary text-primary hover:bg-primary hover:text-white mt-6 rounded-xl">
                     <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/stats`}>Rankings Goleadores</Link>

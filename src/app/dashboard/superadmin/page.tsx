@@ -1,20 +1,16 @@
-
 "use client";
 
 import { useState } from "react";
 import { 
-  Plus, 
   Building2, 
   UserPlus, 
   ShieldCheck, 
   Loader2, 
   CheckCircle2,
-  Lock,
-  Globe,
-  ArrowRight,
+  User,
   Phone,
   Mail,
-  User
+  Lock
 } from "lucide-react";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { useFirestore, useAuth } from "@/firebase";
@@ -24,8 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SuperAdminPage() {
   const db = useFirestore();
@@ -50,7 +45,6 @@ export default function SuperAdminPage() {
 
     setLoading(true);
     try {
-      // 1. Crear el Club
       const clubId = doc(collection(db, "clubs")).id;
       const clubDoc = doc(db, "clubs", clubId);
       
@@ -61,14 +55,11 @@ export default function SuperAdminPage() {
         createdAt: new Date().toISOString()
       });
 
-      // 2. Crear el Usuario Administrador (Cliente)
       const userId = doc(collection(db, "users")).id;
       const userDoc = doc(db, "users", userId);
       
-      // Registro en Firebase Auth
       initiateEmailSignUp(auth, form.adminEmail, form.adminPassword);
 
-      // Registro en Firestore
       await setDoc(userDoc, {
         id: userId,
         name: form.adminName,
@@ -93,7 +84,7 @@ export default function SuperAdminPage() {
   if (success) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
-        <Card className="max-w-md w-full text-center shadow-2xl animate-in zoom-in duration-300">
+        <Card className="max-w-md w-full text-center shadow-2xl animate-in zoom-in duration-300 bg-white">
           <CardHeader>
             <div className="bg-green-100 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="h-10 w-10 text-green-600" />
@@ -104,7 +95,7 @@ export default function SuperAdminPage() {
             </CardDescription>
           </CardHeader>
           <CardFooter>
-            <Button className="w-full font-bold" onClick={() => { setSuccess(false); setForm({ clubName: "", clubAddress: "", adminName: "", adminEmail: "", adminPassword: "", adminPhone: "", sport: "hockey" }); }}>
+            <Button className="w-full font-bold h-12" onClick={() => { setSuccess(false); setForm({ clubName: "", clubAddress: "", adminName: "", adminEmail: "", adminPassword: "", adminPhone: "", sport: "hockey" }); }}>
               Crear otro cliente
             </Button>
           </CardFooter>
@@ -122,13 +113,12 @@ export default function SuperAdminPage() {
 
       <form onSubmit={handleCreateClient}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Sección Club */}
-          <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-md overflow-hidden">
-            <CardHeader className="bg-slate-900 text-white pb-6">
-              <CardTitle className="flex items-center gap-3 text-lg uppercase tracking-widest font-black">
+          <Card className="border-none shadow-2xl bg-white overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b pb-6">
+              <CardTitle className="flex items-center gap-3 text-lg uppercase tracking-widest font-black text-slate-900">
                 <Building2 className="h-6 w-6 text-primary" /> Institución
               </CardTitle>
-              <CardDescription className="text-white/60 font-bold italic">Configuración de la sede deportiva.</CardDescription>
+              <CardDescription className="text-slate-500 font-bold italic">Configuración de la sede deportiva.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-8">
               <div className="space-y-2">
@@ -143,21 +133,20 @@ export default function SuperAdminPage() {
                 <Label className="font-black text-xs uppercase tracking-widest text-primary">Disciplina de Lanzamiento</Label>
                 <Tabs value={form.sport} onValueChange={v => setForm({...form, sport: v})} className="w-full">
                   <TabsList className="grid grid-cols-2 w-full h-12 bg-slate-100 p-1">
-                    <TabsTrigger value="hockey" className="font-bold uppercase text-[10px]">🏑 Hockey</TabsTrigger>
-                    <TabsTrigger value="rugby" className="font-bold uppercase text-[10px]">🏉 Rugby</TabsTrigger>
+                    <TabsTrigger value="hockey" className="font-bold uppercase text-[10px] data-[state=active]:bg-white data-[state=active]:text-primary">🏑 Hockey</TabsTrigger>
+                    <TabsTrigger value="rugby" className="font-bold uppercase text-[10px] data-[state=active]:bg-white data-[state=active]:text-primary">🏉 Rugby</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
             </CardContent>
           </Card>
 
-          {/* Sección Admin Cliente */}
-          <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-md overflow-hidden">
-            <CardHeader className="bg-primary text-primary-foreground pb-6">
-              <CardTitle className="flex items-center gap-3 text-lg uppercase tracking-widest font-black">
+          <Card className="border-none shadow-2xl bg-white overflow-hidden">
+            <CardHeader className="bg-primary/5 border-b border-primary/10 pb-6">
+              <CardTitle className="flex items-center gap-3 text-lg uppercase tracking-widest font-black text-primary">
                 <UserPlus className="h-6 w-6" /> Director Responsable
               </CardTitle>
-              <CardDescription className="text-primary-foreground/80 font-bold italic">Credenciales y contacto del primer administrador.</CardDescription>
+              <CardDescription className="text-primary/60 font-bold italic">Credenciales y contacto del primer administrador.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-8">
               <div className="space-y-2">
@@ -200,18 +189,6 @@ export default function SuperAdminPage() {
           </Card>
         </div>
       </form>
-
-      <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white rounded-[2rem]">
-        <CardContent className="p-8 flex items-center gap-6">
-          <div className="bg-white/20 p-4 rounded-2xl">
-            <Globe className="h-8 w-8 text-primary" />
-          </div>
-          <div>
-            <p className="font-black uppercase tracking-[0.2em] text-xs text-primary mb-1">Estatus de Plataforma</p>
-            <p className="text-sm opacity-90 font-medium leading-relaxed">Al desplegar, se genera automáticamente el entorno seguro para el club. El director recibirá acceso a la base de datos de jugadores, tesorería y tienda oficial.</p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

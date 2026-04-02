@@ -1,33 +1,25 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { 
-  Briefcase, 
   Loader2, 
-  Users, 
   Layers, 
   TrendingUp, 
-  AlertCircle,
   Building2,
   Calendar,
-  Clock,
-  ArrowRight,
   ShieldCheck,
   CreditCard,
-  ShoppingBag,
-  Settings,
   Trophy,
-  Activity,
   Plus,
   Table as TableIcon,
   CalendarDays,
-  Shield
+  Shield,
+  ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -132,41 +124,41 @@ export default function CoordinatorDashboard() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-white/95 backdrop-blur-md border-none shadow-xl border-l-8 border-l-primary">
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-primary">
             <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ramas Activas</CardTitle></CardHeader>
             <CardContent>
               <div className="text-4xl font-black text-slate-900">{divisions?.length || 0}</div>
               <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Divisiones en torneo</p>
             </CardContent>
           </Card>
-          <Card className="bg-white/95 backdrop-blur-md border-none shadow-xl border-l-8 border-l-accent">
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-accent">
             <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Monitor Liga</CardTitle></CardHeader>
             <CardContent>
               <div className="text-4xl font-black text-slate-900">Activo</div>
               <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Sedes y Rivales OK</p>
             </CardContent>
           </Card>
-          <Card className="bg-white/95 backdrop-blur-md border-none shadow-xl border-l-8 border-l-green-500">
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-green-500">
             <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tablas OK</CardTitle></CardHeader>
             <CardContent>
               <div className="text-4xl font-black text-green-600">100%</div>
               <p className="text-[9px] text-green-600 font-bold uppercase mt-1">Posiciones actualizadas</p>
             </CardContent>
           </Card>
-          <Card className="bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden">
-            <CardHeader className="pb-2 relative z-10"><CardTitle className="text-[10px] font-black uppercase opacity-60 tracking-widest">Fixture 2025</CardTitle></CardHeader>
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-blue-600 relative overflow-hidden">
+            <CardHeader className="pb-2 relative z-10"><CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fixture 2025</CardTitle></CardHeader>
             <CardContent className="relative z-10">
-              <div className="text-4xl font-black text-primary">Activo</div>
-              <p className="text-[9px] opacity-80 font-bold uppercase mt-1">Gestión de calendarios</p>
+              <div className="text-4xl font-black text-blue-600">Activo</div>
+              <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Gestión de calendarios</p>
             </CardContent>
-            <CalendarDays className="absolute right-[-10px] bottom-[-10px] h-24 w-24 opacity-10 rotate-12" />
+            <CalendarDays className="absolute right-[-10px] bottom-[-10px] h-24 w-24 text-blue-50 opacity-20 rotate-12" />
           </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-md">
-              <CardHeader className="border-b border-slate-100">
+            <Card className="border-none shadow-2xl bg-white overflow-hidden">
+              <CardHeader className="border-b border-slate-50">
                 <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
                   <Layers className="h-6 w-6 text-primary" /> Organización por Ramas
                 </CardTitle>
@@ -178,7 +170,7 @@ export default function CoordinatorDashboard() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-5">
                         <div className="bg-primary/5 p-3 rounded-xl group-hover:scale-110 transition-transform">
-                          {div.sport === 'rugby' ? <Activity className="h-6 w-6 text-primary" /> : <Trophy className="h-6 w-6 text-primary" />}
+                          {div.sport === 'rugby' ? <Calendar className="h-6 w-6 text-primary" /> : <Trophy className="h-6 w-6 text-primary" />}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
@@ -202,8 +194,8 @@ export default function CoordinatorDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-md">
-              <CardHeader className="border-b border-slate-100">
+            <Card className="border-none shadow-2xl bg-white overflow-hidden">
+              <CardHeader className="border-b border-slate-50">
                 <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
                   <TrendingUp className="h-6 w-6 text-green-600" /> Monitor de Competencia
                 </CardTitle>
@@ -219,7 +211,7 @@ export default function CoordinatorDashboard() {
                           <p className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Calendar className="h-3 w-3" /> {new Date(res.date).toLocaleDateString()}</p>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-2xl shadow-xl">
+                          <div className="flex items-center gap-3 bg-slate-50 text-slate-900 px-5 py-2.5 rounded-2xl border-2">
                             <span className="text-2xl font-black">{res.homeScore}</span>
                             <span className="text-xs font-black opacity-40">-</span>
                             <span className="text-2xl font-black">{res.awayScore}</span>
@@ -236,27 +228,27 @@ export default function CoordinatorDashboard() {
           </div>
 
           <div className="space-y-6">
-            <Card className="bg-gradient-to-br from-primary to-primary/80 text-white border-none shadow-2xl rounded-[2rem] overflow-hidden">
-              <CardHeader>
-                <CardTitle className="text-xs font-black uppercase tracking-[0.2em] opacity-80">Gestión Competitiva</CardTitle>
+            <Card className="bg-white border-none shadow-2xl rounded-[2rem] overflow-hidden">
+              <CardHeader className="bg-primary text-white">
+                <CardTitle className="text-xs font-black uppercase tracking-[0.2em]">Gestión Competitiva</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-2">
-                <Button variant="secondary" className="justify-start gap-3 h-14 bg-white/10 hover:bg-white/20 border-none text-white font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4" /> Base de Clubes Rivales</Link>
+              <CardContent className="grid grid-cols-1 gap-2 pt-6">
+                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm" asChild>
+                  <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 text-primary" /> Base de Clubes Rivales</Link>
                 </Button>
-                <Button variant="secondary" className="justify-start gap-3 h-14 bg-white/10 hover:bg-white/20 border-none text-white font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/fixture`}><CalendarDays className="h-4 w-4" /> Armar Fixture Anual</Link>
+                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm" asChild>
+                  <Link href={`/dashboard/clubs/${club?.id}/fixture`}><CalendarDays className="h-4 w-4 text-primary" /> Armar Fixture Anual</Link>
                 </Button>
-                <Button variant="secondary" className="justify-start gap-3 h-14 bg-white/10 hover:bg-white/20 border-none text-white font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4" /> subdivisiones y Equipos</Link>
+                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm" asChild>
+                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4 text-primary" /> subdivisiones y Equipos</Link>
                 </Button>
               </CardContent>
             </Card>
 
-            <div className="p-8 bg-slate-900/40 backdrop-blur-md rounded-[2.5rem] border border-white/10 text-center space-y-4">
-              <Settings className="h-10 w-10 text-primary mx-auto opacity-50" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Configuración de Ramas</p>
-              <Button variant="outline" asChild className="w-full bg-transparent border-white/20 text-white hover:bg-white hover:text-slate-900 font-black uppercase text-[10px] tracking-widest h-12">
+            <div className="p-8 bg-white/10 backdrop-blur-md rounded-[2.5rem] border border-white/20 text-center space-y-4">
+              <Calendar className="h-10 w-10 text-white mx-auto opacity-50" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Configuración de Ramas</p>
+              <Button variant="outline" asChild className="w-full bg-white text-slate-900 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest h-12 border-none">
                 <Link href={`/dashboard/clubs/${club?.id}/divisions`}>Administrar Categorías</Link>
               </Button>
             </div>

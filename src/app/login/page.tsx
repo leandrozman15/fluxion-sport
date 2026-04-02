@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -46,7 +45,6 @@ export default function LoginPage() {
         const role = data.role;
         const clubId = data.clubId;
 
-        // PRIORIDAD ABSOLUTA DE ROLES
         if (role === 'admin' || role === 'fed_admin') {
           router.replace('/dashboard/superadmin');
         } else if (role === 'coordinator') {
@@ -110,23 +108,23 @@ export default function LoginPage() {
   };
 
   if (isUserLoading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950">
-      <Loader2 className="h-12 w-12 animate-spin text-white opacity-20" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+      <Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" />
     </div>
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
       <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in duration-500">
         <div className="text-center space-y-4">
           <div className="bg-primary p-4 rounded-3xl inline-block shadow-2xl border-4 border-white">
             <Trophy className="h-12 w-12 text-primary-foreground" />
           </div>
-          <h1 className="text-5xl font-black text-white drop-shadow-md tracking-tighter">Fluxion Sport</h1>
-          <p className="text-white/60 font-bold uppercase tracking-[0.2em] text-xs">Gestión Deportiva Profesional</p>
+          <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Fluxion Sport</h1>
+          <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-xs">Gestión Deportiva Profesional</p>
         </div>
 
-        <Card className="shadow-2xl border-none bg-white/95 backdrop-blur-md overflow-hidden">
+        <Card className="shadow-2xl border-none bg-white overflow-hidden">
           <CardHeader className="bg-slate-50 border-b pb-6">
             <CardTitle className="text-2xl font-black text-slate-900">Acceso Institucional</CardTitle>
             <CardDescription className="font-medium">Ingresa a la consola de tu club.</CardDescription>
