@@ -1,31 +1,26 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Plus, 
-  ShieldCheck, 
   MapPin, 
-  Phone, 
   ArrowRight,
   Loader2,
   Trash2,
-  Pencil,
   Building,
-  AlertCircle
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, doc, setDoc } from "firebase/firestore";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
+import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -40,14 +35,12 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function InstitutionsPage() {
-  const { firestore, auth, user, isUserLoading } = useFirebase();
+  const { firestore, user, isUserLoading } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingClub, setEditingClub] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [newClub, setNewClub] = useState({ name: "", address: "", phone: "", logoUrl: "", associationId: "" });
+  const [newClub, setNewClub] = useState({ name: "", address: "", phone: "", logoUrl: "" });
 
   const clubsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -72,20 +65,23 @@ export default function InstitutionsPage() {
         createdAt: new Date().toISOString()
       });
 
-      // 2. Vincular perfil de usuario al nuevo club inmediatamente
+      // 2. Vincular perfil de usuario al nuevo club inmediatamente POR UID
+      // Esto asegura que la redirección funcione al instante
       await setDoc(doc(firestore, "users", user.uid), {
+        id: user.uid,
+        email: user.email?.toLowerCase().trim(),
         clubId: clubId,
         role: "club_admin",
         updatedAt: new Date().toISOString()
       }, { merge: true });
       
-      setNewClub({ name: "", address: "", phone: "", logoUrl: "", associationId: "" });
+      setNewClub({ name: "", address: "", phone: "", logoUrl: "" });
       setIsDialogOpen(false);
       
-      toast({ title: "Institución Creada", description: "Tu perfil ha sido vinculado al nuevo club." });
+      toast({ title: "Institución Creada", description: "Tu perfil ha sido vinculado correctamente." });
       
-      // 3. Salto directo al dashboard para evitar lag de caché
-      router.push(`/dashboard/clubs/${clubId}`);
+      // 3. Salto directo al dashboard para forzar la recarga de contexto
+      window.location.href = `/dashboard/clubs/${clubId}`;
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Error al registrar" });
@@ -129,10 +125,6 @@ export default function InstitutionsPage() {
                 <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Sede Central (Dirección)</Label>
                 <Input value={newClub.address} onChange={e => setNewClub({...newClub, address: e.target.value})} placeholder="Calle, Ciudad" className="h-12 border-2" />
               </div>
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Teléfono</Label>
-                <Input value={newClub.phone} onChange={e => setNewClub({...newClub, phone: e.target.value})} placeholder="+54..." className="h-12 border-2" />
-              </div>
             </div>
             <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-lg">
               <Button variant="ghost" onClick={() => setIsDialogOpen(false)} disabled={loading} className="font-bold text-slate-500">Cancelar</Button>
@@ -174,7 +166,7 @@ export default function InstitutionsPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle className="text-2xl font-black text-slate-900 uppercase">¿Eliminar Institución?</AlertDialogTitle>
                         <AlertDialogDescription className="font-bold text-slate-500">
-                          Estás a punto de borrar a <strong>{club.name}</strong> del padrón nacional. Se perderán todos los datos históricos.
+                          Estás a punto de borrar a <strong>{club.name}</strong>. Esta acción romperá los vínculos de todos los usuarios asociados.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter className="pt-4">
@@ -199,10 +191,10 @@ export default function InstitutionsPage() {
               <Building className="h-20 w-20 text-white opacity-20 mb-2" />
               <div className="space-y-2">
                 <h3 className="text-2xl font-black text-white tracking-tight">Sistema Vacío</h3>
-                <p className="text-white/60 font-bold max-w-sm uppercase tracking-widest text-[10px]">No se detectaron clubes vigentes. Registra la primera institución para comenzar.</p>
+                <p className="text-white/60 font-bold max-w-sm uppercase tracking-widest text-[10px]">No se detectaron clubes vigentes.</p>
               </div>
               <Button onClick={() => setIsDialogOpen(true)} className="h-14 px-10 font-black uppercase text-xs tracking-[0.2em] shadow-2xl bg-white text-primary hover:bg-slate-50 rounded-2xl">
-                Configurar Primer Club
+                Configurar Club
               </Button>
             </div>
           )}

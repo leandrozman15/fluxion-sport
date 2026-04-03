@@ -19,44 +19,41 @@ export function UserProfileHeader() {
     if (!user || !firestore) return;
     const email = user.email?.toLowerCase().trim() || "";
 
-    const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-    const unsubStaff = onSnapshot(qStaff, (snap) => {
-      if (!snap.empty) {
-        const staffData = snap.docs[0].data();
-        // Verificar existencia del club antes de setear perfil institucional
-        if (staffData.clubId) {
-          getDoc(doc(firestore, "clubs", staffData.clubId)).then(clubSnap => {
-            if (clubSnap.exists()) {
-              setProfile(staffData);
-            } else {
-              // Club eliminado: Perfil huérfano
-              setProfile({ ...staffData, clubId: null, role: 'guest' });
-            }
-          });
+    // 1. Escuchar cambios en el perfil del usuario (UID es la clave primaria recomendada)
+    const unsubProfile = onSnapshot(doc(firestore, "users", user.uid), async (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.clubId) {
+          const clubSnap = await getDoc(doc(firestore, "clubs", data.clubId));
+          if (clubSnap.exists()) {
+            setProfile(data);
+          } else {
+            // Club eliminado detectado en tiempo real
+            setProfile({ ...data, clubId: null, role: 'guest' });
+          }
         } else {
-          setProfile(staffData);
+          setProfile(data);
         }
       } else {
-        const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-        const unsubPlayer = onSnapshot(qPlayer, (pSnap) => {
-          if (!pSnap.empty) {
-            const pData = pSnap.docs[0].data();
-            getDoc(doc(firestore, "clubs", pData.clubId)).then(clubSnap => {
-              if (clubSnap.exists()) {
-                setProfile({ ...pData, role: 'player' });
-              } else {
-                setProfile({ name: user.email, role: 'guest' });
-              }
-            });
+        // Fallback por email si el UID no existe en users (caso jugadores o registros antiguos)
+        const qStaff = query(collection(firestore, "users"), where("email", "==", email));
+        const unsubStaff = onSnapshot(qStaff, (sSnap) => {
+          if (!sSnap.empty) {
+            setProfile(sSnap.docs[0].data());
           } else {
-            setProfile({ name: user.email, role: 'guest' });
+            // Buscar en índice de jugadores
+            const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
+            onSnapshot(qPlayer, (pSnap) => {
+              if (!pSnap.empty) setProfile({ ...pSnap.docs[0].data(), role: 'player' });
+              else setProfile({ name: user.email, role: 'guest' });
+            });
           }
         });
-        return () => unsubPlayer();
+        return () => unsubStaff();
       }
     });
 
-    return () => unsubStaff();
+    return () => unsubProfile();
   }, [user, firestore]);
 
   const handleLogout = async () => {
