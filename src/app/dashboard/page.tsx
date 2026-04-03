@@ -5,12 +5,13 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 /**
  * Motor de Redireccionamiento Maestro con Autolimpieza de Seguridad.
- * Resuelve el conflicto de IDs de clubes eliminados.
+ * Resuelve el conflicto de IDs de clubes eliminados y maneja errores de permisos.
  */
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -24,12 +25,12 @@ export default function DashboardRedirectPage() {
       try {
         const email = user.email?.toLowerCase().trim() || "";
         
-        // 1. Intentar obtener el perfil por UID directamente (más fiable)
+        // 1. Intentar obtener el perfil por UID directamente
         const userRef = doc(firestore, "users", user.uid);
         let userSnap = await getDoc(userRef);
         let userData = userSnap.exists() ? userSnap.data() : null;
 
-        // 2. Si no existe por UID, buscar por email (fallback para registros manuales)
+        // 2. Si no existe por UID, buscar por email
         if (!userData) {
           const staffQuery = query(collection(firestore, "users"), where("email", "==", email));
           const staffSnap = await getDocs(staffQuery);
@@ -44,10 +45,15 @@ export default function DashboardRedirectPage() {
 
           // VERIFICACIÓN CRÍTICA DE INTEGRIDAD INSTITUCIONAL
           if (clubId) {
-            const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
-            if (!clubDoc.exists()) {
-              // EL CLUB NO EXISTE: Limpieza forzada de la referencia huérfana
-              await updateDoc(doc(firestore, "users", user.uid), { 
+            try {
+              const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
+              if (!clubDoc.exists()) {
+                throw new Error("club-not-found");
+              }
+            } catch (e: any) {
+              // Si el club no existe O no tenemos permiso (porque fue borrado o restringido)
+              // Limpiamos la referencia huérfana de forma no bloqueante
+              updateDocumentNonBlocking(doc(firestore, "users", user.uid), { 
                 clubId: null,
                 role: role === 'admin' ? 'admin' : 'guest' 
               });
@@ -55,13 +61,13 @@ export default function DashboardRedirectPage() {
               toast({ 
                 variant: "destructive", 
                 title: "Institución no encontrada", 
-                description: "La referencia al club anterior ha sido eliminada por seguridad." 
+                description: "La referencia al club anterior ha sido eliminada para permitir un nuevo inicio." 
               });
               return router.replace('/dashboard/clubs');
             }
           }
 
-          // Redirección por Rol vigente
+          // Redirección por Rol vigente con prioridades técnicas
           if (role === 'admin' || role === 'fed_admin') return router.replace('/dashboard/superadmin');
           if (role === 'coordinator') return router.replace('/dashboard/coordinator');
           if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) return router.replace('/dashboard/coach');
@@ -77,12 +83,14 @@ export default function DashboardRedirectPage() {
         
         if (!playerSnap.empty) {
           const pData = playerSnap.docs[0].data();
-          const clubDoc = await getDoc(doc(firestore, "clubs", pData.clubId));
-          if (!clubDoc.exists()) {
+          try {
+            const clubDoc = await getDoc(doc(firestore, "clubs", pData.clubId));
+            if (!clubDoc.exists()) throw new Error("club-not-found");
+            return router.replace('/dashboard/player');
+          } catch (e) {
             toast({ variant: "destructive", title: "Club Inactivo", description: "Tu club de origen ya no es parte del sistema nacional." });
             return router.replace('/login');
           }
-          return router.replace('/dashboard/player');
         }
 
         // 4. Fallback total: No hay datos vinculados

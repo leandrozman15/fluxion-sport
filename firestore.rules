@@ -4,6 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // REGLAS DE ACCESO TOTAL PARA PROTOTIPADO Y DESARROLLO
     // Permite lectura y escritura pública en todas las colecciones para facilitar el cadastro y las pruebas de staff.
+    // Nota: Se ha forzado la actualización de reglas para la base de datos específica.
     
     match /{document=**} {
       allow read, write: if true;

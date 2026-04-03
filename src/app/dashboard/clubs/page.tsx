@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -57,17 +57,17 @@ export default function InstitutionsPage() {
       const clubId = doc(collection(firestore, "clubs")).id;
       const clubDoc = doc(firestore, "clubs", clubId);
       
-      // 1. Crear el Club
-      await setDoc(clubDoc, {
+      // 1. Crear el Club (Iniciamos la escritura)
+      setDocumentNonBlocking(clubDoc, {
         ...newClub,
         id: clubId,
         ownerId: user.uid,
         createdAt: new Date().toISOString()
-      });
+      }, {});
 
       // 2. Vincular perfil de usuario al nuevo club inmediatamente POR UID
-      // Esto asegura que la redirección funcione al instante
-      await setDoc(doc(firestore, "users", user.uid), {
+      // Usamos la utilidad no bloqueante para mayor rapidez
+      setDocumentNonBlocking(doc(firestore, "users", user.uid), {
         id: user.uid,
         email: user.email?.toLowerCase().trim(),
         clubId: clubId,
@@ -80,7 +80,7 @@ export default function InstitutionsPage() {
       
       toast({ title: "Institución Creada", description: "Tu perfil ha sido vinculado correctamente." });
       
-      // 3. Salto directo al dashboard para forzar la recarga de contexto
+      // 3. Salto directo al dashboard forzando recarga de contexto para limpiar IDs antiguos
       window.location.href = `/dashboard/clubs/${clubId}`;
     } catch (e) {
       console.error(e);
