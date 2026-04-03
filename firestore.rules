@@ -9,11 +9,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Reglas explícitas para asegurar que las rutas complejas con caracteres especiales (@) funcionen sin fricción
-    match /clubs/{clubId}/players/{playerId} {
+    // Reglas explícitas para asegurar que las rutas complejas funcionen sin fricción
+    match /clubs/{clubId} {
       allow read, write: if true;
       
-      // Permitir acceso total a subcolecciones como 'payments' o 'attendance'
       match /{allSubcollections=**} {
         allow read, write: if true;
       }
@@ -24,6 +23,10 @@ service cloud.firestore {
     }
     
     match /all_players_index/{playerId} {
+      allow read, write: if true;
+    }
+    
+    match /live_matches_index/{matchId} {
       allow read, write: if true;
     }
   }
