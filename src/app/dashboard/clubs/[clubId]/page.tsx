@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -146,7 +147,7 @@ export default function InstitutionDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-slate-900 rounded-[1.5rem]">
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-primary rounded-[1.5rem]">
             <CardHeader className="pb-2">
               <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Categorías</CardTitle>
             </CardHeader>
@@ -202,18 +203,18 @@ export default function InstitutionDetailPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden rounded-[2.5rem]">
+            <Card className="bg-white text-slate-900 border-none shadow-2xl relative overflow-hidden rounded-[2.5rem]">
               <CardHeader className="relative z-10 pt-8 px-8">
                 <CardTitle className="text-xs font-black uppercase tracking-[0.3em] opacity-60">Accesos Directos</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-2 relative z-10 pt-4 px-8 pb-8">
-                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-white/5 hover:bg-white/10 border-none text-white h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl" asChild>
+                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-slate-50 hover:bg-primary/5 border-none text-slate-900 h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl shadow-sm" asChild>
                   <Link href={`/dashboard/clubs/${clubId}/players`}><FileText className="h-5 w-5 text-primary" /> Padrón de Socios</Link>
                 </Button>
-                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-white/5 hover:bg-white/10 border-none text-white h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl" asChild>
+                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-slate-50 hover:bg-primary/5 border-none text-slate-900 h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl shadow-sm" asChild>
                   <Link href={`/dashboard/clubs/${clubId}/shop/admin`}><ShoppingBag className="h-5 w-5 text-primary" /> Administrar Tienda</Link>
                 </Button>
-                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-white/5 hover:bg-white/10 border-none text-white h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl" asChild>
+                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-slate-50 hover:bg-primary/5 border-none text-slate-900 h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl shadow-sm" asChild>
                   <Link href={`/dashboard/clubs/${clubId}/coaches`}><UserRound className="h-5 w-5 text-primary" /> Staff del Club</Link>
                 </Button>
               </CardContent>

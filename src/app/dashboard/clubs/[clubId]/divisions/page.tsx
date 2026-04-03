@@ -250,7 +250,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Badge className="bg-slate-900 text-white font-black text-[8px] px-2 h-4 uppercase">{division.sport?.toUpperCase()}</Badge>
+              <Badge className="bg-slate-800 text-white font-black text-[8px] px-2 h-4 uppercase">{division.sport?.toUpperCase()}</Badge>
               <Badge variant="outline" className="border-primary text-primary font-black text-[8px] px-2 h-4 uppercase">{division.gender || 'Femenino'}</Badge>
             </div>
             <h3 className="font-black text-xl text-slate-900 leading-none">{division.name}</h3>
@@ -273,7 +273,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Subcategorías / Equipos</h4>
             <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-slate-900">
+                <Button size="sm" className="h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-primary text-white">
                   <Plus className="h-3.5 w-3.5" /> Agregar Equipo
                 </Button>
               </DialogTrigger>

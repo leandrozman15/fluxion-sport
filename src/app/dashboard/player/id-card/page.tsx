@@ -137,8 +137,8 @@ export default function GenericIdCardPage() {
 
         <Card className={cn(
           "w-full text-white overflow-hidden shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] rounded-[2.5rem] border-none transition-all relative",
-          isAdmin ? "bg-gradient-to-br from-slate-800 to-slate-950" :
-          isCoach ? "bg-gradient-to-br from-blue-700 to-blue-950" :
+          isAdmin ? "bg-gradient-to-br from-slate-700 to-slate-800" :
+          isCoach ? "bg-gradient-to-br from-blue-600 to-blue-800" :
           "bg-gradient-to-br from-primary to-primary/80"
         )}>
           <CardContent className="p-0">
@@ -205,7 +205,7 @@ export default function GenericIdCardPage() {
               </div>
             </div>
             
-            <div className="px-8 py-5 bg-black/20 backdrop-blur-md flex justify-between items-center border-t border-white/5">
+            <div className="px-8 py-5 bg-primary/10 backdrop-blur-md flex justify-between items-center border-t border-white/5">
                <div className="flex items-center gap-2">
                  <ShieldCheck className="h-5 w-5 text-accent" />
                  <span className="text-xs font-black tracking-widest uppercase text-white">Estado: Activo</span>
