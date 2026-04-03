@@ -55,57 +55,20 @@
         "phone": { "type": "string" }
       }
     },
-    "Opponent": {
-      "title": "Club Rival",
-      "description": "Institución contra la que se compite en la liga.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "shortName": { "type": "string" },
-        "logoUrl": { "type": "string" },
-        "address": { "type": "string" },
-        "city": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name"]
-    },
-    "Division": {
-      "title": "Categoría / Rama",
-      "description": "Rama deportiva del club (ej. Damas, Caballeros).",
+    "SpecialEvent": {
+      "title": "Evento Especial",
+      "description": "Comunicado oficial con imagen y comentario para todo el club.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "clubId": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "trainingSessions": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "day": { "type": "string" },
-              "time": { "type": "string" }
-            }
-          }
-        }
-      }
-    },
-    "Payment": {
-      "title": "Pago de Cuota",
-      "description": "Registro de pago mensual de un deportista.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "month": { "type": "integer" },
-        "year": { "type": "integer" },
-        "amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["paid", "pending", "overdue"] },
-        "paymentMethod": { "type": "string" },
-        "paymentDate": { "type": "string", "format": "date-time" },
+        "title": { "type": "string" },
+        "comment": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "authorName": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["month", "year", "amount", "status"]
+      "required": ["id", "title", "clubId", "createdAt"]
     }
   },
   "auth": {
@@ -120,21 +83,13 @@
       "schema": "#/backend/entities/Club",
       "description": "Instituciones deportivas."
     },
-    "/clubs/{clubId}/opponents/{opponentId}": {
-      "schema": "#/backend/entities/Opponent",
-      "description": "Listado de clubes rivales registrados."
+    "/clubs/{clubId}/special_events/{eventId}": {
+      "schema": "#/backend/entities/SpecialEvent",
+      "description": "Noticias y anuncios institucionales."
     },
     "/clubs/{clubId}/players/{playerId}": {
       "schema": "#/backend/entities/UserProfile",
       "description": "Fichas de jugadores por club."
-    },
-    "/clubs/{clubId}/players/{playerId}/payments/{paymentId}": {
-      "schema": "#/backend/entities/Payment",
-      "description": "Historial de pagos del jugador."
-    },
-    "/clubs/{clubId}/divisions/{divisionId}": {
-      "schema": "#/backend/entities/Division",
-      "description": "Categorías del club."
     }
   }
 }

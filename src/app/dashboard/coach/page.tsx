@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
+import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 
 export default function CoachDashboard() {
   const { firestore, user } = useFirebase();
@@ -261,6 +262,8 @@ export default function CoachDashboard() {
         </header>
 
         <LiveMatchesCard clubId={selectedTeam.clubId} />
+
+        {selectedTeam && <SpecialEventsFeed clubId={selectedTeam.clubId} />}
 
         {todayEvent && (
           <Card className="border-none bg-primary shadow-2xl overflow-hidden rounded-[2rem]">

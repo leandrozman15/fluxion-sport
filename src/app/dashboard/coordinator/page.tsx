@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
+import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 
 export default function CoordinatorDashboard() {
   const { firestore, user } = useFirebase();
@@ -127,6 +128,8 @@ export default function CoordinatorDashboard() {
         </header>
 
         <LiveMatchesCard clubId={club?.id} />
+
+        {club && <SpecialEventsFeed clubId={club.id} />}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="bg-white border-none shadow-xl border-l-8 border-l-primary rounded-2xl">

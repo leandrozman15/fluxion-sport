@@ -21,7 +21,8 @@ import {
   Clock,
   Calendar,
   Layers,
-  ShoppingBag
+  ShoppingBag,
+  Megaphone
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, query, where, getDocs } from "firebase/firestore";
@@ -32,6 +33,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
+import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
+import { CreateSpecialEventDialog } from "@/components/dashboard/create-special-event-dialog";
 
 export default function InstitutionDetailPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -47,7 +50,8 @@ export default function InstitutionDetailPage() {
         const email = user.email?.toLowerCase().trim() || "";
         const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
         if (!staffSnap.empty) {
-          const role = staffSnap.docs[0].data().role;
+          const staffData = staffSnap.docs[0].data();
+          const role = staffData.role;
           if (role === 'coordinator') {
             router.replace('/dashboard/coordinator');
           } else if (role === 'coach') {
@@ -106,6 +110,7 @@ export default function InstitutionDetailPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              <CreateSpecialEventDialog clubId={clubId} authorName={club?.name || "Administración"} />
               <Button variant="outline" asChild className="gap-2 border-primary text-primary hover:bg-primary/5 text-[10px] h-10 font-black uppercase px-4 rounded-xl">
                 <Link href={`/dashboard/clubs/${clubId}/shop`}>
                   <ShoppingBag className="h-4 w-4" /> Tienda
@@ -123,8 +128,9 @@ export default function InstitutionDetailPage() {
           </div>
         </header>
 
-        {/* Monitor de Partidos Live del Club */}
         <LiveMatchesCard clubId={clubId} />
+
+        <SpecialEventsFeed clubId={clubId} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="bg-primary text-primary-foreground border-none shadow-2xl shadow-primary/20 transform hover:scale-105 transition-all rounded-[1.5rem]">
@@ -145,6 +151,7 @@ export default function InstitutionDetailPage() {
               <div className="text-4xl font-black text-green-600 tracking-tighter">82%</div>
               <p className="text-[9px] text-green-600/70 font-bold uppercase mt-1">Efectividad de pago</p>
             </CardContent>
+
           </Card>
 
           <Card className="bg-white border-none shadow-xl border-l-8 border-l-primary rounded-[1.5rem]">

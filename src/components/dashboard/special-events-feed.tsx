@@ -1,0 +1,75 @@
+
+"use client";
+
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, orderBy, limit } from "firebase/firestore";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Megaphone, Calendar, Loader2, Image as ImageIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
+  const db = useFirestore();
+
+  const eventsQuery = useMemoFirebase(() => {
+    if (!db || !clubId) return null;
+    return query(
+      collection(db, "clubs", clubId, "special_events"),
+      orderBy("createdAt", "desc"),
+      limit(5)
+    );
+  }, [db, clubId]);
+
+  const { data: events, isLoading } = useCollection(eventsQuery);
+
+  if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
+  if (!events || events.length === 0) return null;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 px-1">
+        <Megaphone className="h-4 w-4 text-primary" />
+        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Novedades Institucionales</h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {events.map((event: any) => (
+          <Card key={event.id} className="border-none shadow-2xl bg-white overflow-hidden rounded-[2rem] group transition-all hover:-translate-y-1">
+            {event.imageUrl && (
+              <div className="aspect-video w-full overflow-hidden relative">
+                <img 
+                  src={event.imageUrl} 
+                  alt={event.title} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                <div className="absolute bottom-4 left-6">
+                  <Badge className="bg-white/20 backdrop-blur-md text-white border-white/30 font-black uppercase text-[8px] tracking-widest px-3">Oficial</Badge>
+                </div>
+              </div>
+            )}
+            <CardHeader className="pt-6 px-8 pb-4">
+              <div className="flex justify-between items-start gap-4">
+                <CardTitle className="text-xl font-black text-slate-900 leading-tight">{event.title}</CardTitle>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+                  <Calendar className="h-3 w-3" /> {new Date(event.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="px-8 pb-8">
+              <p className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                {event.comment}
+              </p>
+              <div className="mt-6 pt-4 border-t border-slate-50 flex items-center gap-3">
+                <Avatar className="h-6 w-6 border-2 border-primary/10">
+                  <AvatarFallback className="bg-primary/5 text-primary text-[8px] font-black">A</AvatarFallback>
+                </Avatar>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Publicado por: {event.authorName || "Administración"}</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}

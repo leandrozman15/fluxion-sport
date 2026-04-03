@@ -8,14 +8,11 @@ import {
   ShieldCheck, 
   Loader2, 
   CheckCircle2,
-  User,
-  Phone,
-  Mail,
-  Lock,
-  Trophy
+  Trophy,
+  Megaphone
 } from "lucide-react";
 import { collection, doc, setDoc } from "firebase/firestore";
-import { useFirestore, useAuth } from "@/firebase";
+import { useFirestore, useAuth, useFirebase } from "@/firebase";
 import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -24,8 +21,11 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
+import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
+import { CreateSpecialEventDialog } from "@/components/dashboard/create-special-event-dialog";
 
 export default function SuperAdminPage() {
+  const { user } = useFirebase();
   const db = useFirestore();
   const auth = useAuth();
   const { toast } = useToast();
@@ -109,9 +109,11 @@ export default function SuperAdminPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-24 px-4 md:px-0">
-      <header className="space-y-2">
-        <h1 className="text-4xl font-black font-headline text-white drop-shadow-2xl tracking-tight">Infraestructura Global</h1>
-        <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] drop-shadow-md">Alta de Clientes e Instituciones • Fluxion Sport</p>
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-black font-headline text-white drop-shadow-2xl tracking-tight">Infraestructura Global</h1>
+          <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] drop-shadow-md">Alta de Clientes e Instituciones • Fluxion Sport</p>
+        </div>
       </header>
 
       <LiveMatchesCard />

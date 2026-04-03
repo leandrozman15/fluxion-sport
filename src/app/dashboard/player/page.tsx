@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { SectionNav } from "@/components/layout/section-nav";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
+import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 
 export default function PlayerDashboardHub() {
   const { firestore, user } = useFirebase();
@@ -146,6 +147,8 @@ export default function PlayerDashboardHub() {
         </header>
 
         <LiveMatchesCard clubId={playerInfo.clubId} />
+
+        {playerInfo.clubId && <SpecialEventsFeed clubId={playerInfo.clubId} />}
 
         {pendingCount > 0 && (
           <Link href="/dashboard/player" className="block active:scale-95 transition-transform">
