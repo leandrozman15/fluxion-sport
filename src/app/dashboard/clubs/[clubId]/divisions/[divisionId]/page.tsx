@@ -17,7 +17,8 @@ import {
   Search,
   UserPlus,
   ShieldCheck,
-  LayoutGrid
+  LayoutGrid,
+  ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where, getDoc } from "firebase/firestore";
@@ -82,8 +83,10 @@ export default function CategoryAdminPage() {
   const teamsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams"), [db, clubId, divisionId]);
   const { data: teams, isLoading: teamsLoading } = useCollection(teamsQuery);
 
-  // 3. Pool de Jugadores (Todos los del club)
-  const playersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
+  // 3. Pool de Jugadores (Filtrados por esta categoría específica)
+  const playersQuery = useMemoFirebase(() => 
+    query(collection(db, "clubs", clubId, "players"), where("divisionId", "==", divisionId))
+  , [db, clubId, divisionId]);
   const { data: allPlayers, isLoading: playersLoading } = useCollection(playersQuery);
 
   // 4. Staff Técnico (Todos los coaches del club)
@@ -240,14 +243,14 @@ export default function CategoryAdminPage() {
           </div>
         </TabsContent>
 
-        {/* POOL DE JUGADORES */}
+        {/* POOL DE JUGADORES (FILTRADO) */}
         <TabsContent value="players" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Card className="border-none shadow-2xl bg-white rounded-[2.5rem] overflow-hidden">
             <CardHeader className="bg-slate-50 border-b py-6 px-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-xl font-black text-slate-900 uppercase">Padrón de la Categoría</CardTitle>
-                  <CardDescription className="font-bold text-slate-500">Jugadores disponibles para asignar a subcategorías.</CardDescription>
+                  <CardDescription className="font-bold text-slate-500">Jugadores asignados oficialmente a esta división.</CardDescription>
                 </div>
                 <div className="relative w-full md:w-72">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -262,7 +265,11 @@ export default function CategoryAdminPage() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-slate-50">
-                {playersLoading ? <div className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-primary" /></div> : filteredPlayers?.map((player: any) => (
+                {playersLoading ? <div className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-primary" /></div> : filteredPlayers?.length === 0 ? (
+                  <div className="p-20 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest italic">
+                    No hay jugadores asignados a esta categoría todavía.
+                  </div>
+                ) : filteredPlayers?.map((player: any) => (
                   <div key={player.id} className="p-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
                     <div className="flex items-center gap-4">
                       <Avatar className="h-12 w-10 border-2 border-slate-100 shadow-sm rounded-xl">
@@ -275,9 +282,6 @@ export default function CategoryAdminPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-[9px] font-black uppercase text-slate-400 border-slate-200">
-                        Sin Asignar
-                      </Badge>
                       <Button variant="ghost" size="sm" asChild className="h-10 w-10 p-0 rounded-full hover:bg-primary/10 hover:text-primary opacity-0 group-hover:opacity-100 transition-all">
                         <Link href={`/dashboard/clubs/${clubId}/players`}><ChevronRight className="h-5 w-5" /></Link>
                       </Button>

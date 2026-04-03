@@ -17,6 +17,7 @@
           "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach_lvl1", "coach_lvl2", "coach", "player", "referee", "coordinator"]
         },
         "clubId": { "type": "string" },
+        "divisionId": { "type": "string" },
         "clubName": { "type": "string" },
         "dni": { "type": "string" },
         "birthDate": { "type": "string", "format": "date" },

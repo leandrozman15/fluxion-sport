@@ -26,7 +26,8 @@ import {
   MapPin,
   Stethoscope,
   ChevronRight,
-  Trash2
+  Trash2,
+  ChevronDown
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -72,6 +73,7 @@ export default function PlayersPage() {
     position: "",
     jerseyNumber: "",
     photoUrl: "",
+    divisionId: "",
     enableLogin: false,
     password: "",
     sport: "hockey"
@@ -84,6 +86,9 @@ export default function PlayersPage() {
 
   const playersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
   const { data: players, isLoading } = useCollection(playersQuery);
+
+  const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
+  const { data: divisions } = useCollection(divisionsQuery);
 
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
@@ -122,6 +127,7 @@ export default function PlayersPage() {
           lastName: newPlayer.lastName,
           email: normalizedEmail,
           clubId,
+          divisionId: newPlayer.divisionId,
           clubName: club?.name || "Club",
           sport: newPlayer.sport,
           role: "player",
@@ -143,6 +149,16 @@ export default function PlayersPage() {
     if (!editingPlayer) return;
     const playerDoc = doc(db, "clubs", clubId, "players", editingPlayer.id);
     updateDocumentNonBlocking(playerDoc, { ...editingPlayer, role: "player" });
+    
+    // Sincronizar índice global si existe
+    const indexDoc = doc(db, "all_players_index", editingPlayer.id);
+    updateDocumentNonBlocking(indexDoc, {
+      firstName: editingPlayer.firstName,
+      lastName: editingPlayer.lastName,
+      divisionId: editingPlayer.divisionId,
+      sport: editingPlayer.sport
+    });
+
     setIsEditOpen(false);
     toast({ title: "Legajo Actualizado" });
   };
@@ -226,9 +242,20 @@ export default function PlayersPage() {
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 border-b pb-2">
                         <Mail className="h-5 w-5 text-primary" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Contacto y Residencia</h3>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Categoría y Contacto</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Categoría / Rama</Label>
+                          <Select value={newPlayer.divisionId} onValueChange={v => setNewPlayer({...newPlayer, divisionId: v})}>
+                            <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Asignar Categoría..." /></SelectTrigger>
+                            <SelectContent>
+                              {divisions?.map(d => (
+                                <SelectItem key={d.id} value={d.id} className="font-bold">{d.name} ({d.sport?.toUpperCase()})</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <div className="space-y-2">
                           <Label className="font-bold text-slate-700">Email Particular</Label>
                           <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="mateo@ejemplo.com" className="h-12 border-2" />
@@ -237,7 +264,7 @@ export default function PlayersPage() {
                           <Label className="font-bold text-slate-700">Teléfono Celular</Label>
                           <Input value={newPlayer.phone} onChange={e => setNewPlayer({...newPlayer, phone: e.target.value})} placeholder="+54..." className="h-12 border-2" />
                         </div>
-                        <div className="col-span-full space-y-2">
+                        <div className="space-y-2">
                           <Label className="font-bold text-slate-700">Dirección Particular</Label>
                           <Input value={newPlayer.address} onChange={e => setNewPlayer({...newPlayer, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
                         </div>
@@ -352,45 +379,51 @@ export default function PlayersPage() {
         </header>
 
         <div className="space-y-4">
-          {filteredPlayers?.map((player: any) => (
-            <Card key={player.id} className="hover:border-primary/50 transition-all overflow-hidden border-none shadow-xl bg-white group">
-              <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                  <div className="relative">
-                    <Avatar className="h-16 w-14 border-2 border-slate-100 shadow-md rounded-xl">
-                      <AvatarImage src={player.photoUrl} className="object-cover" />
-                      <AvatarFallback className="font-black text-slate-300 bg-slate-50">{player.firstName[0]}</AvatarFallback>
-                    </Avatar>
-                    {player.jerseyNumber && (
-                      <div className="absolute -bottom-2 -right-2 bg-slate-900 text-white text-[9px] font-black h-6 w-6 flex items-center justify-center rounded-lg border-2 border-white shadow-md">
-                        #{player.jerseyNumber}
+          {filteredPlayers?.map((player: any) => {
+            const playerDiv = divisions?.find(d => d.id === player.divisionId);
+            return (
+              <Card key={player.id} className="hover:border-primary/50 transition-all overflow-hidden border-none shadow-xl bg-white group">
+                <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="relative">
+                      <Avatar className="h-16 w-14 border-2 border-slate-100 shadow-md rounded-xl">
+                        <AvatarImage src={player.photoUrl} className="object-cover" />
+                        <AvatarFallback className="font-black text-slate-300 bg-slate-50">{player.firstName[0]}</AvatarFallback>
+                      </Avatar>
+                      {player.jerseyNumber && (
+                        <div className="absolute -bottom-2 -right-2 bg-slate-900 text-white text-[9px] font-black h-6 w-6 flex items-center justify-center rounded-lg border-2 border-white shadow-md">
+                          #{player.jerseyNumber}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-xl text-slate-900 leading-none truncate">{player.firstName} {player.lastName}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Badge variant="outline" className="text-[8px] font-black uppercase border-primary text-primary px-2 h-4">
+                          {player.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}
+                        </Badge>
+                        <Badge variant="secondary" className="text-[8px] font-black uppercase px-2 h-4">
+                          {playerDiv?.name || "Sin Categoría"}
+                        </Badge>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">DNI: {player.dni}</span>
                       </div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-black text-xl text-slate-900 leading-none truncate">{player.firstName} {player.lastName}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <Badge variant="outline" className="text-[8px] font-black uppercase border-primary text-primary px-2 h-4">
-                        {player.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}
-                      </Badge>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">DNI: {player.dni}</span>
                     </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                  <div className="hidden lg:flex flex-col items-end mr-4">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Posición</span>
-                    <span className="text-xs font-bold text-slate-700">{player.position || "Sin definir"}</span>
+                  
+                  <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                    <div className="hidden lg:flex flex-col items-end mr-4">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Posición</span>
+                      <span className="text-xs font-bold text-slate-700">{player.position || "Sin definir"}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}><Pencil className="h-5 w-5" /></Button>
+                    <Button variant="outline" size="sm" asChild className="font-black h-11 gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-all px-6 text-[10px] uppercase tracking-widest rounded-xl">
+                      <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>Cta. Corriente</Link>
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}><Pencil className="h-5 w-5" /></Button>
-                  <Button variant="outline" size="sm" asChild className="font-black h-11 gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-all px-6 text-[10px] uppercase tracking-widest rounded-xl">
-                    <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>Cta. Corriente</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
           {filteredPlayers?.length === 0 && (
             <div className="text-center py-32 opacity-40 border-2 border-dashed rounded-[2.5rem]">
               <Users className="h-16 w-16 mx-auto mb-4 text-white" />
@@ -442,9 +475,20 @@ export default function PlayersPage() {
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b pb-2">
                   <Mail className="h-5 w-5 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Contacto y Residencia</h3>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Categoría y Residencia</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Categoría / Rama</Label>
+                    <Select value={editingPlayer?.divisionId || ""} onValueChange={v => setEditingPlayer({...editingPlayer, divisionId: v})}>
+                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Asignar Categoría..." /></SelectTrigger>
+                      <SelectContent>
+                        {divisions?.map(d => (
+                          <SelectItem key={d.id} value={d.id} className="font-bold">{d.name} ({d.sport?.toUpperCase()})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <Label className="font-bold text-slate-700">Email Particular</Label>
                     <Input type="email" value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} className="h-12 border-2" />
