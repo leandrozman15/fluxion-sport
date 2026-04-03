@@ -41,57 +41,46 @@ export default function GenericIdCardPage() {
     async function fetchData() {
       if (!user || !firestore) return;
       try {
-        const userEmail = user.email?.toLowerCase().trim() || "";
-        
-        // 1. Buscamos en Staff (users) primero por UID o Email
-        const userDocRef = doc(firestore, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        let userData = userDoc.exists() ? userDoc.data() : null;
+        const email = user.email?.toLowerCase().trim() || "";
+        let userData: any = null;
 
-        if (!userData) {
-          const qStaff = query(collection(firestore, "users"), where("email", "==", userEmail));
-          const staffSnap = await getDocs(qStaff);
-          if (!staffSnap.empty) userData = staffSnap.docs[0].data();
+        // 1. STAFF
+        const staffByUid = await getDoc(doc(firestore, "users", user.uid));
+        if (staffByUid.exists()) {
+          userData = staffByUid.data();
+        } else {
+          const staffByEmailId = await getDoc(doc(firestore, "users", email));
+          if (staffByEmailId.exists()) userData = staffByEmailId.data();
         }
 
-        let foundProfile = null;
-        let foundClub = null;
+        // 2. JUGADOR
+        if (!userData) {
+          const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
+          if (playerByUid.exists()) {
+            userData = playerByUid.data();
+          } else {
+            const playerByEmailId = await getDoc(doc(firestore, "all_players_index", email));
+            if (playerByEmailId.exists()) userData = playerByEmailId.data();
+          }
+        }
 
         if (userData) {
-          foundProfile = userData;
-          const role = userData.role || 'coach';
+          setProfile(userData);
+          const role = userData.role || 'player';
           setRoleInfo({ 
             role, 
             label: role === 'admin' || role === 'club_admin' ? 'Director Club' : 
                    role === 'coordinator' ? 'Coordinador' : 
-                   role === 'coach' ? 'Entrenador Oficial' : 'Staff' 
+                   role === 'coach' || role.includes('coach') ? 'Staff Técnico' : 'Jugador Federado' 
           });
           
           if (userData.clubId) {
             const clubDoc = await getDoc(doc(firestore, "clubs", userData.clubId));
-            foundClub = clubDoc.exists() ? { ...clubDoc.data(), id: clubDoc.id } : null;
-          }
-        } else {
-          // 2. Si no es staff, buscamos en el índice de jugadores
-          const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", userEmail));
-          const pSnap = await getDocs(qPlayer);
-          if (!pSnap.empty) {
-            const pData = pSnap.docs[0].data();
-            foundProfile = pData;
-            foundClub = { id: pData.clubId, name: pData.clubName, logoUrl: "" }; // Fallback
-            
-            // Intentar traer el logo real del club
-            const cDoc = await getDoc(doc(firestore, "clubs", pData.clubId));
-            if (cDoc.exists()) foundClub = { ...cDoc.data(), id: cDoc.id };
-            
-            setRoleInfo({ role: 'player', label: 'Jugador Federado' });
+            if (clubDoc.exists()) setClubInfo({ ...clubDoc.data(), id: clubDoc.id });
           }
         }
-
-        setProfile(foundProfile);
-        setClubInfo(foundClub);
       } catch (e) { 
-        console.error("Error cargando carnet:", e); 
+        console.error("Error carnet:", e); 
       } finally { 
         setLoading(false); 
       }
@@ -99,8 +88,7 @@ export default function GenericIdCardPage() {
     fetchData();
   }, [user, firestore]);
 
-  // Navegación dinámica basada en el rol detectado
-  const isStaff = roleInfo.role === 'coach' || roleInfo.role === 'coordinator' || roleInfo.role === 'club_admin' || roleInfo.role === 'admin';
+  const isStaff = ['admin', 'club_admin', 'coordinator', 'coach', 'coach_lvl1', 'coach_lvl2'].includes(roleInfo.role);
 
   const coachNav = [
     { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
@@ -122,9 +110,6 @@ export default function GenericIdCardPage() {
 
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
 
-  const isCoach = roleInfo.role === 'coach';
-  const isAdmin = roleInfo.role === 'admin' || roleInfo.role === 'club_admin';
-
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={currentNav} basePath={isStaff ? "/dashboard/coach" : "/dashboard/player"} />
@@ -137,12 +122,11 @@ export default function GenericIdCardPage() {
 
         <Card className={cn(
           "w-full text-white overflow-hidden shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] rounded-[2.5rem] border-none transition-all relative",
-          isAdmin ? "bg-gradient-to-br from-slate-700 to-slate-800" :
-          isCoach ? "bg-gradient-to-br from-blue-600 to-blue-800" :
+          roleInfo.role.includes('admin') ? "bg-gradient-to-br from-slate-700 to-slate-800" :
+          isStaff ? "bg-gradient-to-br from-blue-600 to-blue-800" :
           "bg-gradient-to-br from-primary to-primary/80"
         )}>
           <CardContent className="p-0">
-            {/* Header del Carnet */}
             <div className="p-8 flex justify-between items-start">
               <div className="flex items-center gap-4">
                 <div className="bg-white p-1.5 rounded-2xl shadow-2xl">
@@ -159,49 +143,26 @@ export default function GenericIdCardPage() {
               <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md font-black text-xs px-4 py-1.5 rounded-full">2025</Badge>
             </div>
 
-            {/* Cuerpo del Carnet */}
             <div className="bg-white text-slate-900 mx-5 mb-5 rounded-[2rem] p-8 flex flex-col items-center space-y-6 shadow-inner relative overflow-hidden">
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary/5 rounded-3xl blur-2xl animate-pulse" />
-                <Avatar className="h-44 w-44 border-[6px] border-slate-50 shadow-2xl rounded-3xl relative z-10">
-                  <AvatarImage src={profile?.photoUrl} className="object-cover" />
-                  <AvatarFallback className="text-6xl font-black text-slate-200 bg-slate-50">{profile?.firstName?.[0] || profile?.name?.[0]}</AvatarFallback>
-                </Avatar>
-                {profile?.jerseyNumber && (
-                  <div className="absolute -bottom-3 -right-3 bg-primary text-white text-xl font-black w-14 h-14 flex items-center justify-center rounded-2xl border-[5px] border-white shadow-2xl z-20">
-                    #{profile.jerseyNumber}
-                  </div>
-                )}
-                {(isCoach || isAdmin) && (
-                  <div className="absolute -top-3 -left-3 bg-accent text-accent-foreground text-[10px] font-black px-3 py-1.5 rounded-lg border-2 border-white shadow-xl z-20 uppercase tracking-widest flex items-center gap-1.5">
-                    <BadgeCheck className="h-3.5 w-3.5" /> Oficial
-                  </div>
-                )}
-              </div>
+              <Avatar className="h-44 w-44 border-[6px] border-slate-50 shadow-2xl rounded-3xl relative z-10">
+                <AvatarImage src={profile?.photoUrl} className="object-cover" />
+                <AvatarFallback className="text-6xl font-black text-slate-200 bg-slate-50">{profile?.firstName?.[0] || profile?.name?.[0]}</AvatarFallback>
+              </Avatar>
               
               <div className="text-center space-y-1">
                 <h2 className="text-3xl font-black font-headline uppercase tracking-tighter leading-none text-slate-900">
                   {profile?.firstName ? `${profile.firstName} ${profile.lastName}` : profile?.name || "Usuario"}
                 </h2>
-                <div className="flex flex-col items-center gap-1">
-                  <p className="text-primary font-black text-xs uppercase tracking-[0.2em]">
-                    {roleInfo.label}
-                  </p>
-                  {isCoach && profile?.specialty && (
-                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{profile.specialty}</p>
-                  )}
-                </div>
+                <p className="text-primary font-black text-xs uppercase tracking-[0.2em]">{roleInfo.label}</p>
               </div>
 
               <div className="w-full h-px bg-slate-100" />
               
               <div className="flex flex-col items-center gap-4">
-                <div className="bg-slate-50 p-3 rounded-2xl flex items-center justify-center w-36 h-36 border-2 border-dashed border-slate-200 group">
-                  <QrCode className="h-32 w-32 text-slate-300 group-hover:text-primary transition-colors" />
+                <div className="bg-slate-50 p-3 rounded-2xl flex items-center justify-center w-36 h-36 border-2 border-dashed border-slate-200">
+                  <QrCode className="h-32 w-32 text-slate-300" />
                 </div>
-                <div className="text-center">
-                  <p className="text-[10px] text-slate-400 font-black font-mono uppercase tracking-widest">REG: {profile?.id?.substring(0, 14) || "STAFF-ID-PENDING"}</p>
-                </div>
+                <p className="text-[10px] text-slate-400 font-black font-mono uppercase tracking-widest">REG: {profile?.id?.substring(0, 14) || "SISTEMA-OK"}</p>
               </div>
             </div>
             
@@ -214,15 +175,6 @@ export default function GenericIdCardPage() {
             </div>
           </CardContent>
         </Card>
-
-        <div className="grid grid-cols-2 gap-4 w-full px-2">
-          <Button variant="outline" className="flex items-center gap-3 font-black uppercase text-[10px] tracking-widest h-14 shadow-xl bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary transition-all">
-            <Download className="h-4 w-4" /> Descargar PDF
-          </Button>
-          <Button variant="outline" className="flex items-center gap-3 font-black uppercase text-[10px] tracking-widest h-14 shadow-xl bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary transition-all">
-            <Share2 className="h-4 w-4" /> Compartir
-          </Button>
-        </div>
       </div>
     </div>
   );

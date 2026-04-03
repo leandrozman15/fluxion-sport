@@ -3,7 +3,7 @@
 
 import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
-import { doc, getDoc, collection, query, where, getDocs, collectionGroup } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, setDoc } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Shield, UserCheck, UserCircle, Settings, ShieldCheck, Loader2 } from "lucide-react";
 import { signOut } from "firebase/auth";
@@ -11,8 +11,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 /**
- * Encabezado de Perfil de Usuario.
- * Utiliza lógica de triple búsqueda para identificar correctamente a jugadoras y staff.
+ * Encabezado de Perfil de Usuario con Motor de Auto-Vinculación.
  */
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
@@ -25,70 +24,84 @@ export function UserProfileHeader() {
       setIdentifying(false);
       return;
     }
+    
     const email = user.email?.toLowerCase().trim() || "";
 
-    async function identifyUserProfile() {
+    async function identifyAndLink() {
       setIdentifying(true);
       try {
-        // 1. BUSCAR EN STAFF por UID o Email
-        const staffRef = doc(firestore, "users", user.uid);
-        const staffSnap = await getDoc(staffRef);
-        if (staffSnap.exists()) {
-          setProfile(staffSnap.data());
-          setIdentifying(false);
-          return;
-        }
+        let foundData = null;
+        let sourceColl = "";
+        let docId = "";
 
-        if (email) {
-          const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-          const staffByEmail = await getDocs(qStaff);
-          if (!staffByEmail.empty) {
-            setProfile(staffByEmail.docs[0].data());
-            setIdentifying(false);
-            return;
+        // 1. BUSCAR EN STAFF (users)
+        // Intento 1: Por UID
+        const staffByUid = await getDoc(doc(firestore, "users", user.uid));
+        if (staffByUid.exists()) {
+          foundData = staffByUid.data();
+        } else {
+          // Intento 2: Por ID = Email
+          const staffByEmailId = await getDoc(doc(firestore, "users", email));
+          if (staffByEmailId.exists()) {
+            foundData = staffByEmailId.data();
+            sourceColl = "users";
+            docId = email;
+          } else {
+            // Intento 3: Por campo email
+            const qStaff = query(collection(firestore, "users"), where("email", "==", email));
+            const staffSnap = await getDocs(qStaff);
+            if (!staffSnap.empty) {
+              foundData = staffSnap.docs[0].data();
+              sourceColl = "users";
+              docId = staffSnap.docs[0].id;
+            }
           }
         }
 
-        // 2. BUSCAR EN ÍNDICE DE JUGADORES
-        const playerRef = doc(firestore, "all_players_index", user.uid);
-        const playerSnap = await getDoc(playerRef);
-        if (playerSnap.exists()) {
-          setProfile({ ...playerSnap.data(), role: 'player' });
-          setIdentifying(false);
-          return;
-        }
-
-        if (email) {
-          const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-          const playerByEmail = await getDocs(qPlayer);
-          if (!playerByEmail.empty) {
-            setProfile({ ...playerByEmail.docs[0].data(), role: 'player' });
-            setIdentifying(false);
-            return;
+        // 2. BUSCAR EN JUGADORES (all_players_index) si no es staff
+        if (!foundData) {
+          const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
+          if (playerByUid.exists()) {
+            foundData = { ...playerByUid.data(), role: 'player' };
+          } else {
+            const playerByEmailId = await getDoc(doc(firestore, "all_players_index", email));
+            if (playerByEmailId.exists()) {
+              foundData = { ...playerByEmailId.data(), role: 'player' };
+              sourceColl = "all_players_index";
+              docId = email;
+            } else {
+              const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
+              const pSnap = await getDocs(qPlayer);
+              if (!pSnap.empty) {
+                foundData = { ...pSnap.docs[0].data(), role: 'player' };
+                sourceColl = "all_players_index";
+                docId = pSnap.docs[0].id;
+              }
+            }
           }
         }
 
-        // 3. BÚSQUEDA PROFUNDA EN CLUBES (Casos como Brenda)
-        if (email) {
-          const pGroup = query(collectionGroup(firestore, "players"), where("email", "==", email));
-          const groupSnap = await getDocs(pGroup);
-          if (!groupSnap.empty) {
-            setProfile({ ...groupSnap.docs[0].data(), role: 'player' });
-            setIdentifying(false);
-            return;
-          }
+        // 3. AUTO-VINCULACIÓN (Si lo encontramos por email, le grabamos el UID para siempre)
+        if (foundData && sourceColl && docId) {
+          await setDoc(doc(firestore, sourceColl, docId), { 
+            uid: user.uid,
+            updatedAt: new Date().toISOString() 
+          }, { merge: true });
         }
 
-        // Fallback: Usuario sin legajo aún
-        setProfile({ name: user.email, role: 'guest' });
+        if (foundData) {
+          setProfile(foundData);
+        } else {
+          setProfile({ name: user.email, role: 'guest' });
+        }
       } catch (e) {
-        console.error("Error identificando perfil en header:", e);
+        console.error("Identity Error:", e);
       } finally {
         setIdentifying(false);
       }
     }
 
-    identifyUserProfile();
+    identifyAndLink();
   }, [user, firestore]);
 
   const handleLogout = async () => {
@@ -133,7 +146,7 @@ export function UserProfileHeader() {
 
         <div className="flex flex-col items-start min-w-[100px]">
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
-            {identifying ? "Cargando..." : userName}
+            {identifying ? "Identificando..." : userName}
           </span>
           <span className={cn("text-[9px] uppercase font-black tracking-widest mt-1 flex items-center gap-1", display.color)}>
             <display.icon className={cn("h-2.5 w-2.5", identifying && "animate-spin")} />
