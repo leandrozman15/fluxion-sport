@@ -368,6 +368,9 @@ export default function CoachDashboard() {
               initialPlayerCount={selectedTeam.tacticalPlayerCount || 11}
               initialSport={selectedTeam.tacticalSport || selectedTeam.sport}
               captainId={selectedTeam.captainId}
+              teamId={selectedTeam.id}
+              clubId={selectedTeam.clubId}
+              divisionId={selectedTeam.divisionId}
               onSettingsChange={(s) => updateDocumentNonBlocking(doc(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id), { tacticalPlayerCount: s.playerCount, tacticalSport: s.sport })}
             />
           </TabsContent>
