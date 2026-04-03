@@ -164,10 +164,10 @@ export default function CoordinatorDashboard() {
           <div className="lg:col-span-2 space-y-6">
             <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-3xl">
               <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 px-8">
-                <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
-                  <Layers className="h-6 w-6 text-primary" /> Organización por Ramas
+                <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900 uppercase tracking-tighter">
+                  <Layers className="h-6 w-6 text-primary" /> Organización Institucional
                 </CardTitle>
-                <CardDescription className="font-medium text-slate-500">Gestión de divisiones, subcategorías y tablas.</CardDescription>
+                <CardDescription className="font-medium text-slate-500">Ramas deportivas y equipos federados.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-6 px-8 pb-8">
                 {divisions?.map((div: any) => (
@@ -175,19 +175,19 @@ export default function CoordinatorDashboard() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-5">
                         <div className="bg-primary/5 p-3 rounded-xl group-hover:scale-110 transition-transform">
-                          {div.sport === 'rugby' ? <Calendar className="h-6 w-6 text-primary" /> : <Trophy className="h-6 w-6 text-primary" />}
+                          {div.sport === 'rugby' ? <Trophy className="h-6 w-6 text-primary" /> : <Calendar className="h-6 w-6 text-primary" />}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <Badge className="bg-slate-900 text-white text-[8px] font-black uppercase px-2 h-4">{div.sport?.toUpperCase()}</Badge>
                             <Badge variant="outline" className="text-[8px] font-black uppercase px-2 h-4 border-primary text-primary">{div.gender || 'Femenino'}</Badge>
                           </div>
-                          <p className="font-black text-lg text-slate-900 leading-none">{div.name}</p>
+                          <p className="font-black text-lg text-slate-900 leading-none uppercase tracking-tight">{div.name}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" asChild className="h-9 gap-2 text-[9px] font-black uppercase border-slate-200 text-slate-600 hover:bg-slate-50">
-                          <Link href={`/dashboard/clubs/${club.id}/divisions/${div.id}/standings`}><TableIcon className="h-3 w-3" /> Tabla Pos.</Link>
+                          <Link href={`/dashboard/clubs/${club.id}/divisions/${div.id}/standings`}><TableIcon className="h-3 w-3" /> Ver Tabla</Link>
                         </Button>
                         <Button variant="ghost" size="sm" asChild className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-white transition-colors">
                           <Link href={`/dashboard/clubs/${club.id}/divisions`}><ArrowRight className="h-5 w-5" /></Link>
@@ -201,8 +201,8 @@ export default function CoordinatorDashboard() {
 
             <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-3xl">
               <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 px-8">
-                <CardTitle className="text-xl font-black flex items-center gap-3 text-green-600">
-                  <TrendingUp className="h-6 w-6 text-green-600" /> Monitor de Competencia
+                <CardTitle className="text-xl font-black flex items-center gap-3 text-green-600 uppercase tracking-tighter">
+                  <TrendingUp className="h-6 w-6 text-green-600" /> Resultados Recientes
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -212,11 +212,11 @@ export default function CoordinatorDashboard() {
                       <div key={i} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                         <div className="space-y-1">
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{res.divName} • {res.teamName}</p>
-                          <h4 className="font-black text-slate-900 text-lg">VS {res.opponent}</h4>
+                          <h4 className="font-black text-slate-900 text-lg uppercase">VS {res.opponent}</h4>
                           <p className="text-xs font-bold text-slate-500 flex items-center gap-1.5"><Calendar className="h-3 w-3" /> {new Date(res.date).toLocaleDateString()}</p>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-3 bg-slate-50 text-slate-900 px-5 py-2.5 rounded-2xl border-2 border-slate-100">
+                          <div className="flex items-center gap-3 bg-slate-50 text-slate-900 px-5 py-2.5 rounded-2xl border-2 border-slate-100 shadow-inner">
                             <span className="text-2xl font-black">{res.homeScore}</span>
                             <span className="text-xs font-black opacity-40">-</span>
                             <span className="text-2xl font-black">{res.awayScore}</span>
@@ -226,7 +226,7 @@ export default function CoordinatorDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-16 italic text-slate-400 font-medium">Carga partidos para ver el monitor de resultados.</div>
+                  <div className="text-center py-16 italic text-slate-400 font-medium">Carga partidos para ver el monitor.</div>
                 )}
               </CardContent>
             </Card>
@@ -235,26 +235,26 @@ export default function CoordinatorDashboard() {
           <div className="space-y-6">
             <Card className="bg-white border-none shadow-2xl rounded-[2rem] overflow-hidden">
               <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 px-8">
-                <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Gestión Competitiva</CardTitle>
+                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Gestión Operativa</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-2 pt-6 px-8 pb-8">
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 text-primary" /> Base de Clubes Rivales</Link>
+                  <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 text-primary" /> Base Maestra Rivales</Link>
                 </Button>
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/fixture`}><CalendarDays className="h-4 w-4 text-primary" /> Armar Fixture Anual</Link>
+                  <Link href={`/dashboard/clubs/${club?.id}/fixture`}><CalendarDays className="h-4 w-4 text-primary" /> Cronograma de Fixture</Link>
                 </Button>
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4 text-primary" /> Subdivisiones y Equipos</Link>
+                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4 text-primary" /> Ramas y Categorías</Link>
                 </Button>
               </CardContent>
             </Card>
 
-            <div className="p-8 bg-white/10 backdrop-blur-md rounded-[2.5rem] border border-white/20 text-center space-y-4 shadow-xl">
-              <Calendar className="h-10 w-10 text-white mx-auto opacity-50" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Configuración de Ramas</p>
-              <Button variant="outline" asChild className="w-full bg-white text-slate-900 hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest h-12 border-none shadow-lg rounded-xl">
-                <Link href={`/dashboard/clubs/${club?.id}/divisions`}>Administrar Categorías</Link>
+            <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center space-y-4 shadow-xl">
+              <Calendar className="h-10 w-10 text-primary mx-auto opacity-20" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Control de Actividades</p>
+              <Button variant="outline" asChild className="w-full bg-slate-900 text-white hover:bg-slate-800 font-black uppercase text-[10px] tracking-widest h-12 border-none shadow-lg rounded-xl">
+                <Link href={`/dashboard/clubs/${club?.id}/divisions`}>Administrar Equipos</Link>
               </Button>
             </div>
           </div>

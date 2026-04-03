@@ -17,12 +17,13 @@ import {
   HelpCircle,
   ShieldCheck,
   ShoppingBag,
-  Trophy
+  Trophy,
+  ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -112,7 +113,7 @@ export default function CoachDashboard() {
           setSelectedTeam(allTeams[0]);
         }
       } catch (e) { 
-        console.error("Critical error loading teams:", e); 
+        console.error("Error cargando equipos del coach:", e); 
       } finally { 
         setLoading(false); 
       }
@@ -134,7 +135,6 @@ export default function CoachDashboard() {
         const found = eventsSnap.docs.find(d => d.data().date?.startsWith(todayStr));
         if (found) setTodayEvent({ ...found.data(), id: found.id });
 
-        // Fetch Standings
         const standingsSnap = await getDocs(collection(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "standings"));
         const standings = standingsSnap.docs.map(doc => doc.data());
         const sorted = standings.sort((a: any, b: any) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst));
@@ -176,7 +176,7 @@ export default function CoachDashboard() {
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-screen space-y-4">
       <Loader2 className="animate-spin text-white h-12 w-12" />
-      <p className="text-white font-black uppercase tracking-widest text-[10px]">Sincronizando Planteles...</p>
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Identificando Planteles...</p>
     </div>
   );
 
@@ -189,7 +189,7 @@ export default function CoachDashboard() {
         </div>
         <div className="space-y-2">
           <h2 className="text-3xl font-black tracking-tight text-white font-headline">Categorías Pendientes</h2>
-          <p className="text-white/80 max-w-sm font-bold ambient-text">
+          <p className="text-white/80 max-w-sm font-bold">
             {staffProfile?.name || staffProfile?.firstName}, tu perfil está activo pero aún no tienes equipos asignados por coordinación.
           </p>
         </div>
@@ -201,11 +201,11 @@ export default function CoachDashboard() {
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={coachNav} basePath="/dashboard/coach" />
       
-      <div className="flex-1 space-y-6 md:space-y-10 pb-24 px-4 md:px-0">
+      <div className="flex-1 space-y-6 md:space-y-8 pb-24 px-4 md:px-0">
         <header className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-3xl md:text-4xl font-black font-headline tracking-tight text-white drop-shadow-2xl">{selectedTeam.name}</h1>
                 <Badge className="font-black bg-white text-primary border-none shadow-lg px-3 h-7 uppercase tracking-widest text-[10px]">{selectedTeam.season}</Badge>
                 {rank && (
@@ -214,7 +214,7 @@ export default function CoachDashboard() {
                   </Badge>
                 )}
               </div>
-              <p className="text-white font-black uppercase tracking-[0.3em] text-[9px] md:text-[11px] drop-shadow-md opacity-90">{selectedTeam.divisionName} • Consola Técnica</p>
+              <p className="text-white font-black uppercase tracking-[0.3em] text-[9px] drop-shadow-md opacity-90">{selectedTeam.divisionName} • Consola Técnica</p>
             </div>
             
             <div className="flex flex-col gap-3">
@@ -240,13 +240,13 @@ export default function CoachDashboard() {
                   <ScrollBar orientation="horizontal" className="h-1" />
                 </ScrollArea>
               )}
-              <div className="flex gap-2 w-full">
-                <Button asChild className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl font-black uppercase text-[10px] tracking-widest h-12 gap-2">
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl font-black uppercase text-[10px] tracking-widest h-12 gap-2">
                   <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/match-live`}>
-                    <PlayCircle className="h-5 w-5" /> Live
+                    <PlayCircle className="h-5 w-5" /> Iniciar Live
                   </Link>
                 </Button>
-                <Button variant="outline" asChild className="flex-1 font-black border-white/40 text-white bg-black/20 hover:bg-black/40 backdrop-blur-md h-12 gap-2 uppercase text-[10px] tracking-widest">
+                <Button variant="outline" asChild className="font-black border-white/40 text-white bg-black/20 hover:bg-black/40 backdrop-blur-md h-12 gap-2 uppercase text-[10px] tracking-widest">
                   <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events`}>
                     <Calendar className="h-5 w-5" /> Agenda
                   </Link>
@@ -266,7 +266,7 @@ export default function CoachDashboard() {
                   <Timer className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Sesión Activa</CardTitle>
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 text-white">Sesión Activa</CardTitle>
                   <CardDescription className="text-sm md:text-lg font-black text-white truncate max-w-[180px] md:max-w-none">{todayEvent.title}</CardDescription>
                 </div>
               </div>
@@ -286,7 +286,7 @@ export default function CoachDashboard() {
               <Users className="h-4 w-4" /> Plantilla
             </TabsTrigger>
             <TabsTrigger value="tactical" className="flex-1 gap-2 h-12 font-black uppercase text-[10px] tracking-widest text-white data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">
-              <Settings2 className="h-4 w-4" /> Pizarra
+              <Settings2 className="h-4 w-4" /> Pizarra Táctica
             </TabsTrigger>
           </TabsList>
 
@@ -294,8 +294,8 @@ export default function CoachDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card className="lg:col-span-2 border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md rounded-[2rem]">
                 <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
-                  <CardTitle className="flex items-center gap-3 text-xl font-black text-slate-900">
-                    <Users className="h-6 w-6 text-primary" /> Jugadoras
+                  <CardTitle className="flex items-center gap-3 text-xl font-black text-slate-900 uppercase tracking-tighter">
+                    <Users className="h-6 w-6 text-primary" /> Fichas de Jugadoras
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -351,11 +351,19 @@ export default function CoachDashboard() {
               </Card>
 
               <div className="space-y-6">
-                <Card className="bg-white border-none shadow-2xl p-8 rounded-[2rem] border-l-8 border-l-primary">
+                <Card className="bg-white border-none shadow-2xl p-8 rounded-[2rem] border-l-8 border-l-primary flex flex-col items-center text-center">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Total Plantel</p>
                   <p className="text-6xl font-black text-primary mt-2 tracking-tighter">{roster?.length || 0}</p>
                   <Button asChild variant="outline" className="w-full h-12 font-black uppercase text-[10px] tracking-widest border-primary text-primary hover:bg-primary hover:text-white mt-8 rounded-xl transition-all">
                     <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/stats`}>Rankings Goleadores</Link>
+                  </Button>
+                </Card>
+
+                <Card className="bg-white border-none shadow-2xl p-8 rounded-[2rem] border-l-8 border-l-accent text-center">
+                  <Activity className="h-10 w-10 text-accent mx-auto mb-4" />
+                  <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Registro de Asistencia</p>
+                  <Button variant="link" asChild className="mt-2 h-auto p-0 font-black text-[10px] text-primary uppercase tracking-widest hover:no-underline">
+                    <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/attendance-ranking`}>Ver Estadísticas</Link>
                   </Button>
                 </Card>
               </div>

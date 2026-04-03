@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   FolderOpen,
   ChevronRight,
-  Loader2
+  Loader2,
+  Palette
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface PositionSlot {
   id: string;
@@ -68,7 +70,7 @@ export function HockeyTacticalBoard({
   // Drawing States
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawMode, setDrawMode] = useState<'pen' | 'eraser' | null>(null);
-  const [penColor, setPenColor] = useState('#3b82f6'); // primary
+  const [penColor, setPenColor] = useState('#3b82f6'); 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
 
@@ -128,7 +130,6 @@ export function HockeyTacticalBoard({
     setPositions(newPositions);
   }, [playerCount, sport]);
 
-  // Canvas Drawing Logic
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     if (!drawMode || !canvasRef.current) return;
     setIsDrawing(true);
@@ -150,7 +151,7 @@ export function HockeyTacticalBoard({
     ctx.moveTo(x, y);
     ctx.lineWidth = drawMode === 'eraser' ? 20 : 3;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = drawMode === 'eraser' ? '#1a3a0f' : penColor; // field green if eraser
+    ctx.strokeStyle = drawMode === 'eraser' ? '#1a3a0f' : penColor; 
     ctx.globalCompositeOperation = drawMode === 'eraser' ? 'destination-out' : 'source-over';
   };
 
@@ -262,7 +263,6 @@ export function HockeyTacticalBoard({
     setPlayerCount(tactic.playerCount);
     setPositions(tactic.positions);
     
-    // Load drawing to canvas
     if (tactic.drawingData && canvasRef.current) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
@@ -285,76 +285,74 @@ export function HockeyTacticalBoard({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 select-none" onMouseUp={handleMouseUp} onMouseMove={handleMouseMove}>
-      <Card className="lg:col-span-8 overflow-hidden bg-transparent border-none shadow-none space-y-4">
-        {/* Herramientas de Dibujo */}
-        <div className="flex items-center justify-between bg-white/90 backdrop-blur-md p-3 rounded-2xl border shadow-xl animate-in slide-in-from-top-4">
-          <div className="flex items-center gap-2">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-none" onMouseUp={handleMouseUp} onMouseMove={handleMouseMove}>
+      <div className="lg:col-span-8 space-y-4">
+        {/* Barra de Herramientas Compacta */}
+        <div className="flex flex-wrap items-center justify-between bg-white p-3 rounded-2xl border shadow-xl gap-3">
+          <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border">
             <Button 
-              variant={drawMode === 'pen' ? 'default' : 'outline'} 
+              variant={drawMode === 'pen' ? 'default' : 'ghost'} 
               size="sm" 
               onClick={() => setDrawMode(drawMode === 'pen' ? null : 'pen')}
-              className="h-10 px-4 font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl"
+              className="h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg"
             >
-              <Pencil className="h-4 w-4" /> Dibujar
+              <Pencil className="h-3.5 w-3.5" /> Dibujar
             </Button>
             <Button 
-              variant={drawMode === 'eraser' ? 'default' : 'outline'} 
+              variant={drawMode === 'eraser' ? 'default' : 'ghost'} 
               size="sm" 
               onClick={() => setDrawMode(drawMode === 'eraser' ? null : 'eraser')}
-              className="h-10 px-4 font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl"
+              className="h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg"
             >
-              <Eraser className="h-4 w-4" /> Borrar
+              <Eraser className="h-3.5 w-3.5" /> Borrar
             </Button>
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm" 
               onClick={clearCanvas}
-              className="h-10 px-4 font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl text-destructive hover:bg-red-50"
+              className="h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg text-destructive hover:bg-red-50"
             >
-              <Trash2 className="h-4 w-4" /> Limpiar
+              <Trash2 className="h-3.5 w-3.5" /> Limpiar
             </Button>
           </div>
 
           <div className="flex items-center gap-3">
-            {['#3b82f6', '#f97316', '#ef4444', '#ffffff'].map(color => (
-              <button 
-                key={color} 
-                className={cn(
-                  "h-8 w-8 rounded-full border-2 transition-all",
-                  penColor === color ? "scale-125 border-slate-900 shadow-lg" : "border-transparent opacity-60 hover:opacity-100"
-                )}
-                style={{ backgroundColor: color }}
-                onClick={() => { setPenColor(color); setDrawMode('pen'); }}
-              />
-            ))}
-            <div className="h-6 w-px bg-slate-200 mx-2" />
+            <div className="flex items-center gap-1.5 bg-slate-100/50 px-2 py-1 rounded-full">
+              {['#3b82f6', '#f97316', '#ef4444', '#000000'].map(color => (
+                <button 
+                  key={color} 
+                  className={cn(
+                    "h-6 w-6 rounded-full border-2 transition-all",
+                    penColor === color && drawMode === 'pen' ? "scale-125 border-white shadow-md ring-2 ring-primary/20" : "border-transparent opacity-60 hover:opacity-100"
+                  )}
+                  style={{ backgroundColor: color }}
+                  onClick={() => { setPenColor(color); setDrawMode('pen'); }}
+                />
+              ))}
+            </div>
+            
             <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="h-10 px-6 font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl shadow-lg">
-                  <Save className="h-4 w-4" /> Guardar
+                <Button className="h-9 px-4 font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg bg-primary text-white">
+                  <Save className="h-3.5 w-3.5" /> Guardar
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-white border-none shadow-2xl">
+              <DialogContent className="bg-white">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-black">Guardar Táctica</DialogTitle>
-                  <DialogDescription className="font-bold text-slate-500">Asigna un nombre a esta configuración para usarla después.</DialogDescription>
+                  <DialogTitle className="font-black">Guardar en Biblioteca</DialogTitle>
+                  <DialogDescription className="font-bold">Asigna un nombre a esta configuración táctica.</DialogDescription>
                 </DialogHeader>
-                <div className="py-6 space-y-4">
-                  <Label className="font-black text-xs uppercase text-slate-400">Nombre de la Jugada</Label>
+                <div className="py-4">
                   <Input 
                     value={tacticName} 
                     onChange={e => setSaveTacticName(e.target.value)} 
-                    placeholder="Ej. Salida de Fondo A..." 
-                    className="h-14 border-2 font-bold text-lg"
+                    placeholder="Ej. Salida de Fondo Variante A" 
+                    className="h-12 border-2 font-bold"
                   />
                 </div>
-                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
-                  <Button variant="ghost" onClick={() => setIsSaveDialogOpen(false)} className="font-bold">Cancelar</Button>
-                  <Button onClick={handleSaveTactic} disabled={saving || !tacticName} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-xl">
-                    {saving ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                    Confirmar Guardado
-                  </Button>
+                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t mt-4">
+                  <Button variant="ghost" onClick={() => setIsSaveDialogOpen(false)} className="font-bold">Cerrar</Button>
+                  <Button onClick={handleSaveTactic} disabled={saving || !tacticName} className="font-black uppercase text-xs tracking-widest h-12 px-8">Confirmar</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -363,7 +361,7 @@ export function HockeyTacticalBoard({
 
         <div 
           ref={fieldRef}
-          className="relative w-full aspect-[2/3] max-w-lg mx-auto bg-[#1a3a0f] rounded-3xl border-[10px] border-white shadow-[0_30px_100px_rgba(0,0,0,0.5)] overflow-hidden"
+          className="relative w-full aspect-[2/3] max-w-md mx-auto bg-[#1a3a0f] rounded-[2.5rem] border-[10px] border-white shadow-2xl overflow-hidden"
           onMouseDown={drawMode ? startDrawing : undefined}
           onMouseMove={drawMode ? draw : handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -371,14 +369,11 @@ export function HockeyTacticalBoard({
           onTouchMove={drawMode ? draw : undefined}
           onTouchEnd={handleMouseUp}
         >
-          <div className="absolute inset-0 opacity-20 pointer-events-none" 
-               style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.05) 40px, rgba(255,255,255,0.05) 80px)' }} />
-          
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 150">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 100 150">
             {sport === 'hockey' ? (
               <>
                 <line x1="0" y1="75" x2="100" y2="75" stroke="white" strokeWidth="1" />
-                <circle cx="50" cy="75" r="10" fill="none" stroke="white" strokeWidth="1" opacity="0.8" />
+                <circle cx="50" cy="75" r="10" fill="none" stroke="white" strokeWidth="1" />
                 <path d="M 15 0 Q 15 30 50 30 Q 85 30 85 0" fill="none" stroke="white" strokeWidth="1" />
                 <path d="M 15 150 Q 15 120 50 120 Q 85 120 85 150" fill="none" stroke="white" strokeWidth="1" />
               </>
@@ -391,7 +386,6 @@ export function HockeyTacticalBoard({
             )}
           </svg>
 
-          {/* Drawing Canvas Layer */}
           <canvas 
             ref={canvasRef}
             width={500} 
@@ -420,23 +414,19 @@ export function HockeyTacticalBoard({
                 <div className={cn("flex flex-col items-center group", !drawMode && "cursor-grab active:cursor-grabbing")}>
                   <div className="relative">
                     <Avatar className={cn(
-                      "h-14 w-14 border-4 shadow-2xl bg-white transition-colors",
-                      player ? (isCaptain ? "border-yellow-400 ring-4 ring-yellow-400/20" : "border-primary") : "border-dashed border-white/40 bg-white/5"
+                      "h-12 w-12 border-4 shadow-xl bg-white",
+                      player ? (isCaptain ? "border-yellow-400" : "border-primary") : "border-dashed border-white/20 bg-white/5"
                     )}>
                       <AvatarImage src={player?.playerPhoto} className="object-cover" />
-                      <AvatarFallback className="text-[10px] font-black opacity-50 bg-slate-100 text-slate-900">
-                        {p.label}
-                      </AvatarFallback>
+                      <AvatarFallback className="text-[10px] font-black opacity-50 bg-slate-100 text-slate-900">{p.label}</AvatarFallback>
                     </Avatar>
                     {isCaptain && (
-                      <div className="absolute -top-3 -left-3 h-7 w-7 rounded-xl bg-yellow-500 border-4 border-white flex items-center justify-center shadow-lg animate-bounce">
-                        <span className="text-[10px] font-black text-white">C</span>
-                      </div>
+                      <div className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-lg bg-yellow-500 border-2 border-white flex items-center justify-center shadow-lg font-black text-[10px] text-white">C</div>
                     )}
                   </div>
                   {player && (
                     <span className={cn(
-                      "mt-2 px-3 py-1 rounded-full text-[10px] font-black shadow-lg border border-white/20 whitespace-nowrap",
+                      "mt-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black shadow-lg border border-white/10 whitespace-nowrap",
                       isCaptain ? "bg-yellow-500 text-white" : "bg-slate-900 text-white"
                     )}>
                       {player.playerName.split(' ')[0]}
@@ -447,110 +437,94 @@ export function HockeyTacticalBoard({
             );
           })}
         </div>
-      </Card>
+      </div>
 
       <div className="lg:col-span-4 space-y-6">
         <Card className="border-none bg-white shadow-2xl overflow-hidden rounded-[2rem]">
-          <CardHeader className="bg-slate-900 text-white pb-6">
-            <CardTitle className="text-xl font-black flex items-center gap-3">
-              <FolderOpen className="h-6 w-6 text-primary" /> Tácticas Guardadas
+          <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
+            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-primary" /> Biblioteca Táctica
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+            <ScrollArea className="h-[280px]">
               {tacticsLoading ? (
-                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div>
+                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>
               ) : savedTactics?.length === 0 ? (
-                <div className="text-center py-16 px-8 space-y-3 opacity-40">
-                  <Save className="h-12 w-12 mx-auto text-slate-300" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Sin tácticas guardadas</p>
-                </div>
+                <div className="text-center py-12 px-8 opacity-30 text-[10px] font-black uppercase tracking-widest">Sin tácticas cargadas</div>
               ) : (
                 <div className="divide-y divide-slate-50">
                   {savedTactics?.map((t: any) => (
                     <div key={t.id} className="p-4 flex items-center justify-between group hover:bg-slate-50 transition-colors">
-                      <button 
-                        onClick={() => loadTactic(t)}
-                        className="flex-1 text-left"
-                      >
-                        <p className="font-black text-slate-900 text-sm">{t.name}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase">{t.sport} • {t.playerCount} jug.</span>
-                          <span className="text-[8px] font-bold text-primary uppercase">Hace {Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000)} días</span>
-                        </div>
+                      <button onClick={() => loadTactic(t)} className="flex-1 text-left min-w-0">
+                        <p className="font-black text-slate-900 text-xs truncate uppercase tracking-tight">{t.name}</p>
+                        <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">{t.sport} • {t.playerCount} jugadoras</p>
                       </button>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive rounded-lg" onClick={() => deleteTactic(t.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <ChevronRight className="h-4 w-4 text-slate-300" />
-                      </div>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-300 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => deleteTactic(t.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </ScrollArea>
           </CardContent>
         </Card>
 
         <Card className="border-none bg-white shadow-2xl overflow-hidden rounded-[2rem]">
-          <CardHeader className="bg-slate-50 border-b pb-4">
-            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Ajustes Formación</CardTitle>
+          <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
+            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ajustes del Campo</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-8 pt-8">
-            <div className="space-y-4">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-900">Campo de Juego</Label>
-              <Tabs value={sport} onValueChange={(v: any) => updateSettings(playerCount, v)} className="w-full">
-                <TabsList className="grid grid-cols-2 w-full h-12 bg-slate-100 p-1">
-                  <TabsTrigger value="hockey" className="font-bold uppercase text-xs">🏑 Hockey</TabsTrigger>
-                  <TabsTrigger value="rugby" className="font-bold uppercase text-xs">🏉 Rugby</TabsTrigger>
+          <CardContent className="space-y-6 pt-6">
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase text-slate-900">Disciplina</Label>
+              <Tabs value={sport} onValueChange={(v: any) => updateSettings(playerCount, v)}>
+                <TabsList className="grid grid-cols-2 w-full h-10 bg-slate-100 p-1">
+                  <TabsTrigger value="hockey" className="font-bold uppercase text-[9px]">🏑 Hockey</TabsTrigger>
+                  <TabsTrigger value="rugby" className="font-bold uppercase text-[9px]">🏉 Rugby</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
 
-            <div className="space-y-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div className="space-y-4 bg-slate-50 p-4 rounded-xl border">
               <div className="flex justify-between items-center">
-                <Label className="font-black text-xs uppercase tracking-widest">En Cancha</Label>
-                <div className="px-3 py-1 rounded-full bg-primary text-white font-black text-sm">{playerCount}</div>
+                <Label className="text-[10px] font-black uppercase">Plantel</Label>
+                <div className="px-2.5 py-0.5 rounded-full bg-primary text-white font-black text-[10px]">{playerCount}</div>
               </div>
-              <Slider 
-                value={[playerCount]} 
-                min={5} 
-                max={sport === 'rugby' ? 15 : 11} 
-                step={1} 
-                onValueChange={(v) => updateSettings(v[0], sport)}
-              />
+              <Slider value={[playerCount]} min={5} max={sport === 'rugby' ? 15 : 11} step={1} onValueChange={(v) => updateSettings(v[0], sport)} />
             </div>
 
-            <div className="space-y-3">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Asignación de Jugadoras</p>
-              <div className="max-h-[250px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-                {roster.map((player: any) => {
-                  const isAssigned = positions.some(p => p.assignedPlayerId === player.playerId);
-                  return (
-                    <div 
-                      key={player.id} 
-                      draggable={!isAssigned}
-                      onDragStart={(e) => onDragStartPlayer(e, player.playerId)}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-xl border-2 transition-all",
-                        isAssigned 
-                          ? "bg-slate-50 opacity-40 border-transparent grayscale" 
-                          : "bg-white border-slate-100 shadow-sm hover:border-primary cursor-grab active:cursor-grabbing"
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border shadow-sm">
-                          <AvatarImage src={player.playerPhoto} className="object-cover" />
-                          <AvatarFallback className="font-bold text-slate-400">{player.playerName[0]}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs font-black text-slate-900 leading-none">{player.playerName}</span>
+            <div className="space-y-2">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Arrastrar jugadora al campo:</p>
+              <ScrollArea className="h-[180px] pr-2">
+                <div className="space-y-1.5">
+                  {roster.map((player: any) => {
+                    const isAssigned = positions.some(p => p.assignedPlayerId === player.playerId);
+                    return (
+                      <div 
+                        key={player.id} 
+                        draggable={!isAssigned}
+                        onDragStart={(e) => onDragStartPlayer(e, player.playerId)}
+                        className={cn(
+                          "flex items-center justify-between p-2.5 rounded-lg border-2 transition-all",
+                          isAssigned 
+                            ? "bg-slate-50 opacity-30 border-transparent grayscale" 
+                            : "bg-white border-slate-100 shadow-sm hover:border-primary cursor-grab"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Avatar className="h-7 w-7 border shadow-sm shrink-0">
+                            <AvatarImage src={player.playerPhoto} />
+                            <AvatarFallback className="font-bold text-slate-400 text-[8px]">{player.playerName[0]}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-[10px] font-black text-slate-900 truncate leading-none">{player.playerName}</span>
+                        </div>
+                        {!isAssigned && <GripVertical className="h-3.5 w-3.5 text-slate-300" />}
                       </div>
-                      {!isAssigned && <GripVertical className="h-4 w-4 text-slate-300 opacity-50" />}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
             </div>
           </CardContent>
         </Card>

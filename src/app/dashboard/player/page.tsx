@@ -57,7 +57,6 @@ export default function PlayerDashboardHub() {
                 const teamData = { ...tDoc.data(), divisionName: dDoc.data().name, id: tDoc.id, clubId: pData.clubId, divisionId: dDoc.id };
                 setTeamInfo(teamData);
                 
-                // Fetch Standings to determine rank
                 const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "standings"));
                 const standings = standingsSnap.docs.map(doc => doc.data());
                 const sorted = standings.sort((a: any, b: any) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst));
@@ -155,7 +154,7 @@ export default function PlayerDashboardHub() {
                 <div className="bg-white/20 p-2.5 rounded-xl animate-pulse"><BellRing className="h-6 w-6" /></div>
                 <div>
                   <p className="font-black text-sm uppercase tracking-wider">¡Convocatoria Oficial!</p>
-                  <p className="text-[10px] font-bold opacity-90 uppercase tracking-widest">Tienes {pendingCount} citaciones pendientes de confirmación.</p>
+                  <p className="text-[10px] font-bold opacity-90 uppercase tracking-widest text-white">Tienes {pendingCount} citaciones pendientes de confirmación.</p>
                 </div>
               </div>
               <ChevronRight className="h-6 w-6 opacity-50 group-hover:translate-x-1 transition-transform" />
