@@ -39,6 +39,17 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface TrainingSession {
   day: string;
@@ -107,10 +118,8 @@ export default function ClubCategoriesListPage() {
   };
 
   const handleDeleteDiv = (id: string) => {
-    if(confirm("¿Seguro que deseas eliminar esta categoría? Se perderán todos los datos asociados.")) {
-      deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", id));
-      toast({ variant: "destructive", title: "Categoría Eliminada" });
-    }
+    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", id));
+    toast({ variant: "destructive", title: "Rama Eliminada", description: "La categoría y sus datos han sido removidos." });
   };
 
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
@@ -132,16 +141,16 @@ export default function ClubCategoriesListPage() {
                   <Plus className="h-5 w-5" /> Nueva Rama
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md bg-white border-none shadow-2xl">
+              <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2.5rem]">
                 <DialogHeader>
                   <DialogTitle className="text-xl font-black text-slate-900">Crear Rama Deportiva</DialogTitle>
-                  <DialogDescription>Define una nueva área de competencia para el club.</DialogDescription>
+                  <DialogDescription className="font-bold text-slate-500">Define una nueva área de competencia para el club.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-4">
                   <div className="space-y-2">
                     <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Disciplina</Label>
                     <Tabs value={newDiv.sport} onValueChange={v => setNewDiv({...newDiv, sport: v})} className="w-full">
-                      <TabsList className="grid grid-cols-2 w-full h-12 bg-slate-100 p-1">
+                      <TabsList className="grid grid-cols-2 w-full h-12 bg-slate-100 p-1 rounded-xl">
                         <TabsTrigger value="hockey" className="font-bold uppercase text-[10px]">🏑 Hockey</TabsTrigger>
                         <TabsTrigger value="rugby" className="font-bold uppercase text-[10px]">🏉 Rugby</TabsTrigger>
                       </TabsList>
@@ -152,9 +161,9 @@ export default function ClubCategoriesListPage() {
                     <Input value={newDiv.name} onChange={e => setNewDiv({...newDiv, name: e.target.value})} placeholder="Ej. Rama Femenina, Juveniles..." className="h-12 border-2 font-bold" />
                   </div>
                 </div>
-                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t">
-                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreateDiv} disabled={!newDiv.name} className="font-black uppercase text-xs tracking-widest h-12 px-8">Confirmar</Button>
+                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
+                  <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
+                  <Button onClick={handleCreateDiv} disabled={!newDiv.name} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Confirmar</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -171,7 +180,7 @@ export default function ClubCategoriesListPage() {
                   key={division.id} 
                   division={division} 
                   clubId={clubId}
-                  onEdit={() => { setEditingDiv(division); setIsEditOpen(true); }}
+                  onEdit={(e) => { e.stopPropagation(); setEditingDiv(division); setIsEditOpen(true); }}
                   onDelete={() => handleDeleteDiv(division.id)}
                 />
               ))}
@@ -181,7 +190,7 @@ export default function ClubCategoriesListPage() {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-md bg-white border-none shadow-2xl">
+        <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2.5rem]">
           <DialogHeader><DialogTitle className="text-xl font-black text-slate-900">Editar Rama</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
             <div className="space-y-2">
@@ -189,9 +198,9 @@ export default function ClubCategoriesListPage() {
               <Input value={editingDiv?.name || ""} onChange={e => setEditingDiv({...editingDiv, name: e.target.value})} className="h-12 border-2 font-bold" />
             </div>
           </div>
-          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t">
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateDiv} className="font-black uppercase text-xs tracking-widest h-12 px-8">Guardar Cambios</Button>
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
+            <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="font-bold">Cancelar</Button>
+            <Button onClick={handleUpdateDiv} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -199,7 +208,7 @@ export default function ClubCategoriesListPage() {
   );
 }
 
-function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, clubId: string, onEdit: () => void, onDelete: () => void }) {
+function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, clubId: string, onEdit: (e: any) => void, onDelete: () => void }) {
   const db = useFirestore();
   const { toast } = useToast();
   const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
@@ -209,13 +218,13 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
     collection(db, "clubs", clubId, "divisions", division.id, "teams"),
     [db, clubId, division.id]
   );
-  const { data: teams, isLoading } = useCollection(teamsQuery);
+  const { data: teams } = useCollection(teamsQuery);
 
   const coachesQuery = useMemoFirebase(() => 
     query(
       collection(db, "users"), 
       where("clubId", "==", clubId), 
-      where("role", "in", ["coach", "coach_lvl1", "coach_lvl2", "coordinator"])
+      where("role", "in", ["coach", "coach_lvl1", "coach_lvl2", "coordinator", "club_admin", "admin"])
     )
   , [db, clubId]);
   const { data: coaches } = useCollection(coachesQuery);
@@ -250,7 +259,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   };
 
   return (
-    <AccordionItem value={division.id} className="border-none rounded-2xl bg-white shadow-xl overflow-hidden px-0 mb-4 transition-all">
+    <AccordionItem value={division.id} className="border-none rounded-2xl bg-white shadow-xl overflow-hidden px-0 mb-4 transition-all group">
       <div className="flex items-center px-6 py-5">
         <div className="flex-1 flex items-center gap-4">
           <div className="bg-primary/10 p-3 rounded-2xl">
@@ -266,11 +275,58 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild className="h-10 gap-2 border-primary/20 text-primary hover:bg-primary/5 font-black uppercase text-[9px] tracking-widest">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            asChild 
+            className="h-10 gap-2 border-primary/20 text-primary hover:bg-primary/5 font-black uppercase text-[9px] tracking-widest"
+            onClick={(e) => e.stopPropagation()}
+          >
             <Link href={`/dashboard/clubs/${clubId}/divisions/${division.id}/standings`}><TableIcon className="h-4 w-4" /> Tabla</Link>
           </Button>
-          <Button variant="ghost" size="sm" onClick={onEdit}><Pencil className="h-4 w-4 text-slate-400" /></Button>
-          <Button variant="ghost" size="sm" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onEdit} 
+            className="h-10 w-10 p-0 text-slate-400 hover:text-primary rounded-xl"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-10 w-10 p-0 text-slate-300 hover:text-destructive rounded-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-white border-none shadow-2xl rounded-[2rem]" onClick={(e) => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">¿Confirmas la baja?</AlertDialogTitle>
+                <AlertDialogDescription className="font-bold text-slate-500">
+                  Estás a punto de eliminar la rama <strong>{division.name}</strong>. Esta acción removerá todas sus subcategorías, equipos y registros de forma permanente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="pt-4">
+                <AlertDialogCancel className="font-bold border-2 rounded-xl">Cancelar</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black uppercase text-xs tracking-widest rounded-xl px-8 h-11"
+                >
+                  Eliminar Rama
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <AccordionTrigger className="hover:no-underline py-0 ml-2" />
         </div>
       </div>
@@ -281,34 +337,38 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Subcategorías / Equipos</h4>
             <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-primary text-white">
+                <Button size="sm" className="h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-primary text-white shadow-lg">
                   <Plus className="h-3.5 w-3.5" /> Agregar Equipo
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-white">
-                <DialogHeader><DialogTitle className="font-black">Nuevo Equipo: {division.name}</DialogTitle></DialogHeader>
+              <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem]">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-black text-slate-900">Nuevo Equipo: {division.name}</DialogTitle>
+                  <DialogDescription className="font-bold text-slate-500">Crea un equipo específico dentro de esta rama.</DialogDescription>
+                </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label className="font-bold">Nombre</Label>
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Equipo</Label>
                     <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A, Sub 12 Blanca..." className="h-12 border-2 font-bold" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold">Profesor / Coach</Label>
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Profesor Responsable (Nivel 1/2)</Label>
                     <Select value={newTeam.coachId} onValueChange={handleSelectCoach}>
                       <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
                       <SelectContent>
                         {coaches?.map((c: any) => (
                           <SelectItem key={c.id} value={c.id} className="font-bold">
                             {c.name || `${c.firstName} ${c.lastName}`} 
-                            <span className="ml-2 opacity-50 text-[10px]">({c.role === 'coach_lvl1' ? 'Nivel 1' : c.role === 'coach_lvl2' ? 'Nivel 2' : 'Coach'})</span>
+                            <span className="ml-2 opacity-50 text-[10px]">({c.role === 'coach_lvl1' ? 'Nivel 1' : c.role === 'coach_lvl2' ? 'Nivel 2' : 'Staff'})</span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t">
-                  <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachId} className="font-black uppercase text-xs tracking-widest h-12 w-full">Confirmar Equipo</Button>
+                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
+                  <Button variant="ghost" onClick={() => setIsTeamDialogOpen(false)} className="font-bold">Cancelar</Button>
+                  <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachId} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Confirmar Equipo</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -316,22 +376,36 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {teams?.map((team: any) => (
-              <Card key={team.id} className="border-none shadow-xl hover:scale-105 transition-all">
+              <Card key={team.id} className="border-none shadow-xl hover:scale-105 transition-all bg-white rounded-2xl overflow-hidden">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
-                    <Badge variant="outline" className="text-[8px] font-black uppercase">{team.season}</Badge>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", division.id, "teams", team.id))}><X className="h-3 w-3" /></Button>
+                    <Badge variant="outline" className="text-[8px] font-black uppercase border-slate-200">{team.season}</Badge>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 text-slate-300 hover:text-destructive" 
+                      onClick={(e) => { e.stopPropagation(); deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", division.id, "teams", team.id)); }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
-                  <CardTitle className="text-base font-black">{team.name}</CardTitle>
-                  <CardDescription className="text-[9px] font-bold uppercase text-primary">Coach: {team.coachName}</CardDescription>
+                  <CardTitle className="text-base font-black text-slate-900">{team.name}</CardTitle>
+                  <CardDescription className="text-[9px] font-bold uppercase text-primary flex items-center gap-1.5 mt-1">
+                    <UserRound className="h-3 w-3" /> Coach: {team.coachName}
+                  </CardDescription>
                 </CardHeader>
                 <CardFooter className="pt-2">
-                  <Button asChild size="sm" className="w-full h-10 font-black uppercase text-[9px] tracking-widest gap-2">
+                  <Button asChild size="sm" className="w-full h-10 font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl">
                     <Link href={`/dashboard/clubs/${clubId}/divisions/${division.id}/teams/${team.id}`}>Gestionar <ChevronRight className="h-3.5 w-3.5" /></Link>
                   </Button>
                 </CardFooter>
               </Card>
             ))}
+            {(!teams || teams.length === 0) && (
+              <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl opacity-30">
+                <p className="text-[10px] font-black uppercase tracking-widest">Sin subcategorías registradas</p>
+              </div>
+            )}
           </div>
         </div>
       </AccordionContent>
