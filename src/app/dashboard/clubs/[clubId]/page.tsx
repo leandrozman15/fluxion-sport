@@ -53,9 +53,11 @@ export default function InstitutionDetailPage() {
         if (!staffSnap.empty) {
           const staffData = staffSnap.docs[0].data();
           const role = staffData.role;
+          
+          // REBOTE DE SEGURIDAD: Los perfiles técnicos NO deben ver la pantalla de administración
           if (role === 'coordinator') {
             router.replace('/dashboard/coordinator');
-          } else if (role === 'coach') {
+          } else if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) {
             router.replace('/dashboard/coach');
           }
         }

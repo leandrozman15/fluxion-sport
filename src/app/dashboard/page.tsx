@@ -43,8 +43,8 @@ export default function DashboardRedirectPage() {
             return router.replace('/dashboard/coordinator');
           } 
           
-          // PRIORIDAD 3: Entrenadores (Consola Técnica - Incluye Nivel 1 y Nivel 2)
-          if (role === 'coach' || role === 'coach_lvl1' || role === 'coach_lvl2') {
+          // PRIORIDAD 3: Entrenadores (Consola Técnica - Incluye Nivel 1, Nivel 2 y Coach estándar)
+          if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) {
             return router.replace('/dashboard/coach');
           } 
 
