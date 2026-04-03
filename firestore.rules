@@ -2,45 +2,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE ACCESO PARA FLUXION SPORT - PROTOTIPADO
-    // DATABASE INSTANCE: ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7
-    // ÚLTIMA ACTUALIZACIÓN: 2024-04-03_1715 (Forzar Despliegue)
+    // REGLAS GLOBALES PARA FLUXION CLUBES
+    // DATABASE: ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7
+    // UPDATED: 2026-04-03_1800 (Liberar acceso total para prototipado)
 
-    // Helper Functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    // REGLAS GLOBALES (Permisivas para desarrollo)
-    // Se permite el acceso total mientras se construye el Padrón Nacional.
     match /{document=**} {
       allow read, write: if true;
-    }
-
-    // Estructura futura para colecciones específicas:
-    
-    // Perfiles de Staff y Jugadores
-    match /users/{userId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Instituciones Deportivas
-    match /clubs/{clubId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Índice Global de Jugadores (para Login y Carnets)
-    match /all_players_index/{playerId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Monitor de Partidos en Vivo
-    match /live_matches_index/{matchId} {
-      allow read, write: if true; // Público para que los socios vean resultados
     }
   }
 }

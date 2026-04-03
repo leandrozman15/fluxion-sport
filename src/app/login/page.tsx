@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,7 +8,6 @@ import {
   Loader2, 
   ShieldCheck,
   ShieldAlert,
-  UserPlus,
   Mail,
   Lock,
   User
@@ -28,13 +28,11 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  // Login State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Registration State
   const [isRegOpen, setIsRegOpen] = useState(false);
   const [regForm, setRegForm] = useState({
     name: "Director de Plataforma",
@@ -44,46 +42,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !isUserLoading) {
-      handleRedirect(user);
+      router.replace('/dashboard'); // Dejar que el motor de dashboard maneje la ruta
     }
-  }, [user, isUserLoading]);
-
-  const handleRedirect = async (currentUser: any) => {
-    try {
-      const userEmail = currentUser.email?.toLowerCase().trim() || "";
-      
-      // 1. Verificar por UID (más seguro y rápido)
-      const userRef = doc(firestore, "users", currentUser.uid);
-      const userSnap = await getDoc(userRef);
-      
-      let data = null;
-      if (userSnap.exists()) {
-        data = userSnap.data();
-      } else {
-        // Fallback por email si es un registro antiguo
-        const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", userEmail)));
-        if (!staffSnap.empty) data = staffSnap.docs[0].data();
-      }
-      
-      if (data) {
-        const role = data.role;
-        if (role === 'admin' || role === 'fed_admin') return router.replace('/dashboard/superadmin');
-        if (role === 'coordinator') return router.replace('/dashboard/coordinator');
-        if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) return router.replace('/dashboard/coach');
-        if (data.clubId) return router.replace(`/dashboard/clubs/${data.clubId}`);
-      }
-
-      // 2. Buscar en JUGADORES
-      const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", userEmail)));
-      if (!playerSnap.empty) return router.replace('/dashboard/player');
-
-      // 3. Fallback a selección de clubes
-      router.replace('/dashboard/clubs');
-    } catch (e) {
-      console.error("Error en redirección de login:", e);
-      router.replace('/dashboard/clubs');
-    }
-  };
+  }, [user, isUserLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,11 +68,9 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // 1. Crear usuario en Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, regForm.email, regForm.password);
       const newUser = cred.user;
       
-      // 2. Crear perfil en Firestore
       await setDoc(doc(firestore, "users", newUser.uid), {
         id: newUser.uid,
         email: regForm.email.toLowerCase().trim(),
@@ -120,9 +79,9 @@ export default function LoginPage() {
         createdAt: new Date().toISOString()
       });
 
-      toast({ title: "Super Administrador Creado", description: "Iniciando consola de infraestructura..." });
+      toast({ title: "Super Administrador Creado" });
       setIsRegOpen(false);
-      router.replace('/dashboard/superadmin');
+      router.replace('/dashboard');
     } catch (err: any) {
       console.error(err);
       toast({ 
@@ -179,7 +138,7 @@ export default function LoginPage() {
             </CardContent>
             <CardFooter className="flex flex-col gap-4 p-8 pt-4">
               <Button type="submit" className="w-full h-16 text-lg font-black uppercase tracking-widest shadow-2xl shadow-primary/30 rounded-2xl transition-all hover:scale-[1.02] active:scale-95" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin" /> : <><ShieldCheck className="h-6 w-6 mr-2" /> Entrar al Sistema</>}
+                {loading ? <Loader2 className="animate-spin" /> : <><ShieldCheck className="h-6 w-6 mr-2" /> <span>Entrar al Sistema</span></>}
               </Button>
               
               <div className="relative py-4 w-full">

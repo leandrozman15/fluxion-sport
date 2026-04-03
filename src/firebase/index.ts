@@ -1,37 +1,24 @@
+
 'use client';
 
-import { firebaseConfig } from '@/firebase/config';
+import { firebaseConfig, FIRESTORE_DATABASE_ID } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// ID de la base de datos específica proporcionada por el usuario
-const DATABASE_ID = "ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7";
-
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
   if (!getApps().length) {
-    // Important! initializeApp() is called without any arguments because Firebase App Hosting
-    // integrates with the initializeApp() function to provide the environment variables needed to
-    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
-    // without arguments.
     let firebaseApp;
     try {
-      // Attempt to initialize via Firebase App Hosting environment variables
       firebaseApp = initializeApp();
     } catch (e) {
-      // Only warn in production because it's normal to use the firebaseConfig to initialize
-      // during development
       if (process.env.NODE_ENV === "production") {
         console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
       }
       firebaseApp = initializeApp(firebaseConfig);
     }
-
     return getSdks(firebaseApp);
   }
-
-  // If already initialized, return the SDKs with the already initialized App
   return getSdks(getApp());
 }
 
@@ -39,8 +26,8 @@ export function getSdks(firebaseApp: FirebaseApp) {
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
-    // Conectamos Firestore a la base de datos específica solicitada
-    firestore: getFirestore(firebaseApp, DATABASE_ID)
+    // Garantizamos el uso de la base de datos específica ai-studio-...
+    firestore: getFirestore(firebaseApp, FIRESTORE_DATABASE_ID)
   };
 }
 
