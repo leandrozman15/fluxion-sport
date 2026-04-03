@@ -8,7 +8,7 @@ import {
   Camera, 
   Megaphone, 
   CheckCircle2, 
-  UploadCloud
+  Upload
 } from "lucide-react";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { useFirestore, useFirebase } from "@/firebase";
@@ -18,14 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: string, authorName: string }) {
-  const { firestore, storage } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -34,21 +32,14 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
     imageUrl: ""
   });
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !clubId) return;
-    
-    setUploading(true);
-    try {
-      const path = `clubs/${clubId}/events/img_${Date.now()}`;
-      const url = await uploadFileAndGetUrl(storage, path, file);
-      setForm(prev => ({ ...prev, imageUrl: url }));
-      toast({ title: "Banner cargado correctamente" });
-    } catch (err) {
-      console.error(err);
-      toast({ variant: "destructive", title: "Error al subir banner" });
-    } finally {
-      setUploading(false);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm(prev => ({ ...prev, imageUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -67,7 +58,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
         createdAt: new Date().toISOString()
       });
 
-      toast({ title: "Evento Publicado", description: "La novedad ya es visible en la nube." });
+      toast({ title: "Evento Publicado", description: "La novedad ya es visible para los socios." });
       setForm({ title: "", comment: "", imageUrl: "" });
       setIsOpen(false);
     } catch (e) {
@@ -103,7 +94,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
           </div>
 
           <div className="space-y-2">
-            <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Imagen / Banner (Cloud Storage)</Label>
+            <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Imagen / Banner</Label>
             <div 
               onClick={() => fileInputRef.current?.click()}
               className="aspect-video w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-all overflow-hidden group"
@@ -117,12 +108,12 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
                 </div>
               ) : (
                 <>
-                  {uploading ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <UploadCloud className="h-10 w-10 text-slate-300 mb-2" />}
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{uploading ? "Subiendo..." : "Subir Imagen"}</p>
+                  <Upload className="h-10 w-10 text-slate-300 mb-2" />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subir Imagen</p>
                 </>
               )}
             </div>
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageChange} />
           </div>
 
           <div className="space-y-2">
@@ -138,7 +129,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
 
         <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t border-slate-100 mt-4 rounded-b-[2.5rem]">
           <Button variant="ghost" onClick={() => setIsOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-          <Button onClick={handlePublish} disabled={loading || uploading || !form.title || !form.comment} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-xl shadow-primary/20 gap-2">
+          <Button onClick={handlePublish} disabled={loading || !form.title || !form.comment} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-xl shadow-primary/20 gap-2">
             {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
             Confirmar y Publicar
           </Button>

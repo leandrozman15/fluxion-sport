@@ -12,7 +12,7 @@ import {
   MapPin, 
   Phone, 
   Globe,
-  UploadCloud
+  Upload
 } from "lucide-react";
 import Link from "next/link";
 import { doc } from "firebase/firestore";
@@ -24,11 +24,10 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 export default function ClubSettingsPage() {
   const { clubId } = useParams() as { clubId: string };
-  const { firestore, storage } = useFirebase();
+  const { firestore } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,8 +43,6 @@ export default function ClubSettingsPage() {
   });
 
   const [saving, setSaving] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState("");
 
   useEffect(() => {
     if (club) {
@@ -55,17 +52,15 @@ export default function ClubSettingsPage() {
         phone: club.phone || "",
         logoUrl: club.logoUrl || ""
       });
-      setImagePreview(club.logoUrl || "");
     }
   }, [club]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+        setForm(prev => ({ ...prev, logoUrl: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -74,22 +69,10 @@ export default function ClubSettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      let finalLogoUrl = form.logoUrl;
-
-      if (imageFile) {
-        // Subir a Storage en lugar de guardar Base64
-        finalLogoUrl = await uploadFileAndGetUrl(
-          storage, 
-          `clubs/${clubId}/logo_${Date.now()}`, 
-          imageFile
-        );
-      }
-
-      updateDocumentNonBlocking(clubRef, { ...form, logoUrl: finalLogoUrl });
-      
+      updateDocumentNonBlocking(clubRef, { ...form });
       toast({
         title: "Cambios guardados",
-        description: "La información institucional se ha actualizado en la nube.",
+        description: "La información institucional se ha actualizado en Firestore.",
       });
       setTimeout(() => router.push(`/dashboard/clubs/${clubId}`), 500);
     } catch (e) {
@@ -97,7 +80,7 @@ export default function ClubSettingsPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudieron guardar los cambios en Storage.",
+        description: "No se pudieron guardar los cambios.",
       });
     } finally {
       setSaving(false);
@@ -126,8 +109,8 @@ export default function ClubSettingsPage() {
           <CardContent className="flex flex-col items-center gap-6 pt-8 pb-8">
             <div className="relative group">
               <div className="h-44 w-44 rounded-full border-4 border-slate-100 shadow-2xl overflow-hidden bg-white flex items-center justify-center">
-                {imagePreview ? (
-                  <img src={imagePreview} className="h-full w-full object-contain p-2" alt="Logo" />
+                {form.logoUrl ? (
+                  <img src={form.logoUrl} className="h-full w-full object-contain p-2" alt="Logo" />
                 ) : (
                   <Building2 className="h-20 w-20 text-slate-200" />
                 )}
@@ -150,10 +133,10 @@ export default function ClubSettingsPage() {
 
             <div className="text-center space-y-3">
               <Button variant="default" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2 font-bold h-10 px-6">
-                <UploadCloud className="h-4 w-4" /> Subir Logo
+                <Upload className="h-4 w-4" /> Cambiar Logo
               </Button>
               <p className="text-[10px] text-slate-400 px-4 italic font-medium">
-                Sube el escudo para Storage.
+                La imagen se guarda directamente en la base de datos.
               </p>
             </div>
           </CardContent>
@@ -202,20 +185,6 @@ export default function ClubSettingsPage() {
                   placeholder="+54 11..."
                   className="h-12 border-2 font-medium"
                 />
-              </div>
-            </div>
-
-            <div className="pt-6 border-t">
-              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex items-start gap-4">
-                <div className="bg-primary/10 p-2 rounded-full shrink-0">
-                  <Globe className="h-5 w-5 text-primary" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Almacenamiento Cloud</p>
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                    Toda la multimedia ahora se procesa a través de Google Cloud Storage para mayor seguridad y velocidad.
-                  </p>
-                </div>
               </div>
             </div>
           </CardContent>

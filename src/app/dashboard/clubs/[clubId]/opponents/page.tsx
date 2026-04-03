@@ -27,17 +27,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 export default function OpponentsManagerPage() {
   const { clubId } = useParams() as { clubId: string };
-  const { firestore, storage } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingOpp, setEditingOpp] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [newOpp, setNewOpp] = useState({ 
@@ -54,24 +52,16 @@ export default function OpponentsManagerPage() {
   );
   const { data: opponents, isLoading } = useCollection(opponentsQuery);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setUploading(true);
-    try {
-      const path = `clubs/${clubId}/opponents/logo_${Date.now()}`;
-      const url = await uploadFileAndGetUrl(storage, path, file);
-      
-      if (isEdit) setEditingOpp({ ...editingOpp, logoUrl: url });
-      else setNewOpp({ ...newOpp, logoUrl: url });
-      
-      toast({ title: "Escudo guardado en la nube" });
-    } catch (err) {
-      console.error(err);
-      toast({ variant: "destructive", title: "Error al subir escudo" });
-    } finally {
-      setUploading(false);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        if (isEdit) setEditingOpp({ ...editingOpp, logoUrl: base64 });
+        else setNewOpp({ ...newOpp, logoUrl: base64 });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -112,7 +102,7 @@ export default function OpponentsManagerPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Base de Clubes Rivales</h1>
-            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Gestión centralizada cloud de escudos y sedes.</p>
+            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{clubId} • Gestión centralizada de escudos y sedes.</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -123,7 +113,7 @@ export default function OpponentsManagerPage() {
             <DialogContent className="max-w-md bg-white border-none shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black text-slate-900">Nuevo Oponente</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Registra el escudo oficial alojado en Storage.</DialogDescription>
+                <DialogDescription className="font-bold text-slate-500">Registra los datos básicos y escudo del club rival.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-6">
                 <div className="flex flex-col items-center gap-4">
@@ -131,18 +121,17 @@ export default function OpponentsManagerPage() {
                     <Avatar className="h-24 w-24 border-4 border-slate-100 shadow-xl rounded-2xl bg-slate-50">
                       <AvatarImage src={newOpp.logoUrl} className="object-contain p-2" />
                       <AvatarFallback className="bg-slate-50 text-slate-300">
-                        {uploading ? <Loader2 className="animate-spin" /> : <Shield className="h-10 w-10" />}
+                        <Shield className="h-10 w-10" />
                       </AvatarFallback>
                     </Avatar>
                     <button 
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
                       className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <ImagePlus className="h-6 w-6 text-white" />
                     </button>
                   </div>
-                  <p className="text-[10px] font-black uppercase text-slate-400">Escudo Oficial (Storage)</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400">Escudo Oficial</p>
                 </div>
 
                 <div className="space-y-4">
@@ -167,11 +156,11 @@ export default function OpponentsManagerPage() {
                     <Input value={newOpp.address} onChange={e => setNewOpp({...newOpp, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
                   </div>
                 </div>
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e)} />
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageChange(e)} />
               </div>
               <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
                 <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold">Cancelar</Button>
-                <Button onClick={handleCreateOpponent} disabled={!newOpp.name || uploading} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Guardar Rival</Button>
+                <Button onClick={handleCreateOpponent} disabled={!newOpp.name} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Guardar Rival</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -241,10 +230,10 @@ export default function OpponentsManagerPage() {
                 <Avatar className="h-24 w-24 border-4 border-slate-100 shadow-xl rounded-2xl bg-white">
                   <AvatarImage src={editingOpp?.logoUrl} className="object-contain p-2" />
                   <AvatarFallback className="bg-slate-50 text-slate-300">
-                    {uploading ? <Loader2 className="animate-spin" /> : <Shield className="h-10 w-10" />}
+                    <Shield className="h-10 w-10" />
                   </AvatarFallback>
                 </Avatar>
-                <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <ImagePlus className="h-6 w-6 text-white" />
                 </button>
               </div>
@@ -259,11 +248,11 @@ export default function OpponentsManagerPage() {
                 <Input value={editingOpp?.address || ""} onChange={e => setEditingOpp({...editingOpp, address: e.target.value})} className="h-12 border-2" />
               </div>
             </div>
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, true)} />
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageChange(e, true)} />
           </div>
           <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
             <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateOpponent} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg" disabled={uploading}>Guardar en Cloud</Button>
+            <Button onClick={handleUpdateOpponent} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg">Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

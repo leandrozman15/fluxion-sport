@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { collection, query, where, getDocs, doc } from "firebase/firestore";
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 interface NavItem {
   title: string;
@@ -29,11 +28,10 @@ interface SectionNavProps {
 
 export function SectionNav({ items }: SectionNavProps) {
   const pathname = usePathname();
-  const { auth, firestore, storage, user } = useFirebase();
+  const { auth, firestore, user } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const [isPhotoOpen, setIsPhotoOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,48 +44,41 @@ export function SectionNav({ items }: SectionNavProps) {
     router.push("/login");
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user || !firestore) return;
 
-    setUploading(true);
-    try {
-      // 1. Subir a Cloud Storage
-      const path = `profiles/${user.uid}/photo_${Date.now()}`;
-      const url = await uploadFileAndGetUrl(storage, path, file);
-      
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
       const email = user.email?.toLowerCase().trim();
 
-      // 2. Actualizar perfiles vinculados con la nueva URL
+      // 1. Actualizar perfiles vinculados con la nueva imagen Base64
       setDocumentNonBlocking(doc(firestore, "users", user.uid), { 
-        photoUrl: url,
+        photoUrl: base64,
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
       if (email) {
         const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
         staffSnap.forEach(d => {
-          if (d.id !== user.uid) updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: url });
+          if (d.id !== user.uid) updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: base64 });
         });
 
         const indexSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
         indexSnap.forEach(d => {
-          updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: url });
+          updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: base64 });
           const clubId = d.data().clubId;
           if (clubId) {
-            updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "players", d.id), { photoUrl: url });
+            updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "players", d.id), { photoUrl: base64 });
           }
         });
       }
 
-      toast({ title: "Foto en la Nube", description: "Tu imagen oficial ha sido actualizada." });
+      toast({ title: "Foto Actualizada", description: "Tu imagen oficial se ha guardado en Firestore." });
       setIsPhotoOpen(false);
-    } catch (err) {
-      console.error("Error subiendo foto:", err);
-      toast({ variant: "destructive", title: "Error en Storage", description: "No se pudo subir la imagen." });
-    } finally {
-      setUploading(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   if (!mounted) {
@@ -147,21 +138,20 @@ export function SectionNav({ items }: SectionNavProps) {
             </Tooltip>
             <DialogContent className="max-w-sm bg-white border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-xl font-black text-slate-900">Actualizar Perfil (Cloud)</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Sube una foto para tu carnet oficial alojado en Storage.</DialogDescription>
+                <DialogTitle className="text-xl font-black text-slate-900">Actualizar Perfil</DialogTitle>
+                <DialogDescription className="font-bold text-slate-500">Sube una foto para tu carnet oficial.</DialogDescription>
               </DialogHeader>
               <div className="flex flex-col items-center justify-center py-8 space-y-6">
                 <div className="h-32 w-32 rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center relative overflow-hidden group">
-                  {uploading ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <UserCircle className="h-16 w-16 text-slate-200" />}
+                  <UserCircle className="h-16 w-16 text-slate-200" />
                   <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Upload className="h-8 w-8 text-primary" />
                   </div>
                 </div>
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoChange} />
                 <div className="grid grid-cols-1 w-full gap-2">
-                  <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="font-black uppercase text-[10px] tracking-widest h-12 gap-2 shadow-lg shadow-primary/20">
-                    {uploading ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4" />}
-                    {uploading ? "Subiendo..." : "Seleccionar Foto"}
+                  <Button onClick={() => fileInputRef.current?.click()} className="font-black uppercase text-[10px] tracking-widest h-12 gap-2 shadow-lg shadow-primary/20">
+                    <Camera className="h-4 w-4" /> Seleccionar Foto
                   </Button>
                   <Button variant="ghost" onClick={() => setIsPhotoOpen(false)} className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Cancelar</Button>
                 </div>

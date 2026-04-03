@@ -37,7 +37,6 @@ import { SectionNav } from "@/components/layout/section-nav";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 interface ProductSize {
   label: string;
@@ -46,7 +45,7 @@ interface ProductSize {
 
 export default function ShopAdminPage() {
   const { clubId } = useParams() as { clubId: string };
-  const { firestore, storage } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -54,7 +53,6 @@ export default function ShopAdminPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [uploading, setUploading] = useState(false);
 
   const INITIAL_PRODUCT = { 
     name: "", 
@@ -86,31 +84,22 @@ export default function ShopAdminPage() {
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
   ];
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     
-    setUploading(true);
-    try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        const path = `clubs/${clubId}/shop/item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-        return await uploadFileAndGetUrl(storage, path, file);
-      });
-
-      const urls = await Promise.all(uploadPromises);
-
-      if (isEdit) {
-        setEditingProduct((prev: any) => ({ ...prev, images: [...(prev.images || []), ...urls] }));
-      } else {
-        setNewProduct(prev => ({ ...prev, images: [...prev.images, ...urls] }));
-      }
-      toast({ title: "Imágenes cargadas en Storage" });
-    } catch (err) {
-      console.error(err);
-      toast({ variant: "destructive", title: "Error al subir imágenes" });
-    } finally {
-      setUploading(false);
-    }
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        if (isEdit) {
+          setEditingProduct((prev: any) => ({ ...prev, images: [...(prev.images || []), base64] }));
+        } else {
+          setNewProduct(prev => ({ ...prev, images: [...prev.images, base64] }));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleAddSize = (isEdit = false) => {
@@ -172,7 +161,7 @@ export default function ShopAdminPage() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Gestión de Tienda</h1>
-            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{club?.name} • Control de catálogo cloud.</p>
+            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{club?.name} • Control de catálogo.</p>
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl relative backdrop-blur-md">
@@ -193,13 +182,13 @@ export default function ShopAdminPage() {
               </DialogTrigger>
               <DialogContent className="max-w-3xl bg-white border-none shadow-2xl rounded-[2.5rem]">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-black text-slate-900">Nueva Ficha en Storage</DialogTitle>
+                  <DialogTitle className="text-2xl font-black text-slate-900">Nueva Ficha de Producto</DialogTitle>
                   <DialogDescription className="font-bold text-slate-500">Define las características, stock y fotos oficiales.</DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[70vh] pr-4">
                   <div className="space-y-8 py-6">
                     <div className="space-y-3">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Galería de Imágenes (Nube)</Label>
+                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Galería de Imágenes</Label>
                       <div className="grid grid-cols-4 gap-4">
                         {newProduct.images.map((img, i) => (
                           <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border-2 shadow-sm group">
@@ -214,14 +203,13 @@ export default function ShopAdminPage() {
                         ))}
                         <button 
                           onClick={() => fileInputRef.current?.click()}
-                          disabled={uploading}
                           className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center hover:border-primary transition-all text-slate-400 hover:text-primary"
                         >
-                          {uploading ? <Loader2 className="animate-spin h-6 w-6" /> : <ImagePlus className="h-6 w-6 mb-1" />}
-                          <span className="text-[8px] font-black uppercase">{uploading ? "Subiendo" : "Subir"}</span>
+                          <ImagePlus className="h-6 w-6 mb-1" />
+                          <span className="text-[8px] font-black uppercase">Subir</span>
                         </button>
                       </div>
-                      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageUpload(e)} />
+                      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageChange(e)} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -279,7 +267,7 @@ export default function ShopAdminPage() {
                 </ScrollArea>
                 <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2.5rem]">
                   <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-                  <Button onClick={handleCreateProduct} disabled={!newProduct.name || !newProduct.price || uploading} className="font-black uppercase text-xs tracking-widest h-14 px-12 shadow-xl shadow-primary/20">Publicar en Tienda</Button>
+                  <Button onClick={handleCreateProduct} disabled={!newProduct.name || !newProduct.price} className="font-black uppercase text-xs tracking-widest h-14 px-12 shadow-xl shadow-primary/20">Publicar en Tienda</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -344,7 +332,7 @@ export default function ShopAdminPage() {
             <ScrollArea className="max-h-[70vh] pr-4">
               <div className="space-y-8 py-6">
                 <div className="space-y-3">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Galería en la Nube</Label>
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Galería de Imágenes</Label>
                   <div className="grid grid-cols-4 gap-4">
                     {editingProduct.images?.map((img: string, i: number) => (
                       <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border-2 group">
@@ -357,11 +345,11 @@ export default function ShopAdminPage() {
                         </button>
                       </div>
                     ))}
-                    <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-slate-400 hover:text-primary" disabled={uploading}>
-                      {uploading ? <Loader2 className="animate-spin" /> : <ImagePlus className="h-6 w-6" />}
+                    <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-slate-400 hover:text-primary">
+                      <ImagePlus className="h-6 w-6" />
                     </button>
                   </div>
-                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageUpload(e, true)} />
+                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={(e) => handleImageChange(e, true)} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
@@ -397,7 +385,7 @@ export default function ShopAdminPage() {
           )}
           <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2.5rem]">
             <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveEdit} className="font-black uppercase text-xs tracking-widest h-14 px-12 shadow-xl" disabled={uploading}>Actualizar en Nube</Button>
+            <Button onClick={handleSaveEdit} className="font-black uppercase text-xs tracking-widest h-14 px-12 shadow-xl">Actualizar Producto</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
