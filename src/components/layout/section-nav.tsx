@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef } from "react";
@@ -51,21 +50,17 @@ export function SectionNav({ items }: SectionNavProps) {
       const email = user.email?.toLowerCase().trim();
 
       try {
-        // 1. Sincronizar Perfil por UID (Asegura existencia con set merge)
         setDocumentNonBlocking(doc(firestore, "users", user.uid), { 
           photoUrl: base64,
           updatedAt: new Date().toISOString()
         }, { merge: true });
 
-        // 2. Sincronizar por Email en otras colecciones vinculadas (Staff/Jugadores)
         if (email) {
-          // Actualizar en tabla de staff
           const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
           staffSnap.forEach(d => {
             if (d.id !== user.uid) updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: base64 });
           });
 
-          // Actualizar en padrón de jugadores y su club
           const indexSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
           indexSnap.forEach(d => {
             updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: base64 });
@@ -89,7 +84,7 @@ export function SectionNav({ items }: SectionNavProps) {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] md:relative md:z-auto md:flex md:flex-col gap-3 bg-white/95 backdrop-blur-xl md:bg-white/80 border-t md:border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl p-2 md:rounded-2xl h-[72px] md:h-fit md:sticky md:top-8 md:min-w-[72px] md:max-w-[72px] animate-in slide-in-from-bottom md:slide-in-from-left duration-500 flex flex-row items-center justify-around md:justify-start pb-safe">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] md:relative md:flex md:flex-col gap-3 bg-white/95 backdrop-blur-xl md:bg-white/80 border-t md:border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl p-2 md:rounded-2xl h-[72px] md:h-fit md:sticky md:top-8 md:min-w-[72px] md:max-w-[72px] md:z-[100] animate-in slide-in-from-bottom md:slide-in-from-left duration-500 flex flex-row items-center justify-around md:justify-start pb-safe">
       <TooltipProvider delayDuration={0}>
         <div className="flex flex-row md:flex-col gap-1 md:gap-3 w-full items-center justify-around md:justify-start">
           {items.map((item) => {
@@ -114,7 +109,7 @@ export function SectionNav({ items }: SectionNavProps) {
                     )}
                   </Link>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="hidden md:block font-bold bg-primary text-primary-foreground border-none">
+                <TooltipContent side="right" className="hidden md:block font-black uppercase text-[10px] tracking-widest bg-primary text-primary-foreground border-none">
                   {item.title}
                 </TooltipContent>
               </Tooltip>
@@ -134,7 +129,7 @@ export function SectionNav({ items }: SectionNavProps) {
                   </button>
                 </DialogTrigger>
               </TooltipTrigger>
-              <TooltipContent side="right" className="hidden md:block font-bold bg-slate-100 text-slate-900 border-none">Actualizar Mi Foto</TooltipContent>
+              <TooltipContent side="right" className="hidden md:block font-black uppercase text-[10px] tracking-widest bg-slate-100 text-slate-900 border-none">Foto Perfil</TooltipContent>
             </Tooltip>
             <DialogContent className="max-w-sm bg-white border-none shadow-2xl">
               <DialogHeader>
@@ -166,7 +161,7 @@ export function SectionNav({ items }: SectionNavProps) {
                 <LogOut className="h-6 w-6 md:h-5 md:w-5 group-hover:scale-110" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right" className="hidden md:block font-bold bg-red-50 text-destructive border-none">Cerrar Sesión</TooltipContent>
+            <TooltipContent side="right" className="hidden md:block font-black uppercase text-[10px] tracking-widest bg-red-50 text-destructive border-none">Cerrar Sesión</TooltipContent>
           </Tooltip>
         </div>
       </TooltipProvider>
