@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -51,7 +50,7 @@ export default function SuperAdminPage() {
       const clubId = doc(collection(db, "clubs")).id;
       const clubDoc = doc(db, "clubs", clubId);
       
-      // 1. Crear el Club en Firestore
+      // 1. Crear el Club en Firestore (Aseguramos el guardado antes de Auth)
       await setDoc(clubDoc, {
         id: clubId,
         name: form.clubName,
@@ -69,19 +68,22 @@ export default function SuperAdminPage() {
         email: userId,
         phone: form.adminPhone,
         role: "club_admin",
-        clubId: clubId, // Asociación garantizada
+        clubId: clubId, 
         sport: form.sport,
         createdAt: new Date().toISOString()
       });
 
-      // 3. Crear acceso en Auth (esto cerrará la sesión actual)
+      // 3. Crear acceso en Auth (esto cerrará la sesión actual del superadmin)
       initiateEmailSignUp(auth, form.adminEmail, form.adminPassword);
 
       setSuccess(true);
-      toast({ title: "Sistema Desplegado", description: `El club ${form.clubName} ha sido creado. Se reiniciará la sesión para activar el acceso.` });
+      toast({ 
+        title: "Sistema Desplegado", 
+        description: `El club ${form.clubName} ha sido creado en la base de datos central.` 
+      });
     } catch (error) {
-      console.error(error);
-      toast({ variant: "destructive", title: "Error en el despliegue" });
+      console.error("Error en despliegue SuperAdmin:", error);
+      toast({ variant: "destructive", title: "Error en el despliegue", description: "No se pudieron guardar los datos en Firestore." });
     } finally {
       setLoading(false);
     }
@@ -97,7 +99,7 @@ export default function SuperAdminPage() {
             </div>
             <CardTitle className="text-3xl font-black text-slate-900 tracking-tight uppercase">¡Sistema Desplegado!</CardTitle>
             <CardDescription className="text-slate-500 font-bold mt-2">
-              El club <strong>{form.clubName}</strong> ya puede acceder con sus credenciales.
+              El club <strong>{form.clubName}</strong> ya puede acceder con sus credenciales. La sesión se reiniciará para seguridad.
             </CardDescription>
           </CardHeader>
           <CardFooter className="pt-8">
@@ -115,7 +117,7 @@ export default function SuperAdminPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
           <h1 className="text-4xl font-black font-headline text-white drop-shadow-2xl tracking-tight">Infraestructura Global</h1>
-          <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] drop-shadow-md">Alta de Clientes e Instituciones • Fluxion Sport</p>
+          <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] drop-shadow-md">Alta de Clientes • Base: {DATABASE_ID}</p>
         </div>
       </header>
 
@@ -186,3 +188,5 @@ export default function SuperAdminPage() {
     </div>
   );
 }
+
+const DATABASE_ID = "ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7";
