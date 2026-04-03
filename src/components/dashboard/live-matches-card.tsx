@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,6 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export function LiveMatchesCard({ clubId }: { clubId?: string }) {
   const { firestore } = useFirebase();
@@ -26,8 +29,6 @@ export function LiveMatchesCard({ clubId }: { clubId?: string }) {
   useEffect(() => {
     if (!firestore) return;
 
-    // Buscamos partidos con status 'live'
-    // Si hay clubId filtramos por club, si no (SuperAdmin) mostramos todos
     let q = query(collection(firestore, "live_matches_index"), where("status", "==", "live"));
     
     if (clubId) {
@@ -38,8 +39,14 @@ export function LiveMatchesCard({ clubId }: { clubId?: string }) {
       const matches = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       setLiveMatches(matches);
       setLoading(false);
-    }, (err) => {
-      console.error("Error en LiveMatchesCard:", err);
+    }, (error) => {
+      console.warn("Live matches listener suppressed:", error.message);
+      if (error.code === 'permission-denied') {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: 'live_matches_index',
+          operation: 'list'
+        }));
+      }
       setLoading(false);
     });
 

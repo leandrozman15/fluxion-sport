@@ -21,31 +21,27 @@ export function DynamicBackground() {
       return;
     }
 
-    // Buscamos el deporte del usuario para el fondo ambiental
     const qStaff = query(collection(firestore, "users"), where("email", "==", email));
     const unsubStaff = onSnapshot(qStaff, (snap) => {
       if (!snap.empty) {
         const data = snap.docs[0].data();
-        // Si el club al que pertenece no tiene deporte o el usuario no tiene uno, ponemos neutro
         setSport(data.sport === 'rugby' ? 'rugby' : data.sport === 'hockey' ? 'hockey' : 'none');
       } else {
         const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-        const unsubPlayer = onSnapshot(qPlayer, (pSnap) => {
+        onSnapshot(qPlayer, (pSnap) => {
           if (!pSnap.empty) {
             const data = pSnap.docs[0].data();
             setSport(data.sport === 'rugby' ? 'rugby' : data.sport === 'hockey' ? 'hockey' : 'none');
           } else {
             setSport('none');
           }
-        });
-        return () => unsubPlayer();
+        }, (err) => console.warn("Background player listener suppressed"));
       }
-    });
+    }, (err) => console.warn("Background staff listener suppressed"));
 
     return () => unsubStaff();
   }, [user, firestore]);
 
-  // Si no hay deporte (app vacía), usamos un color sólido profundo
   const bgUrl = sport === 'rugby' ? "/rugby.jpg" : sport === 'hockey' ? "/hockey.jpg" : null;
 
   return (

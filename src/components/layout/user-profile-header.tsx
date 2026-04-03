@@ -9,6 +9,8 @@ import { LogOut, Shield, UserCheck, UserCircle, Settings } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
@@ -19,37 +21,43 @@ export function UserProfileHeader() {
     if (!user || !firestore) return;
     const email = user.email?.toLowerCase().trim() || "";
 
-    // 1. Escuchar cambios en el perfil del usuario (UID es la clave primaria recomendada)
     const unsubProfile = onSnapshot(doc(firestore, "users", user.uid), async (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         if (data.clubId) {
-          const clubSnap = await getDoc(doc(firestore, "clubs", data.clubId));
-          if (clubSnap.exists()) {
-            setProfile(data);
-          } else {
-            // Club eliminado detectado en tiempo real
+          try {
+            const clubSnap = await getDoc(doc(firestore, "clubs", data.clubId));
+            if (clubSnap.exists()) {
+              setProfile(data);
+            } else {
+              setProfile({ ...data, clubId: null, role: 'guest' });
+            }
+          } catch (e) {
             setProfile({ ...data, clubId: null, role: 'guest' });
           }
         } else {
           setProfile(data);
         }
       } else {
-        // Fallback por email si el UID no existe en users (caso jugadores o registros antiguos)
         const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-        const unsubStaff = onSnapshot(qStaff, (sSnap) => {
+        onSnapshot(qStaff, (sSnap) => {
           if (!sSnap.empty) {
             setProfile(sSnap.docs[0].data());
           } else {
-            // Buscar en índice de jugadores
             const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
             onSnapshot(qPlayer, (pSnap) => {
               if (!pSnap.empty) setProfile({ ...pSnap.docs[0].data(), role: 'player' });
               else setProfile({ name: user.email, role: 'guest' });
-            });
+            }, (err) => console.warn("Player index listener suppressed"));
           }
-        });
-        return () => unsubStaff();
+        }, (err) => console.warn("Staff listener suppressed"));
+      }
+    }, (error) => {
+      if (error.code === 'permission-denied') {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `users/${user.uid}`,
+          operation: 'get'
+        }));
       }
     });
 
