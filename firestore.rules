@@ -2,27 +2,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS DE ACCESO TOTAL PARA PROTOTIPADO
-    // Versión: 1.0.3 - Forzando permisos globales y específicos para subcolecciones profundas
+    // REGLAS DE ACCESO TOTAL PARA PROTOTIPADO Y DESARROLLO
+    // Permite lectura y escritura pública en todas las colecciones para facilitar el cadastro y las pruebas de staff.
     
-    // Permitir todo por defecto en cualquier ruta (lectura y escritura pública)
     match /{document=**} {
       allow read, write: if true;
     }
 
-    // Regla explícita redundante para asegurar acceso a la subcolección de pagos
-    // Esto ayuda en casos donde la propagación de la regla recursiva (**) es lenta en sub-niveles
-    match /clubs/{clubId}/players/{playerId}/payments/{paymentId} {
-      allow read, write: if true;
-    }
-    
-    // Asegurar acceso a la colección de índice de búsqueda global
-    match /all_players_index/{playerId} {
-      allow read, write: if true;
-    }
-    
-    // Permitir acceso a la colección de usuarios/perfiles
+    // Regla explícita para la colección de usuarios para asegurar que setDoc y updateDoc funcionen sin fricción
     match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    // Regla para el índice de jugadores
+    match /all_players_index/{playerId} {
       allow read, write: if true;
     }
   }

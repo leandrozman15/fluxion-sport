@@ -96,24 +96,27 @@ export default function PlayersPage() {
     if (!newPlayer.firstName || !newPlayer.lastName || !newPlayer.dni) return;
 
     try {
-      const playerId = doc(collection(db, "clubs", clubId, "players")).id;
+      // Estandarizar ID por email para evitar desincronización con el UID que será igual al email en registros iniciales
+      const normalizedEmail = newPlayer.email.toLowerCase().trim();
+      const playerId = normalizedEmail || doc(collection(db, "clubs", clubId, "players")).id;
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
       
       const pData = {
         ...newPlayer,
         id: playerId,
+        email: normalizedEmail,
         clubId,
         role: "player",
         createdAt: new Date().toISOString()
       };
 
-      if (newPlayer.enableLogin && newPlayer.email && newPlayer.password) {
-        initiateEmailSignUp(auth, newPlayer.email, newPlayer.password);
+      if (newPlayer.enableLogin && normalizedEmail && newPlayer.password) {
+        initiateEmailSignUp(auth, normalizedEmail, newPlayer.password);
         await setDoc(doc(db, "all_players_index", playerId), {
           id: playerId,
           firstName: newPlayer.firstName,
           lastName: newPlayer.lastName,
-          email: newPlayer.email.toLowerCase().trim(),
+          email: normalizedEmail,
           clubId,
           clubName: club?.name || "Club",
           sport: newPlayer.sport,
@@ -152,23 +155,23 @@ export default function PlayersPage() {
   if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   return (
-    <div className="flex gap-8 animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
       
-      <div className="flex-1 space-y-8 pb-20">
+      <div className="flex-1 space-y-8 pb-20 px-4 md:px-0">
         <header className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold font-headline text-foreground">Legajos Deportivos</h1>
-              <p className="text-muted-foreground">{club?.name} • Padrón oficial de jugadores.</p>
+              <h1 className="text-3xl font-bold font-headline text-white drop-shadow-md">Legajos Deportivos</h1>
+              <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{club?.name} • Padrón oficial de jugadores.</p>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest">
+                <Button className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest bg-white text-primary hover:bg-slate-50">
                   <UserPlus className="h-5 w-5" /> Alta de Jugador
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[95vh] bg-white">
+              <DialogContent className="max-w-4xl max-h-[95vh] bg-white border-none shadow-2xl">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black">Nueva Ficha Deportiva</DialogTitle>
                 </DialogHeader>
@@ -188,58 +191,64 @@ export default function PlayersPage() {
                         />
                       </div>
                       <div className="space-y-4">
-                        <Input value={newPlayer.firstName} onChange={e => setNewPlayer({...newPlayer, firstName: e.target.value})} placeholder="Nombre" />
-                        <Input value={newPlayer.lastName} onChange={e => setNewPlayer({...newPlayer, lastName: e.target.value})} placeholder="Apellido" />
-                        <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} placeholder="DNI" />
+                        <Input value={newPlayer.firstName} onChange={e => setNewPlayer({...newPlayer, firstName: e.target.value})} placeholder="Nombre" className="h-12 border-2 font-bold" />
+                        <Input value={newPlayer.lastName} onChange={e => setNewPlayer({...newPlayer, lastName: e.target.value})} placeholder="Apellido" className="h-12 border-2 font-bold" />
+                        <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} placeholder="DNI" className="h-12 border-2 font-bold" />
                       </div>
                     </div>
                     <div className="space-y-6">
-                      <div className="space-y-4 border-t pt-6 bg-muted/20 p-4 rounded-xl">
-                        <Label className="text-xs font-black uppercase text-primary">Acceso Digital</Label>
-                        <Switch checked={newPlayer.enableLogin} onCheckedChange={(v) => setNewPlayer({...newPlayer, enableLogin: v})} />
+                      <div className="space-y-4 border-t pt-6 bg-slate-50 p-4 rounded-xl">
+                        <Label className="text-xs font-black uppercase text-primary">Acceso Digital (Usuario)</Label>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={newPlayer.enableLogin} onCheckedChange={(v) => setNewPlayer({...newPlayer, enableLogin: v})} />
+                          <span className="text-[10px] font-black text-slate-400">ACTIVAR APP SOCIO</span>
+                        </div>
                         {newPlayer.enableLogin && (
                           <div className="space-y-3">
-                            <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email" />
-                            <Input type="password" value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} placeholder="Clave temporal" />
+                            <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email institucional" className="h-10 border-2" />
+                            <Input type="password" value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} placeholder="Clave temporal" className="h-10 border-2" />
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
                 </ScrollArea>
-                <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6 mt-4">
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleCreatePlayer} disabled={!newPlayer.firstName || !newPlayer.lastName} className="font-bold">Confirmar Alta</Button>
+                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t">
+                  <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
+                  <Button onClick={handleCreatePlayer} disabled={!newPlayer.firstName || !newPlayer.lastName} className="font-black uppercase text-xs tracking-widest h-12 px-8">Confirmar Alta</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input placeholder="Buscar por nombre o DNI..." className="pl-10 h-12 text-lg shadow-sm border-2 bg-card" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+            <Input placeholder="Buscar por nombre o DNI..." className="pl-10 h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/30 backdrop-blur-md" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
         </header>
 
         <div className="space-y-4">
           {filteredPlayers?.map((player: any) => (
-            <Card key={player.id} className="hover:border-primary/50 transition-all overflow-hidden border-2 group shadow-sm bg-card">
+            <Card key={player.id} className="hover:border-primary/50 transition-all overflow-hidden border-none shadow-xl bg-white group">
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-14 w-14 border shadow-sm">
+                  <Avatar className="h-14 w-14 border-2 border-slate-100 shadow-md rounded-xl">
                     <AvatarImage src={player.photoUrl} className="object-cover" />
-                    <AvatarFallback className="font-black text-slate-300">{player.firstName[0]}</AvatarFallback>
+                    <AvatarFallback className="font-black text-slate-300 bg-slate-50">{player.firstName[0]}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-black text-base text-slate-900">{player.firstName} {player.lastName}</p>
-                    <Badge variant="outline" className="text-[9px] font-black uppercase border-primary text-primary">
-                      {player.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}
-                    </Badge>
+                    <p className="font-black text-lg text-slate-900 leading-none">{player.firstName} {player.lastName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-[8px] font-black uppercase border-primary text-primary px-2 h-4">
+                        {player.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}
+                      </Badge>
+                      <span className="text-[9px] font-bold text-slate-400">DNI: {player.dni}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}><Pencil className="h-5 w-5" /></Button>
-                  <Button variant="outline" size="sm" asChild className="font-black h-10 gap-2 border-primary text-primary hover:bg-primary hover:text-white transition-all px-4 text-xs uppercase tracking-widest">
-                    <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>Pagos</Link>
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}><Pencil className="h-5 w-5" /></Button>
+                  <Button variant="outline" size="sm" asChild className="font-black h-10 gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-all px-5 text-[10px] uppercase tracking-widest rounded-xl">
+                    <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>Cta. Corriente</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -249,21 +258,21 @@ export default function PlayersPage() {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-2xl bg-white">
+        <DialogContent className="max-w-2xl bg-white border-none shadow-2xl">
           <DialogHeader><DialogTitle className="text-2xl font-black text-slate-900">Editar Legajo</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
             <div className="space-y-4">
-              <Input value={editingPlayer?.firstName || ""} onChange={e => setEditingPlayer({...editingPlayer, firstName: e.target.value})} placeholder="Nombre" />
-              <Input value={editingPlayer?.lastName || ""} onChange={e => setEditingPlayer({...editingPlayer, lastName: e.target.value})} placeholder="Apellido" />
+              <Input value={editingPlayer?.firstName || ""} onChange={e => setEditingPlayer({...editingPlayer, firstName: e.target.value})} placeholder="Nombre" className="h-12 border-2 font-bold" />
+              <Input value={editingPlayer?.lastName || ""} onChange={e => setEditingPlayer({...editingPlayer, lastName: e.target.value})} placeholder="Apellido" className="h-12 border-2 font-bold" />
             </div>
             <div className="space-y-4">
-              <Input value={editingPlayer?.dni || ""} onChange={e => setEditingPlayer({...editingPlayer, dni: e.target.value})} placeholder="DNI" />
-              <Input value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} placeholder="Email" />
+              <Input value={editingPlayer?.dni || ""} onChange={e => setEditingPlayer({...editingPlayer, dni: e.target.value})} placeholder="DNI" className="h-12 border-2 font-bold" />
+              <Input value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} placeholder="Email" className="h-12 border-2" />
             </div>
           </div>
-          <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6 mt-4">
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdatePlayer} className="font-bold">Guardar Cambios</Button>
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t">
+            <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="font-bold">Cancelar</Button>
+            <Button onClick={handleUpdatePlayer} className="font-black uppercase text-xs tracking-widest h-12 px-8">Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -90,13 +90,13 @@ export default function ClubCoachesPage() {
       const normalizedEmail = newCoach.email.toLowerCase().trim();
       initiateEmailSignUp(auth, normalizedEmail, newCoach.password);
       
-      const userId = doc(collection(db, "users")).id;
-      const userDoc = doc(db, "users", userId);
+      // Usar Email como ID para consistencia si el UID aún no está disponible en el flujo síncrono
+      const userDoc = doc(db, "users", normalizedEmail);
       
       await setDoc(userDoc, {
         ...newCoach,
         email: normalizedEmail,
-        id: userId,
+        id: normalizedEmail,
         clubId,
         requiresPasswordChange: true,
         createdAt: new Date().toISOString()
@@ -152,7 +152,7 @@ export default function ClubCoachesPage() {
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest">
+              <Button className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest bg-white text-primary hover:bg-slate-50">
                 <Plus className="h-5 w-5" /> Registrar Nuevo Miembro
               </Button>
             </DialogTrigger>
@@ -246,7 +246,7 @@ export default function ClubCoachesPage() {
             <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white h-10 w-10" /></div>
           ) : (
             coaches?.map((coach: any) => (
-              <Card key={coach.id} className="hover:border-primary/50 transition-all overflow-hidden border-none shadow-xl bg-white/95 backdrop-blur-md group">
+              <Card key={coach.id} className="hover:border-primary/50 transition-all overflow-hidden border-none shadow-xl bg-white group">
                 <CardContent className="p-0">
                   <div className="flex flex-col md:flex-row md:items-center">
                     <div className="flex items-center gap-5 p-6 md:w-1/3 border-b md:border-b-0 md:border-r bg-slate-50/50">

@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { collection, query, where, getDocs, doc } from "firebase/firestore";
-import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 interface NavItem {
   title: string;
@@ -51,16 +51,21 @@ export function SectionNav({ items }: SectionNavProps) {
       const email = user.email?.toLowerCase().trim();
 
       try {
-        // 1. Actualizar por UID (Método más directo)
-        updateDocumentNonBlocking(doc(firestore, "users", user.uid), { photoUrl: base64 });
+        // 1. Sincronizar Perfil por UID (Asegura existencia con set merge)
+        setDocumentNonBlocking(doc(firestore, "users", user.uid), { 
+          photoUrl: base64,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
 
-        // 2. Actualizar por Email en otras colecciones vinculadas
+        // 2. Sincronizar por Email en otras colecciones vinculadas (Staff/Jugadores)
         if (email) {
+          // Actualizar en tabla de staff
           const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
           staffSnap.forEach(d => {
             if (d.id !== user.uid) updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: base64 });
           });
 
+          // Actualizar en padrón de jugadores y su club
           const indexSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
           indexSnap.forEach(d => {
             updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: base64 });
@@ -129,7 +134,7 @@ export function SectionNav({ items }: SectionNavProps) {
                   </button>
                 </DialogTrigger>
               </TooltipTrigger>
-              <TooltipContent side="right" className="hidden md:block font-bold bg-slate-900 text-white border-none">Actualizar Mi Foto</TooltipContent>
+              <TooltipContent side="right" className="hidden md:block font-bold bg-slate-100 text-slate-900 border-none">Actualizar Mi Foto</TooltipContent>
             </Tooltip>
             <DialogContent className="max-w-sm bg-white border-none shadow-2xl">
               <DialogHeader>
@@ -139,8 +144,8 @@ export function SectionNav({ items }: SectionNavProps) {
               <div className="flex flex-col items-center justify-center py-8 space-y-6">
                 <div className="h-32 w-32 rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center relative overflow-hidden group">
                   <UserCircle className="h-16 w-16 text-slate-200" />
-                  <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Upload className="h-8 w-8 text-white" />
+                  <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Upload className="h-8 w-8 text-primary" />
                   </div>
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
@@ -161,7 +166,7 @@ export function SectionNav({ items }: SectionNavProps) {
                 <LogOut className="h-6 w-6 md:h-5 md:w-5 group-hover:scale-110" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right" className="hidden md:block font-bold bg-destructive text-white border-none">Cerrar Sesión</TooltipContent>
+            <TooltipContent side="right" className="hidden md:block font-bold bg-red-50 text-destructive border-none">Cerrar Sesión</TooltipContent>
           </Tooltip>
         </div>
       </TooltipProvider>
