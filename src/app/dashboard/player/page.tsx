@@ -29,8 +29,7 @@ import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 
 /**
- * Hub Central del Jugador.
- * Utiliza el nuevo motor de búsqueda por UID y Email para cargar el contexto técnico.
+ * Hub Central del Jugador con carga de datos optimizada por UID.
  */
 export default function PlayerDashboardHub() {
   const { firestore, user } = useFirebase();
@@ -44,27 +43,18 @@ export default function PlayerDashboardHub() {
     async function fetchPlayerData() {
       if (!user || !firestore) return;
       try {
-        const email = user.email?.toLowerCase().trim() || "";
+        // 1. Buscamos el legajo por el UID del usuario (ya vinculado)
+        const playerDoc = await getDoc(doc(firestore, "all_players_index", user.uid));
         
-        // 1. Obtener perfil sincronizado (UID o Email)
         let pData = null;
-        
-        // Intento por UID
-        const qUid = query(collection(firestore, "all_players_index"), where("uid", "==", user.uid));
-        const snapUid = await getDocs(qUid);
-        if (!snapUid.empty) {
-          pData = snapUid.docs[0].data();
+        if (playerDoc.exists()) {
+          pData = playerDoc.data();
         } else {
-          // Intento por Email como ID
-          const snapEmailId = await getDoc(doc(firestore, "all_players_index", email));
-          if (snapEmailId.exists()) {
-            pData = snapEmailId.data();
-          } else if (email) {
-            // Intento por campo email
-            const qEmail = query(collection(firestore, "all_players_index"), where("email", "==", email));
-            const snapEmail = await getDocs(qEmail);
-            if (!snapEmail.empty) pData = snapEmail.docs[0].data();
-          }
+          // Fallback por email si el UID aún no se ha vinculado en el doc
+          const email = user.email?.toLowerCase().trim() || "";
+          const qEmail = query(collection(firestore, "all_players_index"), where("email", "==", email));
+          const snapEmail = await getDocs(qEmail);
+          if (!snapEmail.empty) pData = snapEmail.docs[0].data();
         }
 
         if (pData) {
@@ -124,7 +114,7 @@ export default function PlayerDashboardHub() {
   if (loading) return (
     <div className="flex flex-col h-screen items-center justify-center space-y-4">
       <Loader2 className="animate-spin text-white h-12 w-12" />
-      <p className="text-white font-black uppercase tracking-widest text-[10px]">Cargando Hub de Jugador...</p>
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Identificando...</p>
     </div>
   );
 
@@ -134,7 +124,7 @@ export default function PlayerDashboardHub() {
       <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-6 space-y-4">
         <UserCircle className="h-20 w-20 text-white opacity-20" />
         <h2 className="text-2xl font-black text-white font-headline">Ficha no vinculada</h2>
-        <p className="text-white/60 max-w-sm font-bold">Contacta con la administración de {user?.email} para que vinculen tu acceso oficial.</p>
+        <p className="text-white/60 max-w-sm font-bold">Contacta con la administración del club para que sincronicen tu acceso oficial.</p>
       </div>
     </div>
   );

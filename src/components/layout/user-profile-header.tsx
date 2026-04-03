@@ -11,8 +11,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 /**
- * Encabezado de Perfil de Usuario con Motor de Auto-Vinculación Reforzado.
- * Detecta si el usuario es staff o jugador federado.
+ * Encabezado de Perfil con Sincronización de UID Reforzada.
  */
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
@@ -26,91 +25,52 @@ export function UserProfileHeader() {
       return;
     }
     
-    const email = user.email?.toLowerCase().trim() || "";
-
     async function identifyAndLink() {
       setIdentifying(true);
       try {
+        const email = user.email?.toLowerCase().trim() || "";
         let foundData = null;
         let sourceColl = "";
-        let docId = "";
 
-        // 1. BUSCAR EN STAFF (users)
-        // Intento 1: Por UID directo
+        // 1. INTENTO DIRECTO POR UID (Lo más rápido si ya está vinculado)
         const staffByUid = await getDoc(doc(firestore, "users", user.uid));
         if (staffByUid.exists()) {
           foundData = staffByUid.data();
         } else {
-          // Intento 2: Por campo UID
-          const qStaffUid = query(collection(firestore, "users"), where("uid", "==", user.uid));
-          const snapStaffUid = await getDocs(qStaffUid);
-          if (!snapStaffUid.empty) {
-            foundData = snapStaffUid.docs[0].data();
-          } else {
-            // Intento 3: Por ID = Email
-            const staffByEmailId = await getDoc(doc(firestore, "users", email));
-            if (staffByEmailId.exists()) {
-              foundData = staffByEmailId.data();
-              sourceColl = "users";
-              docId = email;
-            } else {
-              // Intento 4: Por campo email
-              const qStaffEmail = query(collection(firestore, "users"), where("email", "==", email));
-              const staffSnap = await getDocs(qStaffEmail);
-              if (!staffSnap.empty) {
-                foundData = staffSnap.docs[0].data();
-                sourceColl = "users";
-                docId = staffSnap.docs[0].id;
-              }
-            }
-          }
-        }
-
-        // 2. BUSCAR EN JUGADORES (all_players_index) si no es staff
-        if (!foundData) {
-          // 2.1 Por UID
           const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
           if (playerByUid.exists()) {
             foundData = { ...playerByUid.data(), role: 'player' };
-          } else {
-            const qPlayerUid = query(collection(firestore, "all_players_index"), where("uid", "==", user.uid));
-            const snapPlayerUid = await getDocs(qPlayerUid);
-            if (!snapPlayerUid.empty) {
-              foundData = { ...snapPlayerUid.docs[0].data(), role: 'player' };
-            } else {
-              // 2.2 Por ID = Email
-              const playerByEmailId = await getDoc(doc(firestore, "all_players_index", email));
-              if (playerByEmailId.exists()) {
-                foundData = { ...playerByEmailId.data(), role: 'player' };
-                sourceColl = "all_players_index";
-                docId = email;
-              } else {
-                // 2.3 Por campo email
-                const qPlayerEmail = query(collection(firestore, "all_players_index"), where("email", "==", email));
-                const pSnap = await getDocs(qPlayerEmail);
-                if (!pSnap.empty) {
-                  foundData = { ...pSnap.docs[0].data(), role: 'player' };
-                  sourceColl = "all_players_index";
-                  docId = pSnap.docs[0].id;
-                }
-              }
-            }
           }
         }
 
-        // 3. AUTO-VINCULACIÓN (Soldadura de UID)
-        if (foundData && sourceColl && docId) {
-          await setDoc(doc(firestore, sourceColl, docId), { 
-            uid: user.uid,
-            updatedAt: new Date().toISOString() 
-          }, { merge: true });
+        // 2. INTENTO POR EMAIL (Búsqueda inicial)
+        if (!foundData) {
+          const qStaff = query(collection(firestore, "users"), where("email", "==", email));
+          const snapStaff = await getDocs(qStaff);
+          if (!snapStaff.empty) {
+            foundData = snapStaff.docs[0].data();
+            sourceColl = "users";
+          } else {
+            const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
+            const snapPlayer = await getDocs(qPlayer);
+            if (!snapPlayer.empty) {
+              foundData = { ...snapPlayer.docs[0].data(), role: 'player' };
+              sourceColl = "all_players_index";
+            }
+          }
+
+          // 3. VINCULACIÓN EN CALIENTE (Si se encontró por email, grabamos el UID)
+          if (foundData && sourceColl) {
+            await setDoc(doc(firestore, sourceColl, user.uid), { 
+              ...foundData, 
+              id: user.uid,
+              uid: user.uid,
+              updatedAt: new Date().toISOString() 
+            }, { merge: true });
+          }
         }
 
-        if (foundData) {
-          setProfile(foundData);
-        } else {
-          setProfile({ name: user.email, role: 'guest' });
-        }
+        setProfile(foundData || { name: user.email, role: 'guest' });
       } catch (e) {
         console.error("Identity Error:", e);
       } finally {
@@ -130,7 +90,7 @@ export function UserProfileHeader() {
 
   const role = profile?.role || "guest";
   const display = (() => {
-    if (identifying) return { label: "Sincronizando...", icon: Loader2, color: "text-slate-400", bg: "bg-slate-50" };
+    if (identifying) return { label: "Validando...", icon: Loader2, color: "text-slate-400", bg: "bg-slate-50" };
     
     switch(role) {
       case 'admin': 
@@ -163,7 +123,7 @@ export function UserProfileHeader() {
 
         <div className="flex flex-col items-start min-w-[100px]">
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
-            {identifying ? "Identificando..." : userName}
+            {userName}
           </span>
           <span className={cn("text-[9px] uppercase font-black tracking-widest mt-1 flex items-center gap-1", display.color)}>
             <display.icon className={cn("h-2.5 w-2.5", identifying && "animate-spin")} />
@@ -173,11 +133,7 @@ export function UserProfileHeader() {
         
         <div className="h-6 w-px bg-slate-200 mx-1" />
         
-        <button 
-          onClick={handleLogout} 
-          className="text-destructive hover:text-red-600 flex items-center gap-2 px-2 transition-all hover:translate-x-0.5"
-          title="Cerrar Sesión"
-        >
+        <button onClick={handleLogout} className="text-destructive hover:text-red-600 flex items-center gap-2 px-2 transition-all hover:translate-x-0.5">
           <LogOut className="h-4 w-4" />
           <span className="text-[10px] font-black uppercase hidden sm:inline">Salir</span>
         </button>
