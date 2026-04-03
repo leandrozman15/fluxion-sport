@@ -93,16 +93,6 @@ export default function TeamDetailPage() {
     setDoc(attDoc, { playerId, playerName, status: nextStatus, updatedAt: new Date().toISOString() }, { merge: true });
   };
 
-  const handleSetCaptain = (playerId: string) => {
-    if (!teamRef) return;
-    const isCurrentCaptain = team?.captainId === playerId;
-    updateDocumentNonBlocking(teamRef, { captainId: isCurrentCaptain ? null : playerId });
-    toast({ 
-      title: isCurrentCaptain ? "Liderazgo removido" : "Capitán Designado", 
-      description: isCurrentCaptain ? "El equipo se queda sin capitán por ahora." : "Se ha asignado el brazalete oficial."
-    });
-  };
-
   const handleTacticalSettingsSave = (settings: { playerCount: number; sport: 'hockey' | 'rugby' }) => {
     if (!teamRef) return;
     updateDocumentNonBlocking(teamRef, {
@@ -243,23 +233,14 @@ export default function TeamDetailPage() {
                   <div className="divide-y divide-slate-100">
                     {roster?.map((member: any) => {
                       const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
-                      const isCaptain = team?.captainId === member.playerId;
                       return (
                         <div key={member.id} className="flex flex-col sm:flex-row items-center justify-between p-6 group hover:bg-slate-50/80 transition-all gap-4">
                           <div className="flex items-center gap-5 w-full sm:w-auto">
                             <div className="relative shrink-0">
-                              <Avatar className={cn(
-                                "h-20 w-16 border-2 transition-all shadow-md rounded-2xl",
-                                isCaptain ? "border-yellow-400 ring-4 ring-yellow-400/20" : "border-slate-100"
-                              )}>
+                              <Avatar className="h-20 w-16 border-2 transition-all shadow-md rounded-2xl border-slate-100">
                                 <AvatarImage src={member.playerPhoto} className="object-cover" />
                                 <AvatarFallback className="font-black text-slate-300 bg-slate-50 text-xl">{member.playerName[0]}</AvatarFallback>
                               </Avatar>
-                              {isCaptain && (
-                                <div className="absolute -top-3 -left-3 bg-yellow-500 text-white text-[11px] font-black h-8 w-8 flex items-center justify-center rounded-xl border-4 border-white shadow-xl animate-bounce">
-                                  C
-                                </div>
-                              )}
                               {member.jerseyNumber && (
                                 <div className="absolute -bottom-2 -right-2 bg-slate-900 text-white text-[10px] font-black h-7 w-7 flex items-center justify-center rounded-lg border-2 border-white shadow-lg">
                                   #{member.jerseyNumber}
@@ -267,36 +248,17 @@ export default function TeamDetailPage() {
                               )}
                             </div>
                             <div className="flex flex-col">
-                              <span className={cn(
-                                "font-black text-xl leading-none transition-colors",
-                                isCaptain ? "text-yellow-600" : "text-slate-900"
-                              )}>
+                              <span className="font-black text-xl leading-none transition-colors text-slate-900">
                                 {member.playerName}
                               </span>
                               <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-2 flex items-center gap-2">
-                                <ShieldCheck className={cn("h-3 w-3", isCaptain ? "text-yellow-500" : "text-green-500")} />
+                                <ShieldCheck className="h-3 w-3 text-green-500" />
                                 Federado Activo 
-                                {isCaptain && <span className="text-yellow-600 font-black">• CAPITÁN</span>}
                               </p>
                             </div>
                           </div>
                           
                           <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                            <Button 
-                              variant={isCaptain ? "default" : "outline"} 
-                              size="sm" 
-                              onClick={() => handleSetCaptain(member.playerId)}
-                              className={cn(
-                                "h-11 px-5 gap-2 font-black uppercase text-[10px] tracking-[0.1em] transition-all rounded-xl shadow-sm",
-                                isCaptain 
-                                  ? "bg-yellow-500 hover:bg-yellow-600 text-white border-none shadow-yellow-500/20" 
-                                  : "text-slate-500 border-slate-200 hover:text-yellow-600 hover:border-yellow-400 hover:bg-yellow-50"
-                              )}
-                            >
-                              <Star className={cn("h-4 w-4", isCaptain && "fill-current")} />
-                              {isCaptain ? "Capitán" : "Hacer Capitán"}
-                            </Button>
-
                             {todayEvent ? (
                               <Button 
                                 variant="ghost" 
@@ -340,19 +302,19 @@ export default function TeamDetailPage() {
             </Card>
 
             <div className="space-y-8">
-              <Card className="bg-slate-900 text-white border-none shadow-2xl overflow-hidden relative">
+              <Card className="bg-white border-none shadow-2xl overflow-hidden relative border-l-8 border-l-primary">
                 <CardHeader className="relative z-10 pb-4">
-                  <CardTitle className="text-xs font-black uppercase tracking-[0.3em] opacity-60">Resumen del Plantel</CardTitle>
+                  <CardTitle className="text-xs font-black uppercase tracking-[0.3em] opacity-60 text-slate-400">Resumen del Plantel</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-8 pt-4 relative z-10">
-                  <div className="flex justify-between items-center border-b border-white/5 pb-6">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-6">
                     <span className="text-xs font-black opacity-50 uppercase tracking-widest text-slate-400">Total Jugadores</span>
                     <span className="text-5xl font-black text-primary tracking-tighter">{roster?.length || 0}</span>
                   </div>
                   {!todayEvent && (
-                    <div className="p-5 bg-white/5 rounded-2xl border border-white/10 flex items-start gap-4">
+                    <div className="p-5 bg-primary/5 rounded-2xl border border-primary/10 flex items-start gap-4">
                       <AlertCircle className="h-6 w-6 text-orange-500 mt-0.5 shrink-0" />
-                      <p className="text-[11px] leading-relaxed font-bold text-white/80 uppercase tracking-tight">
+                      <p className="text-[11px] leading-relaxed font-bold text-slate-600 uppercase tracking-tight">
                         Sin actividad para hoy. Crea eventos en el calendario para activar el control de asistencia.
                       </p>
                     </div>
@@ -361,7 +323,6 @@ export default function TeamDetailPage() {
                     <Link href={`/dashboard/clubs/${clubId}/divisions/${divisionId}/teams/${teamId}/stats`}>Ver Rankings de Goleadores</Link>
                   </Button>
                 </CardContent>
-                <PlayCircle className="absolute right-[-30px] bottom-[-30px] h-40 w-40 opacity-10 rotate-12" />
               </Card>
 
               <Card className="bg-white border-none shadow-2xl overflow-hidden border-l-8 border-l-accent">
@@ -388,7 +349,6 @@ export default function TeamDetailPage() {
             clubLogo={club?.logoUrl || ""}
             initialPlayerCount={team?.tacticalPlayerCount || 11}
             initialSport={team?.tacticalSport || 'hockey'}
-            captainId={team?.captainId}
             teamId={teamId}
             clubId={clubId}
             divisionId={divisionId}

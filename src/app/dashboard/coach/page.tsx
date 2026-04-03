@@ -86,7 +86,6 @@ export default function CoachDashboard() {
           return;
         }
 
-        // Fetch Club Info for logo
         const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
         if (clubDoc.exists()) setClub({ ...clubDoc.data(), id: clubDoc.id });
 
@@ -308,21 +307,14 @@ export default function CoachDashboard() {
                     <div className="divide-y divide-slate-100">
                       {roster?.map((member: any) => {
                         const status = attendanceList?.find(a => a.playerId === member.playerId)?.status || 'unknown';
-                        const isCaptain = selectedTeam?.captainId === member.playerId;
                         return (
                           <div key={member.id} className="flex items-center justify-between p-4 md:p-6 group hover:bg-slate-50/50 transition-colors">
                             <div className="flex items-center gap-4">
                               <div className="relative">
-                                <Avatar className={cn(
-                                  "h-14 w-12 md:h-20 md:w-16 border-2 rounded-xl md:rounded-2xl",
-                                  isCaptain ? "border-yellow-400" : "border-slate-100"
-                                )}>
+                                <Avatar className="h-14 w-12 md:h-20 md:w-16 border-2 rounded-xl md:rounded-2xl border-slate-100">
                                   <AvatarImage src={member.playerPhoto} className="object-cover" />
                                   <AvatarFallback className="font-black text-slate-300 bg-slate-50">{member.playerName[0]}</AvatarFallback>
                                 </Avatar>
-                                {isCaptain && (
-                                  <div className="absolute -top-2 -left-2 bg-yellow-500 text-white text-[8px] font-black h-5 w-5 flex items-center justify-center rounded-lg border-2 border-white shadow-lg">C</div>
-                                )}
                               </div>
                               <div className="flex flex-col">
                                 <span className="font-black text-base md:text-xl text-slate-900 leading-none">{member.playerName}</span>
@@ -381,7 +373,6 @@ export default function CoachDashboard() {
               clubLogo={club?.logoUrl || ""}
               initialPlayerCount={selectedTeam.tacticalPlayerCount || 11}
               initialSport={selectedTeam.tacticalSport || selectedTeam.sport}
-              captainId={selectedTeam.captainId}
               teamId={selectedTeam.id}
               clubId={selectedTeam.clubId}
               divisionId={selectedTeam.divisionId}

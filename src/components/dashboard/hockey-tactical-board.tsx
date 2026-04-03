@@ -60,7 +60,6 @@ export function HockeyTacticalBoard({
   clubLogo = "",
   initialPlayerCount = 11, 
   initialSport = 'hockey',
-  captainId = null,
   teamId,
   clubId,
   divisionId,
@@ -74,19 +73,16 @@ export function HockeyTacticalBoard({
   const [rivals, setRivals] = useState<PositionSlot[]>([]);
   const [draggingId, setDraggingId] = useState<{ id: string, type: 'home' | 'away' } | null>(null);
   
-  // Drawing States
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawMode, setDrawMode] = useState<'pen' | 'eraser' | null>(null);
   const [penColor, setPenColor] = useState('#3b82f6'); 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
 
-  // Save State
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [tacticName, setSaveTacticName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Load Saved Tactics
   const tacticsQuery = useMemoFirebase(() => {
     if (!db || !clubId || !divisionId || !teamId) return null;
     return collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "tactics");
@@ -319,7 +315,6 @@ export function HockeyTacticalBoard({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-none" onMouseUp={handleMouseUp} onMouseMove={handleMouseMove}>
       <div className="lg:col-span-8 space-y-4">
-        {/* Barra de Herramientas Compacta */}
         <div className="flex flex-wrap items-center justify-between bg-white p-3 rounded-2xl border shadow-xl gap-3">
           <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border">
             <Button 
@@ -428,10 +423,8 @@ export function HockeyTacticalBoard({
             )}
           />
 
-          {/* Local Players (Club Shield) */}
           {positions.map((p) => {
             const player = roster.find(r => r.playerId === p.assignedPlayerId);
-            const isCaptain = p.assignedPlayerId === captainId;
             return (
               <div
                 key={p.id}
@@ -448,20 +441,14 @@ export function HockeyTacticalBoard({
                   <div className="relative">
                     <Avatar className={cn(
                       "h-12 w-12 border-4 shadow-xl bg-white",
-                      player ? (isCaptain ? "border-yellow-400" : "border-primary") : "border-dashed border-white/20 bg-white/5"
+                      player ? "border-primary" : "border-dashed border-white/20 bg-white/5"
                     )}>
                       <AvatarImage src={clubLogo} className="object-contain p-1" />
                       <AvatarFallback className="text-[10px] font-black opacity-50 bg-slate-100 text-slate-900">{p.label}</AvatarFallback>
                     </Avatar>
-                    {isCaptain && (
-                      <div className="absolute -top-2.5 -left-2.5 h-6 w-6 rounded-lg bg-yellow-500 border-2 border-white flex items-center justify-center shadow-lg font-black text-[10px] text-white">C</div>
-                    )}
                   </div>
                   {player && (
-                    <span className={cn(
-                      "mt-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black shadow-lg border border-white/10 whitespace-nowrap",
-                      isCaptain ? "bg-yellow-500 text-white" : "bg-slate-900 text-white"
-                    )}>
+                    <span className="mt-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black shadow-lg border border-white/10 whitespace-nowrap bg-primary text-white">
                       {player.playerName.split(' ')[0]}
                     </span>
                   )}
@@ -470,7 +457,6 @@ export function HockeyTacticalBoard({
             );
           })}
 
-          {/* Rival Players (Generic Shield) */}
           {rivals.map((r) => (
             <div
               key={r.id}
@@ -563,7 +549,6 @@ export function HockeyTacticalBoard({
               >
                 <Plus className="h-4 w-4" /> Añadir Ficha Rival
               </Button>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center italic">Simula al oponente con escudos genéricos</p>
             </div>
 
             <div className="space-y-2">
