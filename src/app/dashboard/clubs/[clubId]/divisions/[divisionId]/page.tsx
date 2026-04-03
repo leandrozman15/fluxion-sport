@@ -60,7 +60,7 @@ export default function CategoryAdminPage() {
         const userDoc = await getDoc(doc(firestore, "users", user.uid));
         if (userDoc.exists()) {
           const role = userDoc.data().role;
-          // Bloquear si es Coach Nivel 2
+          // Bloquear si es Coach Nivel 2 (sujeto a lógica de negocio)
           if (role === 'coach_lvl2') {
             toast({ variant: "destructive", title: "Acceso Denegado", description: "Tu nivel de usuario no permite administrar categorías." });
             router.replace('/dashboard/coach');
@@ -73,7 +73,7 @@ export default function CategoryAdminPage() {
       }
     }
     checkAccess();
-  }, [user, firestore, router]);
+  }, [user, firestore, router, toast]);
 
   // 1. Datos de la Categoría (División)
   const divRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId), [db, clubId, divisionId]);
@@ -89,9 +89,13 @@ export default function CategoryAdminPage() {
   , [db, clubId, divisionId]);
   const { data: allPlayers, isLoading: playersLoading } = useCollection(playersQuery);
 
-  // 4. Staff Técnico (Todos los coaches del club)
+  // 4. Staff Técnico (Todos los coaches del club con roles nivel 1 y 2)
   const coachesQuery = useMemoFirebase(() => 
-    query(collection(db, "users"), where("clubId", "==", clubId), where("role", "in", ["coach", "coach_lvl1", "coach_lvl2", "coordinator"]))
+    query(
+      collection(db, "users"), 
+      where("clubId", "==", clubId), 
+      where("role", "in", ["coach", "coach_lvl1", "coach_lvl2", "coordinator"])
+    )
   , [db, clubId]);
   const { data: allCoaches } = useCollection(coachesQuery);
 
@@ -125,7 +129,11 @@ export default function CategoryAdminPage() {
   const handleSelectCoach = (val: string) => {
     const selected = allCoaches?.find(c => c.id === val);
     if (selected) {
-      setNewTeam({ ...newTeam, coachId: selected.id, coachName: selected.name || `${selected.firstName} ${selected.lastName}` });
+      setNewTeam({ 
+        ...newTeam, 
+        coachId: selected.id, 
+        coachName: selected.name || `${selected.firstName} ${selected.lastName}` 
+      });
     }
   };
 
@@ -167,12 +175,15 @@ export default function CategoryAdminPage() {
                   <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Novena A, Sub 14 Blanca..." className="h-12 border-2 font-bold" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Profesor Responsable</Label>
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Profesor Responsable (Nivel 1/2)</Label>
                   <Select value={newTeam.coachId} onValueChange={handleSelectCoach}>
                     <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                     <SelectContent>
                       {allCoaches?.map((c: any) => (
-                        <SelectItem key={c.id} value={c.id} className="font-bold">{c.name || `${c.firstName} ${c.lastName}`}</SelectItem>
+                        <SelectItem key={c.id} value={c.id} className="font-bold">
+                          {c.name || `${c.firstName} ${c.lastName}`}
+                          <span className="ml-2 opacity-50 text-[10px]">({c.role === 'coach_lvl1' ? 'Nivel 1' : c.role === 'coach_lvl2' ? 'Nivel 2' : 'Coach'})</span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -204,7 +215,6 @@ export default function CategoryAdminPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* SUB-CATEGORIAS / EQUIPOS */}
         <TabsContent value="teams" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {teamsLoading ? <Loader2 className="animate-spin text-white mx-auto" /> : teams?.map((team: any) => (
@@ -243,7 +253,6 @@ export default function CategoryAdminPage() {
           </div>
         </TabsContent>
 
-        {/* POOL DE JUGADORES (FILTRADO) */}
         <TabsContent value="players" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Card className="border-none shadow-2xl bg-white rounded-[2.5rem] overflow-hidden">
             <CardHeader className="bg-slate-50 border-b py-6 px-8">
@@ -293,7 +302,6 @@ export default function CategoryAdminPage() {
           </Card>
         </TabsContent>
 
-        {/* STAFF TECNICO */}
         <TabsContent value="staff" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {allCoaches?.map((coach: any) => (
@@ -307,7 +315,7 @@ export default function CategoryAdminPage() {
                     <div className="min-w-0">
                       <p className="font-black text-slate-900 text-lg leading-none truncate">{coach.name || `${coach.firstName} ${coach.lastName}`}</p>
                       <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-tighter mt-1">
-                        {coach.role === 'coordinator' ? 'COORDINADOR' : coach.role === 'coach_lvl1' ? 'NIVEL 1' : 'ENTRENADOR'}
+                        {coach.role === 'coordinator' ? 'COORDINADOR' : coach.role === 'coach_lvl1' ? 'NIVEL 1' : coach.role === 'coach_lvl2' ? 'NIVEL 2' : 'ENTRENADOR'}
                       </Badge>
                     </div>
                   </div>

@@ -113,7 +113,7 @@ export default function ClubCategoriesListPage() {
     }
   };
 
-  if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
+  if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
@@ -212,7 +212,11 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   const { data: teams, isLoading } = useCollection(teamsQuery);
 
   const coachesQuery = useMemoFirebase(() => 
-    query(collection(db, "users"), where("clubId", "==", clubId), where("role", "in", ["coach", "coordinator"]))
+    query(
+      collection(db, "users"), 
+      where("clubId", "==", clubId), 
+      where("role", "in", ["coach", "coach_lvl1", "coach_lvl2", "coordinator"])
+    )
   , [db, clubId]);
   const { data: coaches } = useCollection(coachesQuery);
 
@@ -237,7 +241,11 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   const handleSelectCoach = (val: string) => {
     const selected = coaches?.find(c => c.id === val);
     if (selected) {
-      setNewTeam({ ...newTeam, coachId: selected.id, coachName: selected.name || `${selected.firstName} ${selected.lastName}` });
+      setNewTeam({ 
+        ...newTeam, 
+        coachId: selected.id, 
+        coachName: selected.name || `${selected.firstName} ${selected.lastName}` 
+      });
     }
   };
 
@@ -287,10 +295,13 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                   <div className="space-y-2">
                     <Label className="font-bold">Profesor / Coach</Label>
                     <Select value={newTeam.coachId} onValueChange={handleSelectCoach}>
-                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
                       <SelectContent>
                         {coaches?.map((c: any) => (
-                          <SelectItem key={c.id} value={c.id} className="font-bold">{c.name || `${c.firstName} ${c.lastName}`}</SelectItem>
+                          <SelectItem key={c.id} value={c.id} className="font-bold">
+                            {c.name || `${c.firstName} ${c.lastName}`} 
+                            <span className="ml-2 opacity-50 text-[10px]">({c.role === 'coach_lvl1' ? 'Nivel 1' : c.role === 'coach_lvl2' ? 'Nivel 2' : 'Coach'})</span>
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
