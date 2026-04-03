@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { 
   Plus, 
@@ -26,10 +26,13 @@ import {
   ShieldCheck,
   Search,
   Target,
-  Trophy
+  Trophy,
+  UserPlus,
+  ArrowRightLeft,
+  ListPlus
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, query, where } from "firebase/firestore";
+import { collection, doc, setDoc, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -228,6 +231,7 @@ export default function ClubCategoriesListPage() {
                   key={division.id} 
                   division={division} 
                   clubId={clubId}
+                  allDivisions={categories}
                   onEdit={(e) => { e.stopPropagation(); setEditingDiv(division); setIsEditOpen(true); }}
                   onDelete={() => handleDeleteDiv(division.id)}
                 />
@@ -271,10 +275,15 @@ export default function ClubCategoriesListPage() {
   );
 }
 
-function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, clubId: string, onEdit: (e: any) => void, onDelete: () => void }) {
+function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { division: any, clubId: string, allDivisions: any[], onEdit: (e: any) => void, onDelete: () => void }) {
   const db = useFirestore();
   const { toast } = useToast();
   const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
+  const [isAssignTeamOpen, setIsAssignTeamOpen] = useState(false);
+  const [isMoveDivOpen, setIsMoveDivOpen] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedDivId, setSelectedDivId] = useState("");
   const [newTeam, setNewTeam] = useState({ name: "", coachId: "", coachName: "", season: "2025" });
 
   const teamsQuery = useMemoFirebase(() => 
@@ -314,6 +323,52 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
     setNewTeam({ name: "", coachId: "", coachName: "", season: "2025" });
     setIsTeamDialogOpen(false);
     toast({ title: "Equipo Creado" });
+  };
+
+  const handleAssignToTeam = async () => {
+    if (!selectedPlayer || !selectedTeamId) return;
+    try {
+      const assignmentId = doc(collection(db, "clubs", clubId, "divisions", division.id, "teams", selectedTeamId, "assignments")).id;
+      const assignmentDoc = doc(db, "clubs", clubId, "divisions", division.id, "teams", selectedTeamId, "assignments", assignmentId);
+      
+      await setDoc(assignmentDoc, {
+        id: assignmentId,
+        playerId: selectedPlayer.id,
+        playerName: `${selectedPlayer.firstName} ${selectedPlayer.lastName}`,
+        playerPhoto: selectedPlayer.photoUrl || "",
+        teamId: selectedTeamId,
+        divisionId: division.id,
+        clubId,
+        createdAt: new Date().toISOString()
+      });
+
+      toast({ title: "Jugadora Asignada", description: `${selectedPlayer.firstName} ahora es parte del equipo.` });
+      setIsAssignTeamOpen(false);
+      setSelectedPlayer(null);
+      setSelectedTeamId("");
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al asignar" });
+    }
+  };
+
+  const handleMoveToCategory = async () => {
+    if (!selectedPlayer || !selectedDivId) return;
+    try {
+      const playerDoc = doc(db, "clubs", clubId, "players", selectedPlayer.id);
+      await updateDocumentNonBlocking(playerDoc, { divisionId: selectedDivId });
+      
+      const indexDoc = doc(db, "all_players_index", selectedPlayer.id);
+      await updateDocumentNonBlocking(indexDoc, { divisionId: selectedDivId });
+
+      toast({ title: "Rama Actualizada", description: `${selectedPlayer.firstName} ha sido movida a la nueva categoría.` });
+      setIsMoveDivOpen(false);
+      setSelectedPlayer(null);
+      setSelectedDivId("");
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al mover" });
+    }
   };
 
   const handleSelectCoach = (val: string) => {
@@ -506,12 +561,13 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
             
             <div className="bg-white rounded-3xl border-2 border-slate-50 shadow-xl overflow-hidden">
               <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-slate-50/50 border-b text-[9px] font-black uppercase tracking-widest text-slate-400">
-                <div className="col-span-4">Jugadora</div>
-                <div className="col-span-2 text-center">Edad</div>
-                <div className="col-span-3 text-center">Posición</div>
+                <div className="col-span-3">Jugadora</div>
+                <div className="col-span-1 text-center">Edad</div>
+                <div className="col-span-2 text-center">Posición</div>
+                <div className="col-span-2 text-center">Equipo</div>
                 <div className="col-span-1 text-center">PJ</div>
                 <div className="col-span-1 text-center">G</div>
-                <div className="col-span-1 text-right">Ficha</div>
+                <div className="col-span-2 text-right">Gestión</div>
               </div>
               
               <div className="divide-y divide-slate-50">
@@ -520,7 +576,7 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                 ) : players && players.length > 0 ? (
                   players.map((p: any) => (
                     <div key={p.id} className="grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-slate-50 transition-colors group">
-                      <div className="col-span-4 flex items-center gap-3 min-w-0">
+                      <div className="col-span-3 flex items-center gap-3 min-w-0">
                         <Avatar className="h-10 w-8 border-2 border-slate-100 shadow-sm rounded-lg">
                           <AvatarImage src={p.photoUrl} className="object-cover" />
                           <AvatarFallback className="font-black text-slate-300 text-[10px]">{p.firstName[0]}</AvatarFallback>
@@ -531,16 +587,22 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                         </div>
                       </div>
                       
-                      <div className="col-span-2 text-center">
+                      <div className="col-span-1 text-center">
                         <Badge variant="outline" className="font-black text-[10px] rounded-lg border-slate-200">
-                          {calculateAge(p.birthDate)} años
+                          {calculateAge(p.birthDate)}
                         </Badge>
                       </div>
                       
-                      <div className="col-span-3 text-center">
+                      <div className="col-span-2 text-center">
                         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight truncate">
-                          {p.position || "Sin definir"}
+                          {p.position || "—"}
                         </span>
+                      </div>
+
+                      <div className="col-span-2 text-center">
+                        <Badge className="bg-primary/5 text-primary border-none text-[9px] font-black uppercase px-2 h-5">
+                          {p.teamName || "Sin Equipo"}
+                        </Badge>
                       </div>
                       
                       <div className="col-span-1 text-center">
@@ -551,8 +613,26 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
                         <span className="text-sm font-black text-accent">0</span>
                       </div>
                       
-                      <div className="col-span-1 text-right">
-                        <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="col-span-2 text-right flex items-center justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-primary/10 text-primary"
+                          onClick={() => { setSelectedPlayer(p); setIsAssignTeamOpen(true); }}
+                          title="Asignar a Plantel"
+                        >
+                          <ListPlus className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-accent/10 text-accent"
+                          onClick={() => { setSelectedPlayer(p); setIsMoveDivOpen(true); }}
+                          title="Cambiar Categoría"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0 rounded-lg text-slate-300 hover:text-slate-600">
                           <Link href={`/dashboard/clubs/${clubId}/players`}><ChevronRight className="h-4 w-4" /></Link>
                         </Button>
                       </div>
@@ -568,6 +648,67 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
           </div>
         </div>
       </AccordionContent>
+
+      {/* DIÁLOGO ASIGNAR A EQUIPO */}
+      <Dialog open={isAssignTeamOpen} onOpenChange={setIsAssignTeamOpen}>
+        <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2.5rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-900">Asignar a Plantel</DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">
+              Selecciona el equipo dentro de <strong>{division.name}</strong> para {selectedPlayer?.firstName}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Equipo Destino</Label>
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar equipo..." /></SelectTrigger>
+                <SelectContent>
+                  {teams?.map(t => (
+                    <SelectItem key={t.id} value={t.id} className="font-bold">{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(!teams || teams.length === 0) && (
+                <p className="text-[10px] text-destructive font-black uppercase mt-1">No hay equipos creados en esta rama.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
+            <Button variant="ghost" onClick={() => setIsAssignTeamOpen(false)} className="font-bold">Cancelar</Button>
+            <Button onClick={handleAssignToTeam} disabled={!selectedTeamId} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Confirmar Pase</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIÁLOGO CAMBIAR DE RAMA */}
+      <Dialog open={isMoveDivOpen} onOpenChange={setIsMoveDivOpen}>
+        <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2.5rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-900">Cambio de Categoría</DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">
+              Mueve a {selectedPlayer?.firstName} a una rama diferente del club.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nueva Rama Deportiva</Label>
+              <Select value={selectedDivId} onValueChange={setSelectedDivId}>
+                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar categoría..." /></SelectTrigger>
+                <SelectContent>
+                  {allDivisions?.filter(d => d.id !== division.id).map(d => (
+                    <SelectItem key={d.id} value={d.id} className="font-bold">{d.name} ({d.sport?.toUpperCase()})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
+            <Button variant="ghost" onClick={() => setIsMoveDivOpen(false)} className="font-bold">Cancelar</Button>
+            <Button onClick={handleMoveToCategory} disabled={!selectedDivId} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Ejecutar Traslado</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AccordionItem>
   );
 }
