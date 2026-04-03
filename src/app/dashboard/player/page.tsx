@@ -13,23 +13,25 @@ import {
   Table as TableIcon, 
   ChevronRight, 
   Star, 
-  BellRing,
   Clock,
   MapPin,
   Building2,
   LayoutDashboard
 } from "lucide-react";
 import Link from "next/link";
-import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, limit, orderBy, doc, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
 import { SectionNav } from "@/components/layout/section-nav";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 
+/**
+ * Hub Central del Jugador.
+ * Consola personalizada para deportistas federados.
+ */
 export default function PlayerDashboardHub() {
   const { firestore, user } = useFirebase();
   const [playerInfo, setPlayerInfo] = useState<any>(null);
@@ -44,7 +46,7 @@ export default function PlayerDashboardHub() {
       try {
         const email = user.email?.toLowerCase().trim() || "";
         
-        // 1. Buscar en índice global (prioritario para jugadores con login)
+        // 1. Obtener perfil sincronizado desde el índice global
         let pData = null;
         const indexSnap = await getDoc(doc(firestore, "all_players_index", user.uid));
         if (indexSnap.exists()) pData = indexSnap.data();
@@ -57,7 +59,7 @@ export default function PlayerDashboardHub() {
         if (pData) {
           setPlayerInfo(pData);
 
-          // 2. Cargar contexto de equipo (directo desde el perfil sincronizado)
+          // 2. Cargar contexto de equipo (directo desde el perfil)
           if (pData.teamId && pData.divisionId && pData.clubId) {
             const teamDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId));
             const divDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId));
@@ -72,14 +74,14 @@ export default function PlayerDashboardHub() {
               };
               setTeamInfo(teamData);
 
-              // Cargar posición en tabla
+              // 3. Cargar posición en la tabla de liga
               const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "standings"));
               const standings = standingsSnap.docs.map(doc => doc.data());
               const sorted = standings.sort((a: any, b: any) => b.points - a.points);
-              const teamRank = sorted.findIndex((s: any) => s.teamName.toLowerCase().includes(teamData.name.toLowerCase())) + 1;
+              const teamRank = sorted.findIndex((s: any) => s.teamName?.toLowerCase().includes(teamData.name.toLowerCase())) + 1;
               if (teamRank > 0) setRank(teamRank);
 
-              // Cargar próximo evento
+              // 4. Cargar próximo compromiso en agenda
               const eventsSnap = await getDocs(query(
                 collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId, "events"),
                 where("date", ">=", new Date().toISOString()),
@@ -91,7 +93,7 @@ export default function PlayerDashboardHub() {
           }
         }
       } catch (e) {
-        console.error("Player Dashboard Error:", e);
+        console.error("Player Hub Error:", e);
       } finally {
         setLoading(false);
       }
@@ -108,13 +110,21 @@ export default function PlayerDashboardHub() {
     { title: "Tienda Club", href: playerInfo ? `/dashboard/clubs/${playerInfo.clubId}/shop` : "/dashboard/player", icon: ShoppingBag },
   ];
 
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
+  if (loading) return (
+    <div className="flex flex-col h-screen items-center justify-center space-y-4">
+      <Loader2 className="animate-spin text-white h-12 w-12" />
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Cargando Hub de Jugador...</p>
+    </div>
+  );
 
   if (!playerInfo) return (
-    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6 space-y-4">
-      <UserCircle className="h-20 w-20 text-muted-foreground/20" />
-      <h2 className="text-2xl font-black text-foreground">Sin Perfil Vinculado</h2>
-      <p className="text-muted-foreground max-w-sm">Contacta con tu club para que vinculen tu acceso a la App.</p>
+    <div className="flex flex-col md:flex-row gap-8 min-h-screen">
+      <SectionNav items={playerNav} basePath="/dashboard/player" />
+      <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-6 space-y-4">
+        <UserCircle className="h-20 w-20 text-white opacity-20" />
+        <h2 className="text-2xl font-black text-white font-headline">Ficha no vinculada</h2>
+        <p className="text-white/60 max-w-sm font-bold">Contacta con la administración de {user?.email} para que vinculen tu acceso oficial.</p>
+      </div>
     </div>
   );
 
@@ -125,9 +135,9 @@ export default function PlayerDashboardHub() {
       <div className="flex-1 max-w-3xl mx-auto space-y-8 pb-24 w-full px-4 md:px-0">
         <header className="flex items-center gap-4 bg-white p-6 rounded-[2rem] shadow-xl border border-white/50">
           <div className="relative">
-            <Avatar className="h-16 w-16 md:h-24 md:w-24 border-4 border-primary/10 shadow-inner">
+            <Avatar className="h-16 w-16 md:h-24 md:w-24 border-4 border-primary/10 shadow-inner rounded-2xl">
               <AvatarImage src={playerInfo.photoUrl} className="object-cover" />
-              <AvatarFallback className="text-2xl font-black bg-slate-50 text-slate-300">{playerInfo.firstName[0]}</AvatarFallback>
+              <AvatarFallback className="text-2xl font-black bg-slate-50 text-slate-300">{playerInfo.firstName?.[0]}</AvatarFallback>
             </Avatar>
             <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[10px] font-black h-6 w-6 rounded-full flex items-center justify-center border-2 border-card shadow-lg">#{playerInfo.jerseyNumber || "•"}</div>
           </div>
@@ -172,7 +182,7 @@ export default function PlayerDashboardHub() {
             </Card>
           ) : (
             <div className="p-12 text-center border-2 border-dashed border-white/20 rounded-[2.5rem] bg-white/5 backdrop-blur-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Sin eventos próximos</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Sin eventos próximos en agenda</p>
             </div>
           )}
         </section>
