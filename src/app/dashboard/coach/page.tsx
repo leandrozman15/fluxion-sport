@@ -22,6 +22,7 @@ import {
   ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -36,9 +37,12 @@ import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CoachDashboard() {
   const { firestore, user } = useFirebase();
+  const router = useRouter();
+  const { toast } = useToast();
   const [myTeams, setMyTeams] = useState<any[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +58,6 @@ export default function CoachDashboard() {
         const userEmail = user.email?.toLowerCase().trim();
         let profile = null;
         
-        // 1. Buscar Perfil (UID o Email)
         const uidDoc = await getDoc(doc(firestore, "users", user.uid));
         if (uidDoc.exists()) profile = uidDoc.data();
 
@@ -71,19 +74,24 @@ export default function CoachDashboard() {
 
         setStaffProfile(profile);
         const clubId = profile.clubId;
-        const staffIdInDb = profile.id || user.uid;
-        const staffName = profile.name || `${profile.firstName} ${profile.lastName}`;
 
         if (!clubId) {
           setLoading(false);
           return;
         }
 
-        // 2. Cargar información del Club
+        // VALIDACIÓN DE CLUB EXISTENTE
         const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
-        if (clubDoc.exists()) setClub({ ...clubDoc.data(), id: clubDoc.id });
+        if (!clubDoc.exists()) {
+          toast({ variant: "destructive", title: "Club Inactivo", description: "Tu institución ya no está disponible." });
+          router.replace('/login');
+          return;
+        }
+        setClub({ ...clubDoc.data(), id: clubDoc.id });
 
-        // 3. Buscar equipos asignados a este profesor en este club
+        const staffIdInDb = profile.id || user.uid;
+        const staffName = profile.name || `${profile.firstName} ${profile.lastName}`;
+
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         const teamsPromises = divsSnap.docs.map(async (divDoc) => {
           const teamsRef = collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams");
@@ -101,7 +109,7 @@ export default function CoachDashboard() {
               t.coachId === staffIdInDb || 
               t.coachName === staffName ||
               t.coachEmail === userEmail ||
-              t.id === profile?.teamId // Por si acaso tiene teamId directo
+              t.id === profile?.teamId
             );
         });
 
@@ -119,7 +127,7 @@ export default function CoachDashboard() {
       }
     }
     fetchAllMyTeams();
-  }, [user, firestore]);
+  }, [user, firestore, router, toast]);
 
   useEffect(() => {
     async function fetchTeamContext() {
@@ -269,7 +277,6 @@ export default function CoachDashboard() {
         </header>
 
         <LiveMatchesCard clubId={selectedTeam.clubId} />
-
         {selectedTeam && <SpecialEventsFeed clubId={selectedTeam.clubId} />}
 
         {todayEvent && (

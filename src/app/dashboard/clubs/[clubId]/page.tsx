@@ -26,7 +26,7 @@ import {
   CircleDollarSign
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, query, where, getDocs, orderBy, limit } from "firebase/firestore";
+import { collection, doc, query, where, getDocs, orderBy, limit, getDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -44,6 +44,22 @@ export default function InstitutionDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   
+  // 1. Datos del Club con verificación de existencia
+  const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
+  const { data: club, isLoading: clubLoading } = useDoc(clubRef);
+
+  useEffect(() => {
+    // Si el club no existe después de cargar, rebotar al inicio
+    if (!clubLoading && !club) {
+      toast({ 
+        variant: "destructive", 
+        title: "Institución Eliminada", 
+        description: "El club al que intentas acceder ya no existe en el sistema nacional." 
+      });
+      router.replace('/dashboard/clubs');
+    }
+  }, [club, clubLoading, router, toast]);
+
   useEffect(() => {
     async function checkRoleAndBounce() {
       if (!user || !firestore) return;
@@ -54,7 +70,6 @@ export default function InstitutionDetailPage() {
           const staffData = staffSnap.docs[0].data();
           const role = staffData.role;
           
-          // REBOTE DE SEGURIDAD: Los perfiles técnicos NO deben ver la pantalla de administración
           if (role === 'coordinator') {
             router.replace('/dashboard/coordinator');
           } else if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) {
@@ -65,9 +80,6 @@ export default function InstitutionDetailPage() {
     }
     checkRoleAndBounce();
   }, [user, firestore, router]);
-
-  const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
-  const { data: club, isLoading: clubLoading } = useDoc(clubRef);
 
   const categoriesQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
   const { data: categories } = useCollection(categoriesQuery);
@@ -101,7 +113,6 @@ export default function InstitutionDetailPage() {
 
   const totalRevenue = transactions?.filter(t => t.type === 'in').reduce((acc, t) => acc + (t.amount || 0), 0) || 0;
 
-  // Combinar actividades recientes
   const activities = [
     ...(recentPlayers?.map(p => ({
       label: "Nuevo Ingreso",
@@ -120,6 +131,7 @@ export default function InstitutionDetailPage() {
   ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
 
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
+  if (!club) return null;
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
@@ -161,7 +173,6 @@ export default function InstitutionDetailPage() {
         </header>
 
         <LiveMatchesCard clubId={clubId} />
-
         <SpecialEventsFeed clubId={clubId} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
