@@ -55,19 +55,37 @@ export default function PublicPlayerRegistration() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.firstName || !form.lastName || !form.email || !form.dni) return;
+    const normalizedEmail = form.email.toLowerCase().trim();
+    if (!form.firstName || !form.lastName || !normalizedEmail || !form.dni) return;
 
     setLoading(true);
     try {
-      const playerId = doc(collection(db, "clubs", clubId, "players")).id;
+      const playerId = normalizedEmail; // Usamos email como ID para facilitar vinculación
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
       
-      await setDoc(playerDoc, {
+      const playerData = {
         ...form,
+        email: normalizedEmail,
         id: playerId,
         clubId,
         role: "player",
         status: "pending_approval",
+        createdAt: new Date().toISOString()
+      };
+
+      // 1. Guardar en el club
+      await setDoc(playerDoc, playerData);
+
+      // 2. REGISTRAR EN ÍNDICE GLOBAL (Crítico para que pueda entrar a la App)
+      await setDoc(doc(db, "all_players_index", playerId), {
+        id: playerId,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: normalizedEmail,
+        clubId: clubId,
+        clubName: club?.name || "Club",
+        role: "player",
+        photoUrl: form.photoUrl,
         createdAt: new Date().toISOString()
       });
 

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Encabezado de Perfil de Usuario.
- * Identifica el rol real del usuario sincronizando Staff y Jugadores.
+ * Utiliza lógica robusta para identificar el rol real (Staff o Jugador).
  */
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
@@ -25,7 +25,7 @@ export function UserProfileHeader() {
 
     async function identifyUserProfile() {
       try {
-        // 1. BUSCAR EN STAFF (users)
+        // 1. BUSCAR EN STAFF (users) por UID
         const staffRef = doc(firestore, "users", user.uid);
         const staffSnap = await getDoc(staffRef);
         if (staffSnap.exists()) {
@@ -33,7 +33,7 @@ export function UserProfileHeader() {
           return;
         }
 
-        // Por Email (staff registrado por administrador)
+        // 2. BUSCAR EN STAFF por Email
         if (email) {
           const qStaff = query(collection(firestore, "users"), where("email", "==", email));
           const staffByEmail = await getDocs(qStaff);
@@ -43,7 +43,7 @@ export function UserProfileHeader() {
           }
         }
 
-        // 2. BUSCAR EN JUGADORES (all_players_index)
+        // 3. BUSCAR EN ÍNDICE DE JUGADORES (por UID o Email)
         const playerRef = doc(firestore, "all_players_index", user.uid);
         const playerSnap = await getDoc(playerRef);
         if (playerSnap.exists()) {
@@ -60,7 +60,7 @@ export function UserProfileHeader() {
           }
         }
 
-        // Fallback genérico
+        // Fallback: Mostrar email como nombre
         setProfile({ name: user.email, role: 'guest' });
       } catch (e) {
         console.error("Error identificando perfil en header:", e);
@@ -90,11 +90,13 @@ export function UserProfileHeader() {
       case 'coach': 
         return { label: "Staff Técnico", icon: UserCheck, color: "text-blue-600", bg: "bg-blue-50" };
       case 'player': 
-        return { label: "Jugador Federado", icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" };
+        return { label: "Jugadora Federada", icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" };
       default: 
         return { label: "Usuario Fluxion", icon: UserCircle, color: "text-slate-500", bg: "bg-slate-50" };
     }
   })();
+
+  const userName = profile?.firstName ? `${profile.firstName} ${profile.lastName}` : profile?.name || user.email;
 
   return (
     <div className="w-full px-4 md:px-8 pt-6 flex justify-end items-center gap-4 z-[60]">
@@ -102,13 +104,13 @@ export function UserProfileHeader() {
         <Avatar className="h-10 w-10 border-2 border-slate-100 shadow-sm transition-transform group-hover:scale-105">
           <AvatarImage src={profile?.photoUrl} className="object-cover" />
           <AvatarFallback className={cn("text-xs font-black", display.bg, display.color)}>
-            {profile?.firstName?.[0] || profile?.name?.[0] || 'U'}
+            {userName?.[0]?.toUpperCase() || 'U'}
           </AvatarFallback>
         </Avatar>
 
         <div className="flex flex-col items-start min-w-[100px]">
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
-            {profile?.firstName ? `${profile.firstName} ${profile.lastName}` : profile?.name || user.email}
+            {userName}
           </span>
           <span className={cn("text-[9px] uppercase font-black tracking-widest mt-1 flex items-center gap-1", display.color)}>
             <display.icon className="h-2.5 w-2.5" />
