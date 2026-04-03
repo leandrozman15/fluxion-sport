@@ -101,27 +101,67 @@ export default function TeamDetailPage() {
     });
   };
 
-  const handleAssignPlayer = () => {
-    if (!selectedPlayerId) return;
-    const assignmentId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments")).id;
-    const assignmentDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments", assignmentId);
-    const player = allPlayers?.find(p => p.id === selectedPlayerId);
-    setDoc(assignmentDoc, {
-      id: assignmentId,
-      playerId: selectedPlayerId,
-      playerName: `${player?.firstName} ${player?.lastName}`,
-      playerPhoto: player?.photoUrl || "",
-      teamId,
-      season: team?.season || "2025",
-      createdAt: new Date().toISOString()
-    });
-    setSelectedPlayerId("");
-    setIsAssignOpen(false);
-    toast({ title: "Jugador Asignado", description: `${player?.firstName} ya es parte de la plantilla.` });
+  const handleAssignPlayer = async () => {
+    if (!selectedPlayerId || !team) return;
+    
+    try {
+      const assignmentId = doc(collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments")).id;
+      const assignmentDoc = doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments", assignmentId);
+      const player = allPlayers?.find(p => p.id === selectedPlayerId);
+
+      // 1. Crear registro de asignación en la subcolección del equipo
+      await setDoc(assignmentDoc, {
+        id: assignmentId,
+        playerId: selectedPlayerId,
+        playerName: `${player?.firstName} ${player?.lastName}`,
+        playerPhoto: player?.photoUrl || "",
+        teamId,
+        season: team?.season || "2025",
+        createdAt: new Date().toISOString()
+      });
+
+      // 2. Sincronizar el nombre del plantel en el documento de la jugadora
+      const playerDoc = doc(db, "clubs", clubId, "players", selectedPlayerId);
+      updateDocumentNonBlocking(playerDoc, {
+        teamId: teamId,
+        teamName: team.name
+      });
+
+      // 3. Sincronizar en el índice global para el carnet
+      const indexDoc = doc(db, "all_players_index", selectedPlayerId);
+      updateDocumentNonBlocking(indexDoc, {
+        teamId: teamId,
+        teamName: team.name
+      });
+
+      setSelectedPlayerId("");
+      setIsAssignOpen(false);
+      toast({ title: "Jugador Asignado", description: `${player?.firstName} ya es parte de la plantilla de ${team.name}.` });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al asignar" });
+    }
   };
 
-  const handleUnassignPlayer = (id: string) => {
-    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments", id));
+  const handleUnassignPlayer = (assignmentId: string, playerId: string) => {
+    // 1. Eliminar asignación
+    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments", assignmentId));
+    
+    // 2. Limpiar referencia en el documento de la jugadora
+    const playerDoc = doc(db, "clubs", clubId, "players", playerId);
+    updateDocumentNonBlocking(playerDoc, {
+      teamId: null,
+      teamName: null
+    });
+
+    // 3. Limpiar en el índice global
+    const indexDoc = doc(db, "all_players_index", playerId);
+    updateDocumentNonBlocking(indexDoc, {
+      teamId: null,
+      teamName: null
+    });
+
+    toast({ title: "Jugadora removida del plantel" });
   };
 
   if (teamLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
@@ -280,7 +320,7 @@ export default function TeamDetailPage() {
                                 variant="ghost" 
                                 size="sm" 
                                 className="text-destructive h-11 w-11 p-0 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100" 
-                                onClick={() => handleUnassignPlayer(member.id)}
+                                onClick={() => handleUnassignPlayer(member.id, member.playerId)}
                               >
                                 <Trash2 className="h-5 w-5" />
                               </Button>
