@@ -18,7 +18,8 @@ import {
   ArrowRight,
   Users,
   UserRound,
-  FileText
+  FileText,
+  UserPlus
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -34,6 +35,7 @@ import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 export default function CoordinatorDashboard() {
   const { firestore, user } = useFirebase();
   const [club, setClub] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [recentResults, setRecentResults] = useState<any[]>([]);
 
@@ -42,33 +44,44 @@ export default function CoordinatorDashboard() {
       if (!user || !firestore) return;
       try {
         const email = user.email?.toLowerCase().trim();
-        if (!email) {
-          setLoading(false);
-          return;
+        
+        // 1. Obtener Perfil (por Email o UID)
+        let staffData = null;
+        if (email) {
+          const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
+          if (!staffSnap.empty) staffData = staffSnap.docs[0].data();
+        }
+        
+        if (!staffData) {
+          const uidSnap = await getDoc(doc(firestore, "users", user.uid));
+          if (uidSnap.exists()) staffData = uidSnap.data();
         }
 
-        const staffQuery = query(collection(firestore, "users"), where("email", "==", email));
-        const staffSnap = await getDocs(staffQuery);
-        
-        if (!staffSnap.empty) {
-          const staffData = staffSnap.docs[0].data();
+        if (staffData) {
+          setProfile(staffData);
           if (staffData.clubId) {
             const clubDoc = await getDoc(doc(firestore, "clubs", staffData.clubId));
             if (clubDoc.exists()) {
-              setClub({ ...clubDoc.data(), id: clubDoc.id });
+              const cData = { ...clubDoc.data(), id: clubDoc.id };
+              setClub(cData);
               
-              const divsSnap = await getDocs(collection(firestore, "clubs", clubDoc.id, "divisions"));
+              // 2. Obtener resultados recientes del club
+              const divsSnap = await getDocs(collection(firestore, "clubs", cData.id, "divisions"));
               const results: any[] = [];
               
               for (const divDoc of divsSnap.docs) {
-                const teamsSnap = await getDocs(collection(firestore, "clubs", clubDoc.id, "divisions", divDoc.id, "teams"));
+                const teamsSnap = await getDocs(collection(firestore, "clubs", cData.id, "divisions", divDoc.id, "teams"));
                 for (const teamDoc of teamsSnap.docs) {
                   const eventsSnap = await getDocs(query(
-                    collection(firestore, "clubs", clubDoc.id, "divisions", divDoc.id, "teams", teamDoc.id, "events"),
+                    collection(firestore, "clubs", cData.id, "divisions", divDoc.id, "teams", teamDoc.id, "events"),
                     where("type", "==", "match"),
                     where("status", "==", "played")
                   ));
-                  eventsSnap.forEach(ev => results.push({ ...ev.data(), teamName: teamDoc.data().name, divName: divDoc.data().name }));
+                  eventsSnap.forEach(ev => results.push({ 
+                    ...ev.data(), 
+                    teamName: teamDoc.data().name, 
+                    divName: divDoc.data().name 
+                  }));
                 }
               }
               setRecentResults(results.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 3));
@@ -92,10 +105,10 @@ export default function CoordinatorDashboard() {
 
   const coordNav = [
     { title: "Dashboard", href: "/dashboard/coordinator", icon: Trophy },
+    { title: "Padrón Socios", href: club ? `/dashboard/clubs/${club.id}/players` : "/dashboard/coordinator", icon: FileText },
     { title: "Rivales", href: club ? `/dashboard/clubs/${club.id}/opponents` : "/dashboard/coordinator", icon: Shield },
     { title: "Gestor Fixture", href: club ? `/dashboard/clubs/${club.id}/fixture` : "/dashboard/coordinator", icon: CalendarDays },
     { title: "Categorías", href: club ? `/dashboard/clubs/${club.id}/divisions` : "/dashboard/coordinator", icon: Layers },
-    { title: "Padrón Socios", href: club ? `/dashboard/clubs/${club.id}/players` : "/dashboard/coordinator", icon: FileText },
     { title: "Staff Técnico", href: club ? `/dashboard/clubs/${club.id}/coaches` : "/dashboard/coordinator", icon: UserRound },
     { title: "Tesorería", href: club ? `/dashboard/clubs/${club.id}/finances` : "/dashboard/coordinator", icon: CreditCard },
   ];
@@ -119,18 +132,22 @@ export default function CoordinatorDashboard() {
               <AvatarFallback className="bg-primary/10 text-primary font-black"><Building2 /></AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Coordinación: {club?.name}</h1>
+              <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Coordinación: {club?.name || "Fluxion"}</h1>
               <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 mt-1">
                 <ShieldCheck className="h-3.5 w-3.5 text-accent" /> Control de Competencia y Ramas
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild className="bg-white text-primary hover:bg-slate-50 border-none h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
-              <Link href={club ? `/dashboard/clubs/${club.id}/opponents` : "#"}><Shield className="h-4 w-4 mr-2" /> Clubes Rivales</Link>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild className="bg-white text-primary hover:bg-slate-50 border-none h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
+              <Link href={club ? `/dashboard/clubs/${club.id}/players` : "#"}>
+                <UserPlus className="h-4 w-4 mr-2" /> Alta de Jugadores
+              </Link>
             </Button>
-            <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 font-black uppercase text-[10px] tracking-widest h-12 px-6 shadow-xl">
-              <Link href={club ? `/dashboard/clubs/${club.id}/fixture` : "#"}><Plus className="h-4 w-4 mr-2" /> Armar Fixture</Link>
+            <Button variant="outline" asChild className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl backdrop-blur-md">
+              <Link href={club ? `/dashboard/clubs/${club.id}/fixture` : "#"}>
+                <CalendarDays className="h-4 w-4 mr-2" /> Fixture
+              </Link>
             </Button>
           </div>
         </header>
@@ -250,27 +267,27 @@ export default function CoordinatorDashboard() {
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-2 pt-6 px-8 pb-8">
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
+                  <Link href={club ? `/dashboard/clubs/${club.id}/players` : "#"}><FileText className="h-4 w-4 text-primary" /> Padrón de Socios y Jugadores</Link>
+                </Button>
+                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
                   <Link href={club ? `/dashboard/clubs/${club.id}/opponents` : "#"}><Shield className="h-4 w-4 text-primary" /> Base Maestra Rivales</Link>
                 </Button>
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
                   <Link href={club ? `/dashboard/clubs/${club.id}/fixture` : "#"}><CalendarDays className="h-4 w-4 text-primary" /> Cronograma de Fixture</Link>
                 </Button>
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
-                  <Link href={club ? `/dashboard/clubs/${club.id}/players` : "#"}><FileText className="h-4 w-4 text-primary" /> Padrón de Socios y Jugadores</Link>
-                </Button>
-                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
                   <Link href={club ? `/dashboard/clubs/${club.id}/divisions` : "#"}><Layers className="h-4 w-4 text-primary" /> Ramas y Categorías</Link>
                 </Button>
               </CardContent>
-            </Card>
 
-            <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center space-y-4 shadow-xl">
-              <Users className="h-10 w-10 text-primary mx-auto opacity-20" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Control de Altas</p>
-              <Button variant="outline" asChild className="w-full bg-slate-900 text-white hover:bg-slate-800 font-black uppercase text-[10px] tracking-widest h-12 border-none shadow-lg rounded-xl">
-                <Link href={club ? `/dashboard/clubs/${club.id}/players` : "#"}>Gestionar Jugadores</Link>
-              </Button>
-            </div>
+              <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center space-y-4 shadow-xl">
+                <Users className="h-10 w-10 text-primary mx-auto opacity-20" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Control de Altas</p>
+                <Button variant="outline" asChild className="w-full bg-slate-900 text-white hover:bg-slate-800 font-black uppercase text-[10px] tracking-widest h-12 border-none shadow-lg rounded-xl">
+                  <Link href={club ? `/dashboard/clubs/${club.id}/players` : "#"}>Gestionar Jugadores</Link>
+                </Button>
+              </div>
+            </Card>
           </div>
         </div>
       </div>

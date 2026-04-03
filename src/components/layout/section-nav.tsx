@@ -36,7 +36,6 @@ export function SectionNav({ items }: SectionNavProps) {
   const [mounted, setMounted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Asegurar que el componente solo renderice interactividad después del montaje en el cliente
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -90,13 +89,12 @@ export function SectionNav({ items }: SectionNavProps) {
     reader.readAsDataURL(file);
   };
 
-  // Si no está montado, renderizamos una versión simplificada para evitar errores de hidratación
   if (!mounted) {
     return <div className="fixed bottom-0 left-0 right-0 h-[72px] bg-white border-t md:relative md:h-screen md:w-[72px] md:border-r" />;
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] md:relative md:flex md:flex-col gap-3 bg-white/95 backdrop-blur-xl md:bg-white/80 border-t md:border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl p-2 md:rounded-2xl h-[72px] md:h-fit md:sticky md:top-8 md:min-w-[72px] md:max-w-[72px] md:z-[100] animate-in slide-in-from-bottom md:slide-in-from-left duration-500 flex flex-row items-center justify-around md:justify-start pb-safe">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] md:relative md:flex md:flex-col gap-3 bg-white/95 backdrop-blur-xl md:bg-white/80 border-t md:border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl p-2 md:rounded-2xl h-[72px] md:h-fit md:sticky md:top-8 md:min-w-[72px] md:max-w-[72px] animate-in slide-in-from-bottom md:slide-in-from-left duration-500 flex flex-row items-center justify-around md:justify-start pb-safe">
       <TooltipProvider delayDuration={0}>
         <div className="flex flex-row md:flex-col gap-1 md:gap-3 w-full items-center justify-around md:justify-start">
           {items.map((item) => {
@@ -106,22 +104,20 @@ export function SectionNav({ items }: SectionNavProps) {
             return (
               <Tooltip key={item.title}>
                 <TooltipTrigger asChild>
-                  <div className="inline-flex">
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 group relative",
-                        isReallyActive 
-                          ? "bg-primary text-primary-foreground shadow-lg scale-110 md:scale-105" 
-                          : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                      )}
-                    >
-                      {Icon && <Icon className={cn("h-6 w-6 md:h-5 md:w-5", isReallyActive ? "scale-110" : "group-hover:scale-110")} />}
-                      {isReallyActive && (
-                        <span className="absolute -top-1 -right-1 md:hidden w-2 h-2 bg-accent rounded-full animate-pulse shadow-sm" />
-                      )}
-                    </Link>
-                  </div>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 group relative",
+                      isReallyActive 
+                        ? "bg-primary text-primary-foreground shadow-lg scale-110 md:scale-105" 
+                        : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                    )}
+                  >
+                    {Icon && <Icon className={cn("h-6 w-6 md:h-5 md:w-5", isReallyActive ? "scale-110" : "group-hover:scale-110")} />}
+                    {isReallyActive && (
+                      <span className="absolute -top-1 -right-1 md:hidden w-2 h-2 bg-accent rounded-full animate-pulse shadow-sm" />
+                    )}
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="hidden md:block font-black uppercase text-[10px] tracking-widest bg-primary text-primary-foreground border-none">
                   {item.title}
@@ -137,16 +133,14 @@ export function SectionNav({ items }: SectionNavProps) {
           <Dialog open={isPhotoOpen} onOpenChange={setIsPhotoOpen}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="inline-flex">
-                  <DialogTrigger asChild>
-                    <button 
-                      suppressHydrationWarning
-                      className="flex items-center justify-center w-12 h-12 rounded-xl text-slate-500 hover:bg-primary/10 hover:text-primary transition-all duration-200 group focus:outline-none"
-                    >
-                      <Camera className="h-6 w-6 md:h-5 md:w-5 group-hover:scale-110" />
-                    </button>
-                  </DialogTrigger>
-                </div>
+                <DialogTrigger asChild>
+                  <button 
+                    suppressHydrationWarning
+                    className="flex items-center justify-center w-12 h-12 rounded-xl text-slate-500 hover:bg-primary/10 hover:text-primary transition-all duration-200 group focus:outline-none"
+                  >
+                    <Camera className="h-6 w-6 md:h-5 md:w-5 group-hover:scale-110" />
+                  </button>
+                </DialogTrigger>
               </TooltipTrigger>
               <TooltipContent side="right" className="hidden md:block font-black uppercase text-[10px] tracking-widest bg-slate-100 text-slate-900 border-none">Foto Perfil</TooltipContent>
             </Tooltip>
@@ -176,15 +170,13 @@ export function SectionNav({ items }: SectionNavProps) {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="inline-flex">
-                <button 
-                  suppressHydrationWarning
-                  onClick={handleLogout} 
-                  className="flex items-center justify-center w-12 h-12 rounded-xl text-destructive hover:bg-red-50 transition-all duration-200 group"
-                >
-                  <LogOut className="h-6 w-6 md:h-5 md:w-5 group-hover:scale-110" />
-                </button>
-              </div>
+              <button 
+                suppressHydrationWarning
+                onClick={handleLogout} 
+                className="flex items-center justify-center w-12 h-12 rounded-xl text-destructive hover:bg-red-50 transition-all duration-200 group"
+              >
+                <LogOut className="h-6 w-6 md:h-5 md:w-5 group-hover:scale-110" />
+              </button>
             </TooltipTrigger>
             <TooltipContent side="right" className="hidden md:block font-black uppercase text-[10px] tracking-widest bg-red-50 text-destructive border-none">Cerrar Sesión</TooltipContent>
           </Tooltip>
