@@ -328,6 +328,7 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
   const handleAssignToTeam = async () => {
     if (!selectedPlayer || !selectedTeamId) return;
     try {
+      const team = teams?.find(t => t.id === selectedTeamId);
       const assignmentId = doc(collection(db, "clubs", clubId, "divisions", division.id, "teams", selectedTeamId, "assignments")).id;
       const assignmentDoc = doc(db, "clubs", clubId, "divisions", division.id, "teams", selectedTeamId, "assignments", assignmentId);
       
@@ -342,7 +343,21 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
         createdAt: new Date().toISOString()
       });
 
-      toast({ title: "Jugadora Asignada", description: `${selectedPlayer.firstName} ahora es parte del equipo.` });
+      // Actualizar el documento de la jugadora para que se vea en el listado
+      const playerDoc = doc(db, "clubs", clubId, "players", selectedPlayer.id);
+      await updateDocumentNonBlocking(playerDoc, { 
+        teamId: selectedTeamId, 
+        teamName: team?.name || "" 
+      });
+
+      // Sincronizar índice global
+      const indexDoc = doc(db, "all_players_index", selectedPlayer.id);
+      await updateDocumentNonBlocking(indexDoc, { 
+        teamId: selectedTeamId, 
+        teamName: team?.name || "" 
+      });
+
+      toast({ title: "Jugadora Asignada", description: `${selectedPlayer.firstName} ahora es parte del plantel ${team?.name}.` });
       setIsAssignTeamOpen(false);
       setSelectedPlayer(null);
       setSelectedTeamId("");
@@ -356,10 +371,19 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
     if (!selectedPlayer || !selectedDivId) return;
     try {
       const playerDoc = doc(db, "clubs", clubId, "players", selectedPlayer.id);
-      await updateDocumentNonBlocking(playerDoc, { divisionId: selectedDivId });
+      // Al mover de rama, reseteamos el plantel para que sea reasignada en el nuevo destino
+      await updateDocumentNonBlocking(playerDoc, { 
+        divisionId: selectedDivId,
+        teamId: null,
+        teamName: null
+      });
       
       const indexDoc = doc(db, "all_players_index", selectedPlayer.id);
-      await updateDocumentNonBlocking(indexDoc, { divisionId: selectedDivId });
+      await updateDocumentNonBlocking(indexDoc, { 
+        divisionId: selectedDivId,
+        teamId: null,
+        teamName: null
+      });
 
       toast({ title: "Rama Actualizada", description: `${selectedPlayer.firstName} ha sido movida a la nueva categoría.` });
       setIsMoveDivOpen(false);
@@ -480,21 +504,21 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
           {/* SECCIÓN DE EQUIPOS */}
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Subcategorías / Equipos</h4>
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Subcategorías / Planteles</h4>
               <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-primary text-white shadow-lg">
-                    <Plus className="h-3.5 w-3.5" /> Agregar Equipo
+                    <Plus className="h-3.5 w-3.5" /> Agregar Plantel
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem]">
                   <DialogHeader>
-                    <DialogTitle className="text-xl font-black text-slate-900">Nuevo Equipo: {division.name}</DialogTitle>
+                    <DialogTitle className="text-xl font-black text-slate-900">Nuevo Plantel: {division.name}</DialogTitle>
                     <DialogDescription className="font-bold text-slate-500">Crea un equipo específico dentro de esta rama.</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Equipo</Label>
+                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Plantel</Label>
                       <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A, Sub 12 Blanca..." className="h-12 border-2 font-bold" />
                     </div>
                     <div className="space-y-2">
@@ -514,7 +538,7 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
                   </div>
                   <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
                     <Button variant="ghost" onClick={() => setIsTeamDialogOpen(false)} className="font-bold">Cancelar</Button>
-                    <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachId} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Confirmar Equipo</Button>
+                    <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachId} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Confirmar Plantel</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -549,7 +573,7 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
               ))}
               {(!teams || teams.length === 0) && (
                 <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl opacity-30 bg-slate-100/50">
-                  <p className="text-[10px] font-black uppercase tracking-widest">Sin equipos registrados</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest">Sin planteles registrados</p>
                 </div>
               )}
             </div>
@@ -564,7 +588,7 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
                 <div className="col-span-3">Jugadora</div>
                 <div className="col-span-1 text-center">Edad</div>
                 <div className="col-span-2 text-center">Posición</div>
-                <div className="col-span-2 text-center">Equipo</div>
+                <div className="col-span-2 text-center">Plantel</div>
                 <div className="col-span-1 text-center">PJ</div>
                 <div className="col-span-1 text-center">G</div>
                 <div className="col-span-2 text-right">Gestión</div>
@@ -600,8 +624,11 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
                       </div>
 
                       <div className="col-span-2 text-center">
-                        <Badge className="bg-primary/5 text-primary border-none text-[9px] font-black uppercase px-2 h-5">
-                          {p.teamName || "Sin Equipo"}
+                        <Badge className={cn(
+                          "border-none text-[9px] font-black uppercase px-2 h-5",
+                          p.teamName ? "bg-primary/5 text-primary" : "bg-slate-100 text-slate-400"
+                        )}>
+                          {p.teamName || "Sin Plantel"}
                         </Badge>
                       </div>
                       
@@ -649,20 +676,20 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
         </div>
       </AccordionContent>
 
-      {/* DIÁLOGO ASIGNAR A EQUIPO */}
+      {/* DIÁLOGO ASIGNAR A PLANTEL */}
       <Dialog open={isAssignTeamOpen} onOpenChange={setIsAssignTeamOpen}>
         <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2.5rem]">
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-slate-900">Asignar a Plantel</DialogTitle>
             <DialogDescription className="font-bold text-slate-500">
-              Selecciona el equipo dentro de <strong>{division.name}</strong> para {selectedPlayer?.firstName}.
+              Selecciona el plantel dentro de <strong>{division.name}</strong> para {selectedPlayer?.firstName}.
             </DialogDescription>
           </DialogHeader>
           <div className="py-6 space-y-4">
             <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Equipo Destino</Label>
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Plantel Destino</Label>
               <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar equipo..." /></SelectTrigger>
+                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar plantel..." /></SelectTrigger>
                 <SelectContent>
                   {teams?.map(t => (
                     <SelectItem key={t.id} value={t.id} className="font-bold">{t.name}</SelectItem>
@@ -670,7 +697,7 @@ function CategoryRow({ division, clubId, allDivisions, onEdit, onDelete }: { div
                 </SelectContent>
               </Select>
               {(!teams || teams.length === 0) && (
-                <p className="text-[10px] text-destructive font-black uppercase mt-1">No hay equipos creados en esta rama.</p>
+                <p className="text-[10px] text-destructive font-black uppercase mt-1">No hay planteles creados en esta rama.</p>
               )}
             </div>
           </div>
