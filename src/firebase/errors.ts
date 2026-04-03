@@ -1,5 +1,9 @@
+
 'use client';
 import { getAuth, type User } from 'firebase/auth';
+
+// ID de la base de datos específica para reporte de errores preciso
+const DATABASE_ID = "ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7";
 
 type SecurityRuleContext = {
   path: string;
@@ -91,7 +95,7 @@ function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
   return {
     auth: authObject,
     method: context.operation,
-    path: `/databases/(default)/documents/${context.path}`,
+    path: `/databases/${DATABASE_ID}/documents/${context.path}`,
     resource: context.requestResourceData ? { data: context.requestResourceData } : undefined,
   };
 }
