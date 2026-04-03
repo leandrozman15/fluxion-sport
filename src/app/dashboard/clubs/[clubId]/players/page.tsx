@@ -46,12 +46,6 @@ import { useToast } from "@/hooks/use-toast";
 import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface Tutor {
-  name: string;
-  kinship: string;
-  phone: string;
-}
-
 export default function PlayersPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
@@ -153,10 +147,13 @@ export default function PlayersPage() {
     toast({ title: "Legajo Actualizado" });
   };
 
-  const handleDeletePlayer = () => {
+  const handleDeletePlayer = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!editingPlayer) return;
     if (confirm(`¿Seguro que deseas eliminar definitivamente el legajo de ${editingPlayer.firstName} ${editingPlayer.lastName}?`)) {
-      deleteDocumentNonBlocking(doc(db, "clubs", clubId, "players", editingPlayer.id));
+      const playerRef = doc(db, "clubs", clubId, "players", editingPlayer.id);
+      deleteDocumentNonBlocking(playerRef);
       setIsEditOpen(false);
       toast({ variant: "destructive", title: "Legajo Eliminado", description: "El jugador ha sido removido del sistema." });
     }
@@ -201,7 +198,6 @@ export default function PlayersPage() {
                 </DialogHeader>
                 <ScrollArea className="max-h-[70vh]">
                   <div className="p-8 space-y-10">
-                    {/* Sección 1: Identidad */}
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 border-b pb-2">
                         <UserRound className="h-5 w-5 text-primary" />
@@ -227,7 +223,6 @@ export default function PlayersPage() {
                       </div>
                     </div>
 
-                    {/* Sección 2: Contacto */}
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 border-b pb-2">
                         <Mail className="h-5 w-5 text-primary" />
@@ -249,7 +244,6 @@ export default function PlayersPage() {
                       </div>
                     </div>
 
-                    {/* Sección 3: Salud */}
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 border-b pb-2">
                         <Stethoscope className="h-5 w-5 text-primary" />
@@ -286,7 +280,6 @@ export default function PlayersPage() {
                       </div>
                     </div>
 
-                    {/* Sección 4: Técnica */}
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 border-b pb-2">
                         <Layers className="h-5 w-5 text-primary" />
@@ -318,7 +311,6 @@ export default function PlayersPage() {
                       </div>
                     </div>
 
-                    {/* Sección 5: Acceso Digital */}
                     <div className="space-y-6 bg-slate-50 -mx-8 p-8 border-y">
                       <div className="flex items-center justify-between">
                         <div>
@@ -408,7 +400,6 @@ export default function PlayersPage() {
         </div>
       </div>
 
-      {/* Dialogo de Edición: Ahora completo y con botón de eliminar */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
           <DialogHeader className="bg-slate-50 p-8 border-b flex flex-row items-center justify-between">
@@ -423,7 +414,6 @@ export default function PlayersPage() {
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
             <div className="p-8 space-y-10">
-              {/* Sección 1: Identidad */}
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b pb-2">
                   <UserRound className="h-5 w-5 text-primary" />
@@ -449,7 +439,6 @@ export default function PlayersPage() {
                 </div>
               </div>
 
-              {/* Sección 2: Contacto */}
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b pb-2">
                   <Mail className="h-5 w-5 text-primary" />
@@ -471,7 +460,6 @@ export default function PlayersPage() {
                 </div>
               </div>
 
-              {/* Sección 3: Salud */}
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b pb-2">
                   <Stethoscope className="h-5 w-5 text-primary" />
@@ -508,7 +496,6 @@ export default function PlayersPage() {
                 </div>
               </div>
 
-              {/* Sección 4: Técnica */}
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b pb-2">
                   <Layers className="h-5 w-5 text-primary" />

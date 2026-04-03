@@ -17,10 +17,11 @@ import {
   Pencil,
   ShoppingBag,
   IdCard,
-  MapPin
+  MapPin,
+  AlertTriangle
 } from "lucide-react";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
-import { useFirestore, useCollection, useDoc, useMemoFirebase, useAuth } from "@/firebase";
+import { useFirestore, useCollection, useDoc, useMemoFirebase, useAuth, useFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function ClubCoachesPage() {
   const { clubId } = useParams() as { clubId: string };
+  const { user: currentUser } = useFirebase();
   const db = useFirestore();
   const auth = useAuth();
   const { toast } = useToast();
@@ -121,10 +123,21 @@ export default function ClubCoachesPage() {
     toast({ title: "Perfil Actualizado" });
   };
 
-  const handleDeleteCoach = (id: string) => {
-    if (!id) return;
-    if(confirm("¿Seguro que deseas eliminar este miembro del staff? Se borrará su legajo y acceso al panel.")) {
-      const coachDocRef = doc(db, "users", id);
+  const handleDeleteCoach = (e: React.MouseEvent, coach: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (currentUser && (currentUser.email === coach.email || currentUser.uid === coach.id)) {
+      toast({ 
+        variant: "destructive", 
+        title: "Acción no permitida", 
+        description: "No puedes eliminar tu propio perfil mientras estás en sesión." 
+      });
+      return;
+    }
+
+    if(confirm(`¿Seguro que deseas eliminar a ${coach.name}? Se borrará su legajo y acceso al panel.`)) {
+      const coachDocRef = doc(db, "users", coach.id);
       deleteDocumentNonBlocking(coachDocRef);
       toast({ variant: "destructive", title: "Miembro Eliminado", description: "El registro ha sido removido con éxito." });
     }
@@ -268,23 +281,18 @@ export default function ClubCoachesPage() {
                       </div>
                     </div>
 
-                    <div className="flex-1 p-6 space-y-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
-                          <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
-                          <Mail className="h-4 w-4 text-primary" /> {coach.email}
-                        </div>
+                    <div className="flex-1 p-6 space-y-2">
+                      <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                        <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
                       </div>
-                      
-                      <div className="pt-2 border-t border-slate-50 space-y-1.5">
-                        <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-                          <Phone className="h-4 w-4 text-primary" /> {coach.phone || 'Sin teléfono'}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs font-bold text-slate-600 truncate">
-                          <MapPin className="h-4 w-4 text-primary" /> {coach.address || 'Sin dirección'}
-                        </div>
+                      <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                        <Mail className="h-4 w-4 text-primary" /> {coach.email}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+                        <Phone className="h-4 w-4 text-primary" /> {coach.phone || 'Sin teléfono'}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600 truncate">
+                        <MapPin className="h-4 w-4 text-primary" /> {coach.address || 'Sin dirección'}
                       </div>
                     </div>
 
@@ -297,7 +305,7 @@ export default function ClubCoachesPage() {
                         variant="ghost" 
                         size="sm" 
                         className="h-11 w-11 p-0 text-destructive hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100" 
-                        onClick={() => handleDeleteCoach(coach.id)}
+                        onClick={(e) => handleDeleteCoach(e, coach)}
                       >
                         <Trash2 className="h-5 w-5" />
                       </Button>
