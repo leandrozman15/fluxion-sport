@@ -3,7 +3,7 @@
 
 import { firebaseConfig, FIRESTORE_DATABASE_ID } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 export function initializeFirebase() {
@@ -29,6 +29,23 @@ export function getSdks(firebaseApp: FirebaseApp) {
     // Garantizamos el uso de la base de datos específica ai-studio-...
     firestore: getFirestore(firebaseApp, FIRESTORE_DATABASE_ID)
   };
+}
+
+/**
+ * Crea un usuario en Firebase Auth usando una instancia secundaria, sin afectar
+ * la sesión activa del usuario actual (admin, coordinador, etc.).
+ * Devuelve el UID del nuevo usuario.
+ */
+export async function createUserWithSecondaryApp(email: string, password: string): Promise<string> {
+  const SECONDARY = 'fluxion-user-creation';
+  const secondaryApp =
+    getApps().find(app => app.name === SECONDARY) ??
+    initializeApp(firebaseConfig, SECONDARY);
+  const secondaryAuth = getAuth(secondaryApp);
+  const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+  const uid = cred.user.uid;
+  await signOut(secondaryAuth);
+  return uid;
 }
 
 export * from './provider';

@@ -23,7 +23,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
-import { useFirestore, useCollection, useDoc, useMemoFirebase, useAuth, useFirebase } from "@/firebase";
+import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase, createUserWithSecondaryApp } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
 import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
@@ -54,7 +53,6 @@ export default function ClubCoachesPage() {
   const { clubId } = useParams() as { clubId: string };
   const { user: currentUser } = useFirebase();
   const db = useFirestore();
-  const auth = useAuth();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -106,31 +104,35 @@ export default function ClubCoachesPage() {
     setLoading(true);
     try {
       const normalizedEmail = newCoach.email.toLowerCase().trim();
-      const userDoc = doc(db, "users", normalizedEmail);
-      
-      // 1. Guardamos en Firestore PRIMERO para asegurar la asociación al club
-      await setDoc(userDoc, {
+
+      // 1. Crear usuario en Auth SIN cerrar la sesión del admin actual (instancia secundaria)
+      const newUid = await createUserWithSecondaryApp(normalizedEmail, newCoach.password);
+
+      // 2. Guardar perfil en Firestore con UID como ID de documento
+      await setDoc(doc(db, "users", newUid), {
         ...newCoach,
         email: normalizedEmail,
-        id: normalizedEmail,
-        clubId: clubId, // Asociación explícita
+        id: newUid,
+        uid: newUid,
+        clubId: clubId,
         requiresPasswordChange: true,
         createdAt: new Date().toISOString()
       });
-
-      // 2. Creamos el usuario en Auth (esto cerrará la sesión del admin)
-      initiateEmailSignUp(auth, normalizedEmail, newCoach.password);
       
       toast({ 
         title: "Miembro Registrado", 
-        description: `Cuenta creada para ${newCoach.name}. La sesión se reiniciará para activar el nuevo perfil.` 
+        description: `Cuenta creada para ${newCoach.name}. Ya puede ingresar a la plataforma.` 
       });
       
       setNewCoach({ name: "", email: "", phone: "", dni: "", address: "", password: "", role: "coach_lvl2", specialty: "", license: "", photoUrl: "", sport: "hockey" });
       setIsCreateOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast({ variant: "destructive", title: "Error al registrar", description: "Verifica los datos e intenta nuevamente." });
+      toast({ 
+        variant: "destructive", 
+        title: "Error al registrar", 
+        description: error.code === 'auth/email-already-in-use' ? "Ese email ya tiene una cuenta registrada." : "Verifica los datos e intenta nuevamente." 
+      });
     } finally {
       setLoading(false);
     }

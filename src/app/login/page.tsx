@@ -96,9 +96,9 @@ export default function LoginPage() {
       
       const normalizedEmail = regForm.email.toLowerCase().trim();
       
-      // Creamos el perfil usando el Email como ID para máxima consistencia en staff
-      await setDoc(doc(firestore, "users", normalizedEmail), {
-        id: normalizedEmail,
+      // Creamos el perfil usando el UID como ID para vinculación directa e inmediata
+      await setDoc(doc(firestore, "users", newUser.uid), {
+        id: newUser.uid,
         uid: newUser.uid,
         email: normalizedEmail,
         name: regForm.name,
@@ -112,7 +112,8 @@ export default function LoginPage() {
       });
       
       setIsRegOpen(false);
-      router.replace('/dashboard/superadmin');
+      // El useEffect que observa `user` se encarga de redirigir a /dashboard,
+      // que a su vez lee el rol y redirige a /dashboard/superadmin
     } catch (err: any) {
       console.error("Registration error:", err);
       toast({ 

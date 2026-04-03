@@ -13,9 +13,8 @@ import {
   ShieldAlert,
   Database
 } from "lucide-react";
-import { collection, doc } from "firebase/firestore";
-import { useFirestore, useAuth, useFirebase } from "@/firebase";
-import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
+import { collection, doc, setDoc } from "firebase/firestore";
+import { useFirestore, useFirebase, createUserWithSecondaryApp } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,6 @@ const DATABASE_ID = "ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7";
 export default function SuperAdminPage() {
   const { user } = useFirebase();
   const db = useFirestore();
-  const auth = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -50,43 +48,46 @@ export default function SuperAdminPage() {
 
     setLoading(true);
     try {
+      const normalizedEmail = form.adminEmail.toLowerCase().trim();
+
+      // 1. Crear el Club en Firestore (no bloqueante, ID generado localmente)
       const clubId = doc(collection(db, "clubs")).id;
-      const clubDoc = doc(db, "clubs", clubId);
-      
-      // 1. Crear el Club en Firestore (No bloqueante)
-      setDocumentNonBlocking(clubDoc, {
+      setDocumentNonBlocking(doc(db, "clubs", clubId), {
         id: clubId,
         name: form.clubName,
         address: form.clubAddress,
         createdAt: new Date().toISOString()
       }, {});
 
-      const userId = form.adminEmail.toLowerCase().trim();
-      const userDoc = doc(db, "users", userId);
-      
-      // 2. Crear el perfil del administrador en Firestore VINCULADO al club
-      setDocumentNonBlocking(userDoc, {
-        id: userId,
+      // 2. Crear acceso en Auth SIN cerrar la sesión actual (instancia secundaria)
+      //    Obtenemos el UID real antes de escribir en Firestore.
+      const adminUid = await createUserWithSecondaryApp(normalizedEmail, form.adminPassword);
+
+      // 3. Crear el perfil del administrador con UID como ID de documento
+      await setDoc(doc(db, "users", adminUid), {
+        id: adminUid,
+        uid: adminUid,
         name: form.adminName,
-        email: userId,
+        email: normalizedEmail,
         phone: form.adminPhone,
         role: "club_admin",
-        clubId: clubId, 
+        clubId: clubId,
         sport: form.sport,
         createdAt: new Date().toISOString()
-      }, {});
-
-      // 3. Crear acceso en Auth (esto cerrará la sesión actual del superadmin para seguridad)
-      initiateEmailSignUp(auth, form.adminEmail, form.adminPassword);
+      });
 
       setSuccess(true);
       toast({ 
         title: "Sistema Desplegado", 
-        description: `El club ${form.clubName} ha sido creado. La sesión se reiniciará.` 
+        description: `El club ${form.clubName} ha sido creado exitosamente.` 
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error en despliegue SuperAdmin:", error);
-      toast({ variant: "destructive", title: "Error en el despliegue" });
+      toast({ 
+        variant: "destructive", 
+        title: "Error en el despliegue",
+        description: error.code === 'auth/email-already-in-use' ? "Ese email ya tiene una cuenta registrada." : "Verifica los datos e intenta nuevamente."
+      });
     } finally {
       setLoading(false);
     }
@@ -102,12 +103,12 @@ export default function SuperAdminPage() {
             </div>
             <CardTitle className="text-3xl font-black text-slate-900 tracking-tight uppercase">¡Sistema Desplegado!</CardTitle>
             <CardDescription className="text-slate-500 font-bold mt-2">
-              El club <strong>{form.clubName}</strong> ha sido dado de alta. Al cerrar esta ventana, el sistema te permitirá ingresar con las nuevas credenciales.
+              El club <strong>{form.clubName}</strong> ha sido dado de alta correctamente. El administrador ya puede acceder con sus credenciales.
             </CardDescription>
           </CardHeader>
           <CardFooter className="pt-8">
-            <Button className="w-full font-black uppercase text-xs tracking-widest h-14 shadow-xl" onClick={() => window.location.href = '/login'}>
-              Finalizar y Salir
+            <Button className="w-full font-black uppercase text-xs tracking-widest h-14 shadow-xl" onClick={() => setSuccess(false)}>
+              Crear Otro Club
             </Button>
           </CardFooter>
         </Card>
