@@ -11,7 +11,7 @@ import {
   Mail,
   Lock,
   User
-} from "firebase/auth";
+} from "lucide-react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, collection, query, where, getDocs, getDoc, setDoc } from "firebase/firestore";
 import { useFirebase } from "@/firebase";
@@ -179,7 +179,8 @@ export default function LoginPage() {
             </CardContent>
             <CardFooter className="flex flex-col gap-4 p-8 pt-4">
               <Button type="submit" className="w-full h-16 text-lg font-black uppercase tracking-widest shadow-2xl shadow-primary/30 rounded-2xl transition-all hover:scale-[1.02] active:scale-95" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck className="h-6 w-6 mr-2" /> Entrar al Sistema</Button>
+                {loading ? <Loader2 className="animate-spin" /> : <><ShieldCheck className="h-6 w-6 mr-2" /> Entrar al Sistema</>}
+              </Button>
               
               <div className="relative py-4 w-full">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100" /></div>
