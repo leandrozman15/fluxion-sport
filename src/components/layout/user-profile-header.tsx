@@ -3,7 +3,7 @@
 
 import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
-import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot, limit, getDocs } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Shield, UserCheck, UserCircle, Settings } from "lucide-react";
 import { signOut } from "firebase/auth";
@@ -21,47 +21,66 @@ export function UserProfileHeader() {
     if (!user || !firestore) return;
     const email = user.email?.toLowerCase().trim() || "";
 
-    const unsubProfile = onSnapshot(doc(firestore, "users", user.uid), async (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.clubId) {
-          try {
-            const clubSnap = await getDoc(doc(firestore, "clubs", data.clubId));
-            if (clubSnap.exists()) {
-              setProfile(data);
-            } else {
-              setProfile({ ...data, clubId: null, role: 'guest' });
-            }
-          } catch (e) {
-            setProfile({ ...data, clubId: null, role: 'guest' });
-          }
-        } else {
-          setProfile(data);
+    async function findAndListenProfile() {
+      try {
+        // 1. Intentar por UID directo
+        const uidRef = doc(firestore, "users", user.uid);
+        const uidSnap = await getDoc(uidRef);
+        
+        if (uidSnap.exists()) {
+          setupListener(uidRef);
+          return;
         }
-      } else {
-        const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-        onSnapshot(qStaff, (sSnap) => {
-          if (!sSnap.empty) {
-            setProfile(sSnap.docs[0].data());
-          } else {
-            const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-            onSnapshot(qPlayer, (pSnap) => {
-              if (!pSnap.empty) setProfile({ ...pSnap.docs[0].data(), role: 'player' });
-              else setProfile({ name: user.email, role: 'guest' });
-            }, (err) => console.warn("Player index listener suppressed"));
-          }
-        }, (err) => console.warn("Staff listener suppressed"));
-      }
-    }, (error) => {
-      if (error.code === 'permission-denied') {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: `users/${user.uid}`,
-          operation: 'get'
-        }));
-      }
-    });
 
-    return () => unsubProfile();
+        // 2. Intentar por Email como ID (común en staff cargado por Admin)
+        if (email) {
+          const emailRef = doc(firestore, "users", email);
+          const emailSnap = await getDoc(emailRef);
+          if (emailSnap.exists()) {
+            setupListener(emailRef);
+            return;
+          }
+
+          // 3. Buscar por consulta de campo email en staff
+          const qStaff = query(collection(firestore, "users"), where("email", "==", email), limit(1));
+          const staffSnap = await getDocs(qStaff);
+          if (!staffSnap.empty) {
+            setupListener(staffSnap.docs[0].ref);
+            return;
+          }
+
+          // 4. Buscar en padrón de jugadores
+          const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email), limit(1));
+          const playerSnap = await getDocs(qPlayer);
+          if (!playerSnap.empty) {
+            setupListener(playerSnap.docs[0].ref);
+            return;
+          }
+        }
+
+        // Fallback si no se encuentra nada
+        setProfile({ name: user.email, role: 'guest' });
+      } catch (e) {
+        console.error("Error buscando perfil:", e);
+      }
+    }
+
+    function setupListener(ref: any) {
+      return onSnapshot(ref, (snap) => {
+        if (snap.exists()) {
+          setProfile(snap.data());
+        }
+      }, (error) => {
+        if (error.code === 'permission-denied') {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: ref.path,
+            operation: 'get'
+          }));
+        }
+      });
+    }
+
+    findAndListenProfile();
   }, [user, firestore]);
 
   const handleLogout = async () => {
