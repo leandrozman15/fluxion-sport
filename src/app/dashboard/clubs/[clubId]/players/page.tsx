@@ -66,6 +66,7 @@ export default function PlayersPage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -117,6 +118,7 @@ export default function PlayersPage() {
       return;
     }
 
+    setLoading(true);
     try {
       const normalizedEmail = newPlayer.email.toLowerCase().trim();
       const playerId = normalizedEmail || doc(collection(db, "clubs", clubId, "players")).id;
@@ -126,41 +128,49 @@ export default function PlayersPage() {
         ...newPlayer,
         id: playerId,
         email: normalizedEmail,
-        clubId,
+        clubId: clubId, // Asociación explícita
         role: "player",
         createdAt: new Date().toISOString()
       };
 
+      // 1. Guardar en Firestore del Club PRIMERO
+      await setDoc(playerDoc, pData);
+
+      // 2. Si tiene login, crear Auth e Índice (esto cerrará sesión admin)
       if (newPlayer.enableLogin && normalizedEmail && newPlayer.password) {
-        initiateEmailSignUp(auth, normalizedEmail, newPlayer.password);
         await setDoc(doc(db, "all_players_index", playerId), {
           id: playerId,
           firstName: newPlayer.firstName,
           lastName: newPlayer.lastName,
           email: normalizedEmail,
-          clubId,
+          clubId: clubId,
           divisionId: newPlayer.divisionId,
           clubName: club?.name || "Club",
           sport: newPlayer.sport,
           role: "player",
           createdAt: new Date().toISOString()
         });
+        
+        initiateEmailSignUp(auth, normalizedEmail, newPlayer.password);
+        toast({ title: "Jugador Registrado", description: "Ficha generada. Se cerrará sesión para activar el acceso del socio." });
+      } else {
+        toast({ title: "Jugador Registrado", description: "Ficha oficial generada con éxito." });
       }
 
-      await setDoc(playerDoc, pData);
-      toast({ title: "Jugador Registrado", description: "Ficha oficial generada con éxito." });
       setNewPlayer(initialForm);
       setIsDialogOpen(false);
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Error al registrar" });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdatePlayer = async () => {
     if (!editingPlayer) return;
     const playerDoc = doc(db, "clubs", clubId, "players", editingPlayer.id);
-    updateDocumentNonBlocking(playerDoc, { ...editingPlayer, role: "player" });
+    updateDocumentNonBlocking(playerDoc, { ...editingPlayer, clubId: clubId, role: "player" });
     
     // Sincronizar índice global si existe
     const indexDoc = doc(db, "all_players_index", editingPlayer.id);
@@ -373,8 +383,8 @@ export default function PlayersPage() {
                 </ScrollArea>
                 <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4">
                   <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
-                  <Button onClick={handleCreatePlayer} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20 gap-2">
-                    Confirmar Alta Federativa <ChevronRight className="h-5 w-5" />
+                  <Button onClick={handleCreatePlayer} disabled={loading} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20 gap-2">
+                    {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <><ShieldCheck className="h-5 w-5" /> Confirmar Alta Federativa</>}
                   </Button>
                 </DialogFooter>
               </DialogContent>

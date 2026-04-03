@@ -51,6 +51,7 @@ export default function SuperAdminPage() {
       const clubId = doc(collection(db, "clubs")).id;
       const clubDoc = doc(db, "clubs", clubId);
       
+      // 1. Crear el Club en Firestore
       await setDoc(clubDoc, {
         id: clubId,
         name: form.clubName,
@@ -61,21 +62,23 @@ export default function SuperAdminPage() {
       const userId = form.adminEmail.toLowerCase().trim();
       const userDoc = doc(db, "users", userId);
       
-      initiateEmailSignUp(auth, form.adminEmail, form.adminPassword);
-
+      // 2. Crear el perfil del administrador en Firestore VINCULADO al club
       await setDoc(userDoc, {
         id: userId,
         name: form.adminName,
-        email: form.adminEmail.toLowerCase().trim(),
+        email: userId,
         phone: form.adminPhone,
         role: "club_admin",
-        clubId: clubId,
+        clubId: clubId, // Asociación garantizada
         sport: form.sport,
         createdAt: new Date().toISOString()
       });
 
+      // 3. Crear acceso en Auth (esto cerrará la sesión actual)
+      initiateEmailSignUp(auth, form.adminEmail, form.adminPassword);
+
       setSuccess(true);
-      toast({ title: "Cliente Creado", description: `El club ${form.clubName} ha sido desplegado.` });
+      toast({ title: "Sistema Desplegado", description: `El club ${form.clubName} ha sido creado. Se reiniciará la sesión para activar el acceso.` });
     } catch (error) {
       console.error(error);
       toast({ variant: "destructive", title: "Error en el despliegue" });

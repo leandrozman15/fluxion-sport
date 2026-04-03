@@ -19,7 +19,8 @@ import {
   IdCard,
   MapPin,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight
 } from "lucide-react";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, useAuth, useFirebase } from "@/firebase";
@@ -57,7 +58,9 @@ export default function ClubCoachesPage() {
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [editingCoach, setEditingCoach] = useState<any>(null);
+  
   const [newCoach, setNewCoach] = useState({ 
     name: "", 
     email: "", 
@@ -100,27 +103,36 @@ export default function ClubCoachesPage() {
       return;
     }
 
+    setLoading(true);
     try {
       const normalizedEmail = newCoach.email.toLowerCase().trim();
-      initiateEmailSignUp(auth, normalizedEmail, newCoach.password);
-      
       const userDoc = doc(db, "users", normalizedEmail);
       
+      // 1. Guardamos en Firestore PRIMERO para asegurar la asociación al club
       await setDoc(userDoc, {
         ...newCoach,
         email: normalizedEmail,
         id: normalizedEmail,
-        clubId,
+        clubId: clubId, // Asociación explícita
         requiresPasswordChange: true,
         createdAt: new Date().toISOString()
       });
+
+      // 2. Creamos el usuario en Auth (esto cerrará la sesión del admin)
+      initiateEmailSignUp(auth, normalizedEmail, newCoach.password);
       
-      toast({ title: "Miembro Registrado", description: `Cuenta creada para ${newCoach.name}.` });
+      toast({ 
+        title: "Miembro Registrado", 
+        description: `Cuenta creada para ${newCoach.name}. La sesión se reiniciará para activar el nuevo perfil.` 
+      });
+      
       setNewCoach({ name: "", email: "", phone: "", dni: "", address: "", password: "", role: "coach_lvl2", specialty: "", license: "", photoUrl: "", sport: "hockey" });
       setIsCreateOpen(false);
     } catch (error) {
       console.error(error);
-      toast({ variant: "destructive", title: "Error al registrar" });
+      toast({ variant: "destructive", title: "Error al registrar", description: "Verifica los datos e intenta nuevamente." });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -129,6 +141,7 @@ export default function ClubCoachesPage() {
     const coachDoc = doc(db, "users", editingCoach.id);
     updateDocumentNonBlocking(coachDoc, { 
       ...editingCoach, 
+      clubId: clubId, // Mantenemos asociación
       email: editingCoach.email.toLowerCase().trim() 
     });
     setIsEditOpen(false);
@@ -259,7 +272,9 @@ export default function ClubCoachesPage() {
               </ScrollArea>
               <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2rem]">
                 <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-                <Button onClick={handleCreateCoach} disabled={!newCoach.name || !newCoach.email || newCoach.password.length < 6 || !newCoach.dni} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Registrar Staff</Button>
+                <Button onClick={handleCreateCoach} disabled={loading || !newCoach.name || !newCoach.email || newCoach.password.length < 6 || !newCoach.dni} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
+                  {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Registrar Staff"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -292,10 +307,10 @@ export default function ClubCoachesPage() {
                     </div>
 
                     <div className="flex-1 p-6 space-y-3">
-                      <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
-                        <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
-                      </div>
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                          <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
+                        </div>
                         <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
                           <Mail className="h-4 w-4 text-primary" /> {coach.email}
                         </div>

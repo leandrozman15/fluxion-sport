@@ -54,6 +54,7 @@ export default function CoachDashboard() {
         const userEmail = user.email?.toLowerCase().trim();
         let profile = null;
         
+        // 1. Buscar Perfil (UID o Email)
         const uidDoc = await getDoc(doc(firestore, "users", user.uid));
         if (uidDoc.exists()) profile = uidDoc.data();
 
@@ -78,9 +79,11 @@ export default function CoachDashboard() {
           return;
         }
 
+        // 2. Cargar información del Club
         const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
         if (clubDoc.exists()) setClub({ ...clubDoc.data(), id: clubDoc.id });
 
+        // 3. Buscar equipos asignados a este profesor en este club
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         const teamsPromises = divsSnap.docs.map(async (divDoc) => {
           const teamsRef = collection(firestore, "clubs", clubId, "divisions", divDoc.id, "teams");
@@ -97,7 +100,8 @@ export default function CoachDashboard() {
             .filter(t => 
               t.coachId === staffIdInDb || 
               t.coachName === staffName ||
-              t.coachEmail === userEmail
+              t.coachEmail === userEmail ||
+              t.id === profile?.teamId // Por si acaso tiene teamId directo
             );
         });
 
@@ -188,7 +192,7 @@ export default function CoachDashboard() {
         <div className="space-y-2">
           <h2 className="text-3xl font-black tracking-tight text-white font-headline">Categorías Pendientes</h2>
           <p className="text-white/80 max-w-sm font-bold">
-            {staffProfile?.name || staffProfile?.firstName}, tu perfil está activo pero aún no tienes equipos asignados por coordinación.
+            {staffProfile?.name || staffProfile?.firstName}, tu perfil está activo pero aún no tienes equipos asignados en {club?.name || 'tu club'}.
           </p>
         </div>
       </div>
@@ -340,9 +344,9 @@ export default function CoachDashboard() {
                                   "bg-white text-slate-300 border-slate-100 hover:border-primary hover:text-primary"
                                 )}
                               >
-                                {status === 'going' ? <CheckCircle2 className="h-6 w-6 md:h-7 md:w-7" /> : 
-                                 status === 'not_going' ? <XCircle className="h-6 w-6 md:h-7 md:w-7" /> : 
-                                 <HelpCircle className="h-6 w-6 md:h-7 md:w-7" />}
+                                {status === 'going' ? <CheckCircle2 className="h-6 w-6 md:h-7 w-7" /> : 
+                                 status === 'not_going' ? <XCircle className="h-6 w-6 md:h-7 w-7" /> : 
+                                 <HelpCircle className="h-6 w-6 md:h-7 w-7" />}
                               </Button>
                             )}
                           </div>
