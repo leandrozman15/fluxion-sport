@@ -39,7 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { SectionNav } from "@/components/layout/section-nav";
@@ -128,15 +128,13 @@ export default function PlayersPage() {
         ...newPlayer,
         id: playerId,
         email: normalizedEmail,
-        clubId: clubId, // Asociación explícita
+        clubId: clubId,
         role: "player",
         createdAt: new Date().toISOString()
       };
 
-      // 1. Guardar en Firestore del Club PRIMERO
       await setDoc(playerDoc, pData);
 
-      // 2. Si tiene login, crear Auth e Índice (esto cerrará sesión admin)
       if (newPlayer.enableLogin && normalizedEmail && newPlayer.password) {
         await setDoc(doc(db, "all_players_index", playerId), {
           id: playerId,
@@ -172,14 +170,19 @@ export default function PlayersPage() {
     const playerDoc = doc(db, "clubs", clubId, "players", editingPlayer.id);
     updateDocumentNonBlocking(playerDoc, { ...editingPlayer, clubId: clubId, role: "player" });
     
-    // Sincronizar índice global si existe
+    // Usamos setDocumentNonBlocking con merge para asegurar que el índice global exista
     const indexDoc = doc(db, "all_players_index", editingPlayer.id);
-    updateDocumentNonBlocking(indexDoc, {
+    setDocumentNonBlocking(indexDoc, {
+      id: editingPlayer.id,
       firstName: editingPlayer.firstName,
       lastName: editingPlayer.lastName,
+      email: editingPlayer.email,
+      clubId: clubId,
       divisionId: editingPlayer.divisionId,
-      sport: editingPlayer.sport
-    });
+      clubName: club?.name || "Club",
+      sport: editingPlayer.sport,
+      role: "player"
+    }, { merge: true });
 
     setIsEditOpen(false);
     toast({ title: "Legajo Actualizado" });

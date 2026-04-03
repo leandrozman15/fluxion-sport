@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -45,6 +46,15 @@ export default function DashboardRedirectPage() {
 
           // Otros roles de staff van a sus dashboards específicos
           if (clubId) {
+            // VERIFICAR EXISTENCIA DEL CLUB PARA EVITAR DEAD-ENDS
+            const clubCheck = await getDoc(doc(firestore, "clubs", clubId));
+            if (!clubCheck.exists()) {
+              // Limpiar referencia huérfana
+              const userRef = doc(firestore, "users", userData.id || user.uid);
+              setDocumentNonBlocking(userRef, { clubId: null }, { merge: true });
+              return router.replace('/dashboard/player');
+            }
+
             if (role === 'coordinator') return router.replace('/dashboard/coordinator');
             if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) return router.replace('/dashboard/coach');
             // Por defecto al club gestionado
@@ -56,9 +66,8 @@ export default function DashboardRedirectPage() {
         const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
         if (!playerSnap.empty) return router.replace('/dashboard/player');
 
-        // 5. Si no tiene nada asignado, el SuperAdmin (si lo es) debe asignarlo. 
-        // Como fallback general, vamos al home del club por defecto si tuviera uno.
-        router.replace('/dashboard/player'); // Dashboard de jugador como hub neutro
+        // 5. Fallback general
+        router.replace('/dashboard/player');
 
       } catch (e) {
         console.error("Critical Redirect Error:", e);
