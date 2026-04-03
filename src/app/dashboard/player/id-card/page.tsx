@@ -90,10 +90,21 @@ export default function GenericIdCardPage() {
 
   const isStaff = ['admin', 'club_admin', 'coordinator', 'coach', 'coach_lvl1', 'coach_lvl2'].includes(roleInfo.role);
 
+  const staffDashboardHref =
+    roleInfo.role === 'coordinator' ? '/dashboard/coordinator' :
+    (roleInfo.role === 'admin' || roleInfo.role === 'club_admin') ?
+      (clubInfo ? `/dashboard/clubs/${clubInfo.id}` : '/dashboard/clubs') :
+    '/dashboard/coach';
+
+  const staffDashboardLabel =
+    roleInfo.role === 'coordinator' ? 'Coordinación' :
+    (roleInfo.role === 'admin' || roleInfo.role === 'club_admin') ? 'Panel Club' :
+    'Gestión Técnica';
+
   const coachNav = [
-    { title: "Gestión Técnica", href: "/dashboard/coach", icon: ClipboardCheck },
+    { title: staffDashboardLabel, href: staffDashboardHref, icon: ClipboardCheck },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-    { title: "Tienda Club", href: clubInfo ? `/dashboard/clubs/${clubInfo.id}/shop` : "/dashboard/coach", icon: ShoppingBag },
+    { title: "Tienda Club", href: clubInfo ? `/dashboard/clubs/${clubInfo.id}/shop` : staffDashboardHref, icon: ShoppingBag },
     { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
   ];
 

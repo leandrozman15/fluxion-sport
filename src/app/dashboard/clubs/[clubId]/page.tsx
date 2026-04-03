@@ -70,6 +70,7 @@ export default function InstitutionDetailPage() {
     { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
+    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
   ];
 
   const copyRegistrationLink = () => {

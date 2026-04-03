@@ -111,6 +111,7 @@ export default function CoordinatorDashboard() {
     { title: "Categorías", href: club ? `/dashboard/clubs/${club.id}/divisions` : "/dashboard/coordinator", icon: Layers },
     { title: "Staff Técnico", href: club ? `/dashboard/clubs/${club.id}/coaches` : "/dashboard/coordinator", icon: UserRound },
     { title: "Tesorería", href: club ? `/dashboard/clubs/${club.id}/finances` : "/dashboard/coordinator", icon: CreditCard },
+    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
   ];
 
   if (loading) return (

@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
-import { useFirestore, useCollection, useDoc, useMemoFirebase, useAuth } from "@/firebase";
+import { useFirestore, useCollection, useDoc, useMemoFirebase, createUserWithSecondaryApp } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,6 @@ import { Switch } from "@/components/ui/switch";
 import { SectionNav } from "@/components/layout/section-nav";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
@@ -62,7 +61,6 @@ import {
 export default function PlayersPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
-  const auth = useAuth();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -110,6 +108,7 @@ export default function PlayersPage() {
     { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
+    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
   ];
 
   const handleCreatePlayer = async () => {
@@ -121,9 +120,16 @@ export default function PlayersPage() {
     setLoading(true);
     try {
       const normalizedEmail = newPlayer.email.toLowerCase().trim();
-      const playerId = normalizedEmail || doc(collection(db, "clubs", clubId, "players")).id;
+      let playerId: string;
+
+      if (newPlayer.enableLogin && normalizedEmail && newPlayer.password) {
+        // Crear Auth user sin cerrar la sesión activa del admin/coordinador
+        playerId = await createUserWithSecondaryApp(normalizedEmail, newPlayer.password);
+      } else {
+        playerId = doc(collection(db, "clubs", clubId, "players")).id;
+      }
+
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
-      
       const pData = {
         ...newPlayer,
         id: playerId,
@@ -135,7 +141,7 @@ export default function PlayersPage() {
 
       await setDoc(playerDoc, pData);
 
-      if (newPlayer.enableLogin && normalizedEmail && newPlayer.password) {
+      if (newPlayer.enableLogin && normalizedEmail) {
         await setDoc(doc(db, "all_players_index", playerId), {
           id: playerId,
           firstName: newPlayer.firstName,
@@ -148,18 +154,19 @@ export default function PlayersPage() {
           role: "player",
           createdAt: new Date().toISOString()
         });
-        
-        initiateEmailSignUp(auth, normalizedEmail, newPlayer.password);
-        toast({ title: "Jugador Registrado", description: "Ficha generada. Se cerrará sesión para activar el acceso del socio." });
+        toast({ title: "Jugador Registrado", description: "Ficha y acceso al app generados correctamente." });
       } else {
         toast({ title: "Jugador Registrado", description: "Ficha oficial generada con éxito." });
       }
 
       setNewPlayer(initialForm);
       setIsDialogOpen(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      toast({ variant: "destructive", title: "Error al registrar" });
+      const msg = e.code === 'auth/email-already-in-use'
+        ? "Ese email ya tiene una cuenta. Edite el legajo existente."
+        : "No se pudo completar el alta. Verifique los datos.";
+      toast({ variant: "destructive", title: "Error al registrar", description: msg });
     } finally {
       setLoading(false);
     }
