@@ -30,7 +30,7 @@ import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 
 /**
  * Hub Central del Jugador.
- * Consola personalizada para deportistas federados.
+ * Utiliza el nuevo motor de búsqueda por UID y Email para cargar el contexto técnico.
  */
 export default function PlayerDashboardHub() {
   const { firestore, user } = useFirebase();
@@ -46,20 +46,31 @@ export default function PlayerDashboardHub() {
       try {
         const email = user.email?.toLowerCase().trim() || "";
         
-        // 1. Obtener perfil sincronizado desde el índice global
+        // 1. Obtener perfil sincronizado (UID o Email)
         let pData = null;
-        const indexSnap = await getDoc(doc(firestore, "all_players_index", user.uid));
-        if (indexSnap.exists()) pData = indexSnap.data();
-
-        if (!pData && email) {
-          const emailSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
-          if (!emailSnap.empty) pData = emailSnap.docs[0].data();
+        
+        // Intento por UID
+        const qUid = query(collection(firestore, "all_players_index"), where("uid", "==", user.uid));
+        const snapUid = await getDocs(qUid);
+        if (!snapUid.empty) {
+          pData = snapUid.docs[0].data();
+        } else {
+          // Intento por Email como ID
+          const snapEmailId = await getDoc(doc(firestore, "all_players_index", email));
+          if (snapEmailId.exists()) {
+            pData = snapEmailId.data();
+          } else if (email) {
+            // Intento por campo email
+            const qEmail = query(collection(firestore, "all_players_index"), where("email", "==", email));
+            const snapEmail = await getDocs(qEmail);
+            if (!snapEmail.empty) pData = snapEmail.docs[0].data();
+          }
         }
 
         if (pData) {
           setPlayerInfo(pData);
 
-          // 2. Cargar contexto de equipo (directo desde el perfil)
+          // 2. Cargar contexto de equipo
           if (pData.teamId && pData.divisionId && pData.clubId) {
             const teamDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId));
             const divDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId));

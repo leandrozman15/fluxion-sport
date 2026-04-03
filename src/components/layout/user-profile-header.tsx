@@ -11,7 +11,8 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 /**
- * Encabezado de Perfil de Usuario con Motor de Auto-Vinculación.
+ * Encabezado de Perfil de Usuario con Motor de Auto-Vinculación Reforzado.
+ * Detecta si el usuario es staff o jugador federado.
  */
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
@@ -35,53 +36,69 @@ export function UserProfileHeader() {
         let docId = "";
 
         // 1. BUSCAR EN STAFF (users)
-        // Intento 1: Por UID
+        // Intento 1: Por UID directo
         const staffByUid = await getDoc(doc(firestore, "users", user.uid));
         if (staffByUid.exists()) {
           foundData = staffByUid.data();
         } else {
-          // Intento 2: Por ID = Email
-          const staffByEmailId = await getDoc(doc(firestore, "users", email));
-          if (staffByEmailId.exists()) {
-            foundData = staffByEmailId.data();
-            sourceColl = "users";
-            docId = email;
+          // Intento 2: Por campo UID
+          const qStaffUid = query(collection(firestore, "users"), where("uid", "==", user.uid));
+          const snapStaffUid = await getDocs(qStaffUid);
+          if (!snapStaffUid.empty) {
+            foundData = snapStaffUid.docs[0].data();
           } else {
-            // Intento 3: Por campo email
-            const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-            const staffSnap = await getDocs(qStaff);
-            if (!staffSnap.empty) {
-              foundData = staffSnap.docs[0].data();
+            // Intento 3: Por ID = Email
+            const staffByEmailId = await getDoc(doc(firestore, "users", email));
+            if (staffByEmailId.exists()) {
+              foundData = staffByEmailId.data();
               sourceColl = "users";
-              docId = staffSnap.docs[0].id;
+              docId = email;
+            } else {
+              // Intento 4: Por campo email
+              const qStaffEmail = query(collection(firestore, "users"), where("email", "==", email));
+              const staffSnap = await getDocs(qStaffEmail);
+              if (!staffSnap.empty) {
+                foundData = staffSnap.docs[0].data();
+                sourceColl = "users";
+                docId = staffSnap.docs[0].id;
+              }
             }
           }
         }
 
         // 2. BUSCAR EN JUGADORES (all_players_index) si no es staff
         if (!foundData) {
+          // 2.1 Por UID
           const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
           if (playerByUid.exists()) {
             foundData = { ...playerByUid.data(), role: 'player' };
           } else {
-            const playerByEmailId = await getDoc(doc(firestore, "all_players_index", email));
-            if (playerByEmailId.exists()) {
-              foundData = { ...playerByEmailId.data(), role: 'player' };
-              sourceColl = "all_players_index";
-              docId = email;
+            const qPlayerUid = query(collection(firestore, "all_players_index"), where("uid", "==", user.uid));
+            const snapPlayerUid = await getDocs(qPlayerUid);
+            if (!snapPlayerUid.empty) {
+              foundData = { ...snapPlayerUid.docs[0].data(), role: 'player' };
             } else {
-              const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-              const pSnap = await getDocs(qPlayer);
-              if (!pSnap.empty) {
-                foundData = { ...pSnap.docs[0].data(), role: 'player' };
+              // 2.2 Por ID = Email
+              const playerByEmailId = await getDoc(doc(firestore, "all_players_index", email));
+              if (playerByEmailId.exists()) {
+                foundData = { ...playerByEmailId.data(), role: 'player' };
                 sourceColl = "all_players_index";
-                docId = pSnap.docs[0].id;
+                docId = email;
+              } else {
+                // 2.3 Por campo email
+                const qPlayerEmail = query(collection(firestore, "all_players_index"), where("email", "==", email));
+                const pSnap = await getDocs(qPlayerEmail);
+                if (!pSnap.empty) {
+                  foundData = { ...pSnap.docs[0].data(), role: 'player' };
+                  sourceColl = "all_players_index";
+                  docId = pSnap.docs[0].id;
+                }
               }
             }
           }
         }
 
-        // 3. AUTO-VINCULACIÓN (Si lo encontramos por email, le grabamos el UID para siempre)
+        // 3. AUTO-VINCULACIÓN (Soldadura de UID)
         if (foundData && sourceColl && docId) {
           await setDoc(doc(firestore, sourceColl, docId), { 
             uid: user.uid,
