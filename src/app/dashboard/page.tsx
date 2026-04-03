@@ -60,6 +60,29 @@ export default function DashboardRedirectPage() {
             if (oldDocId !== user.uid) {
               await deleteDoc(doc(firestore, "users", oldDocId));
               console.log(`[SOLDADURA] Staff migrado: ${oldDocId} → ${user.uid}`);
+
+              // MIGRACIÓN DE coachId EN TEAMS: actualizar cualquier equipo que
+              // tenía coachId = email (formato viejo) → coachId = uid (nuevo)
+              if (data.clubId) {
+                try {
+                  const divsSnap = await getDocs(collection(firestore, "clubs", data.clubId, "divisions"));
+                  for (const divDoc of divsSnap.docs) {
+                    const teamsSnap = await getDocs(collection(firestore, "clubs", data.clubId, "divisions", divDoc.id, "teams"));
+                    for (const teamDoc of teamsSnap.docs) {
+                      if (teamDoc.data().coachId === oldDocId) {
+                        await setDoc(
+                          doc(firestore, "clubs", data.clubId, "divisions", divDoc.id, "teams", teamDoc.id),
+                          { coachId: user.uid, coachEmail: email },
+                          { merge: true }
+                        );
+                        console.log(`[SOLDADURA] coachId en team migrado: ${oldDocId} → ${user.uid} (team: ${teamDoc.id})`);
+                      }
+                    }
+                  }
+                } catch (migErr) {
+                  console.error("[SOLDADURA] Error migrando coachId en teams:", migErr);
+                }
+              }
             }
 
             finalProfile = data;

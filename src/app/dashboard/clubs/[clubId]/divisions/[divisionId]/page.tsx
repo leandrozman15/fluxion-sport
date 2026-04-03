@@ -48,7 +48,8 @@ export default function CategoryAdminPage() {
   const [newTeam, setNewTeam] = useState({ 
     name: "", 
     coachId: "", 
-    coachName: "", 
+    coachName: "",
+    coachEmail: "",
     season: new Date().getFullYear().toString() 
   });
 
@@ -118,7 +119,7 @@ export default function CategoryAdminPage() {
       });
       
       toast({ title: "Subcategoría Creada", description: `El equipo ${newTeam.name} ha sido registrado.` });
-      setNewTeam({ name: "", coachId: "", coachName: "", season: new Date().getFullYear().toString() });
+      setNewTeam({ name: "", coachId: "", coachName: "", coachEmail: "", season: new Date().getFullYear().toString() });
       setIsCreateTeamOpen(false);
     } catch (e) {
       console.error(e);
@@ -131,8 +132,9 @@ export default function CategoryAdminPage() {
     if (selected) {
       setNewTeam({ 
         ...newTeam, 
-        coachId: selected.id, 
-        coachName: selected.name || `${selected.firstName} ${selected.lastName}` 
+        coachId: selected.id,
+        coachName: selected.name || `${selected.firstName} ${selected.lastName}`,
+        coachEmail: selected.email || ""
       });
     }
   };

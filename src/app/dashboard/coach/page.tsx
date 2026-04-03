@@ -89,7 +89,10 @@ export default function CoachDashboard() {
         }
         setClub({ ...clubDoc.data(), id: clubDoc.id });
 
-        const staffIdInDb = profile.id || user.uid;
+        // Todos los identificadores posibles del coach (UID actual + email + cualquier id legado)
+        const staffUid = user.uid;
+        const staffEmail = profile.email || userEmail;
+        const staffLegacyId = profile.id !== user.uid ? profile.id : null; // id viejo (puede ser email)
         const staffName = profile.name || `${profile.firstName} ${profile.lastName}`;
 
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
@@ -105,11 +108,12 @@ export default function CoachDashboard() {
               divisionName: divDoc.data().name,
               sport: divDoc.data().sport || 'hockey'
             }))
-            .filter(t => 
-              t.coachId === staffIdInDb || 
-              t.coachName === staffName ||
-              t.coachEmail === userEmail ||
-              t.id === profile?.teamId
+            .filter(t =>
+              t.coachId === staffUid ||
+              t.coachId === staffEmail ||
+              (staffLegacyId && t.coachId === staffLegacyId) ||
+              t.coachEmail === staffEmail ||
+              t.coachName === staffName
             );
         });
 
