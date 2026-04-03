@@ -27,7 +27,8 @@ import {
   Stethoscope,
   ChevronRight,
   Trash2,
-  ChevronDown
+  ChevronDown,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -46,6 +47,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function PlayersPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -163,16 +175,12 @@ export default function PlayersPage() {
     toast({ title: "Legajo Actualizado" });
   };
 
-  const handleDeletePlayer = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!editingPlayer) return;
-    if (confirm(`¿Seguro que deseas eliminar definitivamente el legajo de ${editingPlayer.firstName} ${editingPlayer.lastName}?`)) {
-      const playerRef = doc(db, "clubs", clubId, "players", editingPlayer.id);
-      deleteDocumentNonBlocking(playerRef);
-      setIsEditOpen(false);
-      toast({ variant: "destructive", title: "Legajo Eliminado", description: "El jugador ha sido removido del sistema." });
-    }
+  const handleDeleteConfirmed = (id: string, name: string) => {
+    const playerRef = doc(db, "clubs", clubId, "players", id);
+    deleteDocumentNonBlocking(playerRef);
+    const indexRef = doc(db, "all_players_index", id);
+    deleteDocumentNonBlocking(indexRef);
+    toast({ variant: "destructive", title: "Legajo Eliminado", description: `El registro de ${name} ha sido removido.` });
   };
 
   const filteredPlayers = players?.filter(p => {
@@ -410,13 +418,46 @@ export default function PlayersPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                  <div className="flex items-center gap-2 w-full md:w-auto justify-end">
                     <div className="hidden lg:flex flex-col items-end mr-4">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Posición</span>
                       <span className="text-xs font-bold text-slate-700">{player.position || "Sin definir"}</span>
                     </div>
-                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}><Pencil className="h-5 w-5" /></Button>
-                    <Button variant="outline" size="sm" asChild className="font-black h-11 gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-all px-6 text-[10px] uppercase tracking-widest rounded-xl">
+                    
+                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}>
+                      <Pencil className="h-5 w-5" />
+                    </Button>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-11 w-11 p-0 text-slate-400 hover:text-destructive hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-white border-none shadow-2xl rounded-[2rem]">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-2xl font-black text-slate-900">¿Confirmas la baja definitiva?</AlertDialogTitle>
+                          <AlertDialogDescription className="font-bold text-slate-500">
+                            Estás a punto de eliminar el legajo de <strong>{player.firstName} {player.lastName}</strong>. Esta acción removerá su ficha médica, deportiva y su acceso a la plataforma.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="pt-4">
+                          <AlertDialogCancel className="font-bold rounded-xl">Cancelar</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => handleDeleteConfirmed(player.id, `${player.firstName} ${player.lastName}`)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black uppercase text-xs tracking-widest rounded-xl px-8 h-11"
+                          >
+                            Eliminar Legajo
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <Button variant="outline" size="sm" asChild className="font-black h-11 gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-all px-6 text-[10px] uppercase tracking-widest rounded-xl ml-2">
                       <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>Cta. Corriente</Link>
                     </Button>
                   </div>
@@ -573,7 +614,7 @@ export default function PlayersPage() {
             </div>
           </ScrollArea>
           <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row justify-between gap-4">
-            <Button variant="ghost" onClick={handleDeletePlayer} className="font-black uppercase text-[10px] tracking-widest text-destructive hover:bg-red-50 hover:text-destructive h-14 border-2 border-transparent hover:border-red-100 gap-2">
+            <Button variant="ghost" onClick={() => { if(confirm(`¿Eliminar legajo de ${editingPlayer.firstName}?`)) handleDeleteConfirmed(editingPlayer.id, editingPlayer.firstName); setIsEditOpen(false); }} className="font-black uppercase text-[10px] tracking-widest text-destructive hover:bg-red-50 hover:text-destructive h-14 border-2 border-transparent hover:border-red-100 gap-2">
               <Trash2 className="h-4 w-4" /> Eliminar Legajo
             </Button>
             <div className="flex flex-col sm:flex-row gap-2">
