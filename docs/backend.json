@@ -18,27 +18,13 @@
           "description": "Determina el alcance de permisos: global, regional, de club o individual."
         },
         "clubId": { "type": "string" },
+        "clubName": { "type": "string" },
         "dni": { "type": "string", "description": "Documento Nacional de Identidad." },
         "birthDate": { "type": "string", "format": "date" },
-        "weight": { "type": "number", "description": "Peso en kilogramos." },
-        "height": { "type": "number", "description": "Altura en centímetros." },
-        "address": { "type": "string" },
-        "bloodType": { "type": "string", "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] },
-        "emergencyContact": { "type": "string" },
-        "emergencyPhone": { "type": "string" },
-        "tutors": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": { "type": "string" },
-              "kinship": { "type": "string" },
-              "phone": { "type": "string" }
-            }
-          },
-          "description": "Lista de responsables o tutores legales."
-        },
-        "parkingActive": { "type": "boolean", "description": "Indica si tiene el plan de estacionamiento en el predio activo." },
+        "weight": { "type": "number" },
+        "height": { "type": "number" },
+        "photoUrl": { "type": "string", "description": "URL base64 o remota de la foto de perfil." },
+        "sport": { "type": "string", "enum": ["hockey", "rugby"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "email", "role"]
@@ -69,6 +55,21 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "title", "clubId", "createdAt"]
+    },
+    "LiveMatch": {
+      "title": "Partido en Vivo",
+      "description": "Estado de un partido en tiempo real para el monitor global.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clubId": { "type": "string" },
+        "teamName": { "type": "string" },
+        "opponentName": { "type": "string" },
+        "homeScore": { "type": "number" },
+        "awayScore": { "type": "number" },
+        "timeDisplay": { "type": "string" },
+        "status": { "type": "string", "enum": ["live", "finished"] }
+      }
     }
   },
   "auth": {
@@ -77,7 +78,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "#/backend/entities/UserProfile",
-      "description": "Perfiles de usuario."
+      "description": "Cuentas de Staff y Administradores."
     },
     "/clubs/{clubId}": {
       "schema": "#/backend/entities/Club",
@@ -85,11 +86,19 @@
     },
     "/clubs/{clubId}/special_events/{eventId}": {
       "schema": "#/backend/entities/SpecialEvent",
-      "description": "Noticias y anuncios institucionales."
+      "description": "Novedades institucionales visibles para todos."
     },
     "/clubs/{clubId}/players/{playerId}": {
       "schema": "#/backend/entities/UserProfile",
-      "description": "Fichas de jugadores por club."
+      "description": "Fichas individuales del padrón del club."
+    },
+    "/all_players_index/{playerId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "Índice global para acceso de socios por email."
+    },
+    "/live_matches_index/{matchId}": {
+      "schema": "#/backend/entities/LiveMatch",
+      "description": "Monitor de partidos en tiempo real."
     }
   }
 }
