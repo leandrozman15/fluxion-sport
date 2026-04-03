@@ -69,6 +69,8 @@ export default function ClubCategoriesListPage() {
     description: "", 
     sport: "hockey",
     gender: "femenino",
+    coachId: "",
+    coachName: "",
     trainingSessions: [{ day: "", time: "" }] as TrainingSession[]
   });
 
@@ -77,6 +79,16 @@ export default function ClubCategoriesListPage() {
 
   const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
   const { data: categories, isLoading: divsLoading } = useCollection(divisionsQuery);
+
+  // Consulta de Staff para el selector de la Rama
+  const staffQuery = useMemoFirebase(() => 
+    query(
+      collection(db, "users"), 
+      where("clubId", "==", clubId), 
+      where("role", "in", ["coach", "coach_lvl1", "coach_lvl2", "coordinator", "club_admin", "admin"])
+    )
+  , [db, clubId]);
+  const { data: staff } = useCollection(staffQuery);
 
   const clubNav = [
     { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
@@ -88,6 +100,7 @@ export default function ClubCategoriesListPage() {
   ];
 
   const handleCreateDiv = () => {
+    if (!newDiv.name) return;
     const divId = doc(collection(db, "clubs", clubId, "divisions")).id;
     const divDoc = doc(db, "clubs", clubId, "divisions", divId);
     
@@ -98,7 +111,7 @@ export default function ClubCategoriesListPage() {
       createdAt: new Date().toISOString()
     });
     
-    setNewDiv({ name: "", description: "", sport: "hockey", gender: "femenino", trainingSessions: [{ day: "", time: "" }] });
+    setNewDiv({ name: "", description: "", sport: "hockey", gender: "femenino", coachId: "", coachName: "", trainingSessions: [{ day: "", time: "" }] });
     setIsCreateOpen(false);
     toast({ title: "Categoría Creada" });
   };
@@ -111,6 +124,8 @@ export default function ClubCategoriesListPage() {
       description: editingDiv.description || "",
       sport: editingDiv.sport || "hockey",
       gender: editingDiv.gender || "femenino",
+      coachId: editingDiv.coachId || "",
+      coachName: editingDiv.coachName || "",
       trainingSessions: editingDiv.trainingSessions || []
     });
     setIsEditOpen(false);
@@ -120,6 +135,18 @@ export default function ClubCategoriesListPage() {
   const handleDeleteDiv = (id: string) => {
     deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", id));
     toast({ variant: "destructive", title: "Rama Eliminada", description: "La categoría y sus datos han sido removidos." });
+  };
+
+  const handleSelectCoach = (val: string, isEdit = false) => {
+    const selected = staff?.find(s => s.id === val);
+    if (selected) {
+      const name = selected.name || `${selected.firstName} ${selected.lastName}`;
+      if (isEdit) {
+        setEditingDiv({ ...editingDiv, coachId: val, coachName: name });
+      } else {
+        setNewDiv({ ...newDiv, coachId: val, coachName: name });
+      }
+    }
   };
 
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
@@ -144,7 +171,7 @@ export default function ClubCategoriesListPage() {
               <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2.5rem]">
                 <DialogHeader>
                   <DialogTitle className="text-xl font-black text-slate-900">Crear Rama Deportiva</DialogTitle>
-                  <DialogDescription className="font-bold text-slate-500">Define una nueva área de competencia para el club.</DialogDescription>
+                  <DialogDescription className="font-bold text-slate-500">Define una nueva área de competencia y asigna un responsable.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-4">
                   <div className="space-y-2">
@@ -156,9 +183,25 @@ export default function ClubCategoriesListPage() {
                       </TabsList>
                     </Tabs>
                   </div>
+                  
                   <div className="space-y-2">
                     <Label className="font-bold text-slate-700">Nombre de la Rama</Label>
                     <Input value={newDiv.name} onChange={e => setNewDiv({...newDiv, name: e.target.value})} placeholder="Ej. Rama Femenina, Juveniles..." className="h-12 border-2 font-bold" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Entrenador Responsable (Nivel 1 o 2)</Label>
+                    <Select value={newDiv.coachId} onValueChange={(v) => handleSelectCoach(v, false)}>
+                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
+                      <SelectContent>
+                        {staff?.map((s: any) => (
+                          <SelectItem key={s.id} value={s.id} className="font-bold">
+                            {s.name || `${s.firstName} ${s.lastName}`}
+                            <span className="ml-2 opacity-50 text-[10px]">({s.role === 'coach_lvl1' ? 'Nivel 1' : s.role === 'coach_lvl2' ? 'Nivel 2' : 'Staff'})</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
@@ -196,6 +239,21 @@ export default function ClubCategoriesListPage() {
             <div className="space-y-2">
               <Label className="font-bold text-slate-700">Nombre</Label>
               <Input value={editingDiv?.name || ""} onChange={e => setEditingDiv({...editingDiv, name: e.target.value})} className="h-12 border-2 font-bold" />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Entrenador Responsable</Label>
+              <Select value={editingDiv?.coachId || ""} onValueChange={(v) => handleSelectCoach(v, true)}>
+                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
+                <SelectContent>
+                  {staff?.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id} className="font-bold">
+                      {s.name || `${s.firstName} ${s.lastName}`}
+                      <span className="ml-2 opacity-50 text-[10px]">({s.role === 'coach_lvl1' ? 'Nivel 1' : s.role === 'coach_lvl2' ? 'Nivel 2' : 'Staff'})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
@@ -271,6 +329,11 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
               <Badge variant="outline" className="border-primary text-primary font-black text-[8px] px-2 h-4 uppercase">{division.gender || 'Femenino'}</Badge>
             </div>
             <h3 className="font-black text-xl text-slate-900 leading-none">{division.name}</h3>
+            {division.coachName && (
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
+                <UserRound className="h-3 w-3 text-primary" /> Dirige: {division.coachName}
+              </p>
+            )}
           </div>
         </div>
 
