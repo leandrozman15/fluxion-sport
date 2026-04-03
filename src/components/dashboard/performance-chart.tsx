@@ -1,52 +1,55 @@
 
 "use client";
 
-import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer, YAxis, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-
-const chartData = [
-  { month: "Jan", revenue: 4500, expenses: 3000 },
-  { month: "Feb", revenue: 5200, expenses: 3100 },
-  { month: "Mar", revenue: 4800, expenses: 2900 },
-  { month: "Apr", revenue: 6100, expenses: 3500 },
-  { month: "May", revenue: 5900, expenses: 3200 },
-  { month: "Jun", revenue: 7200, expenses: 3800 },
-];
+import { Loader2, TrendingUp } from "lucide-react";
 
 const chartConfig = {
   revenue: {
-    label: "Revenue",
-    color: "hsl(var(--chart-1))",
+    label: "Ingresos",
+    color: "hsl(var(--primary))",
   },
   expenses: {
-    label: "Expenses",
-    color: "hsl(var(--chart-2))",
+    label: "Gastos",
+    color: "hsl(var(--destructive))",
   },
 } satisfies ChartConfig;
 
-export function PerformanceChart() {
-  return (
+export function PerformanceChart({ data = [], isLoading = false }: { data?: any[], isLoading?: boolean }) {
+  if (isLoading) return (
     <Card className="col-span-1 md:col-span-2">
-      <CardHeader>
-        <CardTitle>Financial Performance</CardTitle>
-        <CardDescription>Monthly comparison of revenue vs expenses</CardDescription>
+      <CardContent className="h-[300px] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <Card className="col-span-1 md:col-span-2 border-none shadow-2xl bg-white rounded-[2rem] overflow-hidden">
+      <CardHeader className="bg-slate-50 border-b border-slate-100">
+        <CardTitle className="text-xl font-black text-slate-900 flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-primary" /> Rendimiento Financiero
+        </CardTitle>
+        <CardDescription className="font-bold text-slate-500 italic">Comparativa mensual de flujos de caja.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-8">
         <ChartContainer config={chartConfig}>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <BarChart data={data.length > 0 ? data : [{ month: "Sin Datos", revenue: 0, expenses: 0 }]}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis
                 dataKey="month"
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
-                tickFormatter={(value) => value}
+                className="font-black text-[10px] uppercase tracking-widest text-slate-400"
               />
+              <YAxis hide />
               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-              <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-              <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
+              <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="expenses" fill="var(--color-expenses)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>

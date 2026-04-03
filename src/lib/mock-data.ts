@@ -1,4 +1,9 @@
 
+/**
+ * @fileOverview Bases de datos locales eliminadas. 
+ * Toda la información del sistema Fluxion Sport se lee ahora exclusivamente de Firestore.
+ */
+
 export interface Transaction {
   id: string;
   amount: number;
@@ -17,22 +22,13 @@ export interface Appointment {
   status: 'confirmed' | 'pending' | 'cancelled';
 }
 
-// --- BASES DE DATOS VACIADAS PARA REINICIO DEL SISTEMA ---
-
+// Bases de datos vacías para asegurar que no se use información estática
 export const mockTransactions: Transaction[] = [];
-
 export const mockAppointments: Appointment[] = [];
-
 export const demoFederations: any[] = [];
-
 export const demoAssociations: any[] = [];
-
 export const demoClubs: any[] = [];
-
 export const demoPlayers: any[] = [];
-
 export const demoTournaments: any[] = [];
-
 export const demoStandings: any[] = [];
-
 export const demoMatches: any[] = [];
