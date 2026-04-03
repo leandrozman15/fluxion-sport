@@ -191,11 +191,11 @@ export default function GlobalFixtureManagerPage() {
 
       <div className="grid grid-cols-1 gap-6">
         <Card className="border-none shadow-2xl bg-white/95 backdrop-blur-md overflow-hidden">
-          <CardHeader className="bg-slate-900 text-white pb-6">
-            <CardTitle className="text-xl font-black flex items-center gap-3">
+          <CardHeader className="bg-slate-50 border-b pb-6">
+            <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
               <CalendarDays className="h-6 w-6 text-primary" /> Calendario Unificado de Competencia
             </CardTitle>
-            <CardDescription className="text-white/60 font-bold italic">Monitor de partidos programados en todas las categorías.</CardDescription>
+            <CardDescription className="text-slate-500 font-bold italic">Monitor de partidos programados en todas las categorías.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <div className="p-16 text-center space-y-4">

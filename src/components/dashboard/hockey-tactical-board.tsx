@@ -18,7 +18,9 @@ import {
   FolderOpen,
   ChevronRight,
   Loader2,
-  Palette
+  Palette,
+  Plus,
+  UserX
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,7 @@ interface PositionSlot {
   y: number;
   label: string;
   assignedPlayerId: string | null;
+  type?: 'home' | 'away';
 }
 
 interface TacticalBoardProps {
@@ -65,7 +68,8 @@ export function HockeyTacticalBoard({
   const [playerCount, setPlayerCount] = useState(initialPlayerCount);
   const [sport, setSport] = useState<'hockey' | 'rugby'>(initialSport);
   const [positions, setPositions] = useState<PositionSlot[]>([]);
-  const [draggingPosId, setDragPosId] = useState<string | null>(null);
+  const [rivals, setRivals] = useState<PositionSlot[]>([]);
+  const [draggingId, setDraggingId] = useState<{ id: string, type: 'home' | 'away' } | null>(null);
   
   // Drawing States
   const [isDrawing, setIsDrawing] = useState(false);
@@ -95,29 +99,29 @@ export function HockeyTacticalBoard({
     const newPositions: PositionSlot[] = [];
     
     if (sport === 'hockey') {
-      newPositions.push({ id: 'pos-gk', x: 50, y: 90, label: 'GK', assignedPlayerId: null });
+      newPositions.push({ id: 'pos-gk', x: 50, y: 90, label: 'GK', assignedPlayerId: null, type: 'home' });
       const remaining = playerCount - 1;
       const defCount = Math.ceil(remaining * 0.35);
       const midCount = Math.ceil(remaining * 0.35);
       const fwdCount = Math.max(0, remaining - defCount - midCount);
 
       for (let i = 0; i < defCount; i++) {
-        newPositions.push({ id: `pos-df-${i}`, x: (100 / (defCount + 1)) * (i + 1), y: 70, label: 'DF', assignedPlayerId: null });
+        newPositions.push({ id: `pos-df-${i}`, x: (100 / (defCount + 1)) * (i + 1), y: 70, label: 'DF', assignedPlayerId: null, type: 'home' });
       }
       for (let i = 0; i < midCount; i++) {
-        newPositions.push({ id: `pos-md-${i}`, x: (100 / (midCount + 1)) * (i + 1), y: 45, label: 'MF', assignedPlayerId: null });
+        newPositions.push({ id: `pos-md-${i}`, x: (100 / (midCount + 1)) * (i + 1), y: 45, label: 'MF', assignedPlayerId: null, type: 'home' });
       }
       for (let i = 0; i < fwdCount; i++) {
-        newPositions.push({ id: `pos-fw-${i}`, x: (100 / (fwdCount + 1)) * (i + 1), y: 20, label: 'FW', assignedPlayerId: null });
+        newPositions.push({ id: `pos-fw-${i}`, x: (100 / (fwdCount + 1)) * (i + 1), y: 20, label: 'FW', assignedPlayerId: null, type: 'home' });
       }
     } else {
       const fwds = Math.ceil(playerCount * 0.5);
       const backs = playerCount - fwds;
       for (let i = 0; i < fwds; i++) {
-        newPositions.push({ id: `pos-rug-f-${i}`, x: (100 / (fwds + 1)) * (i + 1), y: 60, label: 'FWD', assignedPlayerId: null });
+        newPositions.push({ id: `pos-rug-f-${i}`, x: (100 / (fwds + 1)) * (i + 1), y: 60, label: 'FWD', assignedPlayerId: null, type: 'home' });
       }
       for (let i = 0; i < backs; i++) {
-        newPositions.push({ id: `pos-rug-b-${i}`, x: (100 / (backs + 1)) * (i + 1), y: 35, label: 'BCK', assignedPlayerId: null });
+        newPositions.push({ id: `pos-rug-b-${i}`, x: (100 / (backs + 1)) * (i + 1), y: 35, label: 'BCK', assignedPlayerId: null, type: 'home' });
       }
     }
 
@@ -191,18 +195,25 @@ export function HockeyTacticalBoard({
       draw(e);
       return;
     }
-    if (!draggingPosId || !fieldRef.current) return;
+    if (!draggingId || !fieldRef.current) return;
     const rect = fieldRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setPositions(prev => prev.map(p => 
-      p.id === draggingPosId ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
-    ));
+
+    if (draggingId.type === 'home') {
+      setPositions(prev => prev.map(p => 
+        p.id === draggingId.id ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
+      ));
+    } else {
+      setRivals(prev => prev.map(p => 
+        p.id === draggingId.id ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
+      ));
+    }
   };
 
   const handleMouseUp = () => {
     stopDrawing();
-    setDragPosId(null);
+    setDraggingId(null);
   };
 
   const onDragStartPlayer = (e: React.DragEvent, playerId: string) => {
@@ -217,6 +228,22 @@ export function HockeyTacticalBoard({
       const cleaned = prev.map(p => p.assignedPlayerId === playerId ? { ...p, assignedPlayerId: null } : p);
       return cleaned.map(p => p.id === slotId ? { ...p, assignedPlayerId: playerId } : p);
     });
+  };
+
+  const addRivalMarker = () => {
+    const newId = `rival-${Date.now()}`;
+    setRivals(prev => [...prev, {
+      id: newId,
+      x: 50,
+      y: 10,
+      label: `R${prev.length + 1}`,
+      assignedPlayerId: null,
+      type: 'away'
+    }]);
+  };
+
+  const deleteRivalMarker = (id: string) => {
+    setRivals(prev => prev.filter(r => r.id !== id));
   };
 
   const updateSettings = (newCount: number, newSport: 'hockey' | 'rugby') => {
@@ -243,6 +270,7 @@ export function HockeyTacticalBoard({
         sport,
         playerCount,
         positions,
+        rivals,
         drawingData,
         createdAt: new Date().toISOString()
       });
@@ -262,6 +290,7 @@ export function HockeyTacticalBoard({
     setSport(tactic.sport);
     setPlayerCount(tactic.playerCount);
     setPositions(tactic.positions);
+    setRivals(tactic.rivals || []);
     
     if (tactic.drawingData && canvasRef.current) {
       const canvas = canvasRef.current;
@@ -396,6 +425,7 @@ export function HockeyTacticalBoard({
             )}
           />
 
+          {/* Local Players */}
           {positions.map((p) => {
             const player = roster.find(r => r.playerId === p.assignedPlayerId);
             const isCaptain = p.assignedPlayerId === captainId;
@@ -404,10 +434,10 @@ export function HockeyTacticalBoard({
                 key={p.id}
                 className={cn(
                   "absolute -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 z-30",
-                  draggingPosId === p.id ? "scale-125 z-50 shadow-2xl" : ""
+                  draggingId?.id === p.id && draggingId?.type === 'home' ? "scale-125 z-50 shadow-2xl" : ""
                 )}
                 style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                onMouseDown={!drawMode ? () => setDragPosId(p.id) : undefined}
+                onMouseDown={!drawMode ? () => setDraggingId({ id: p.id, type: 'home' }) : undefined}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => onDropOnSlot(e, p.id)}
               >
@@ -436,6 +466,33 @@ export function HockeyTacticalBoard({
               </div>
             );
           })}
+
+          {/* Rival Players */}
+          {rivals.map((r) => (
+            <div
+              key={r.id}
+              className={cn(
+                "absolute -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 z-40",
+                draggingId?.id === r.id && draggingId?.type === 'away' ? "scale-125 z-50 shadow-2xl" : ""
+              )}
+              style={{ left: `${r.x}%`, top: `${r.y}%` }}
+              onMouseDown={!drawMode ? () => setDraggingId({ id: r.id, type: 'away' }) : undefined}
+            >
+              <div className="flex flex-col items-center group cursor-grab active:cursor-grabbing">
+                <div className="relative">
+                  <div className="h-10 w-10 border-4 border-accent bg-white rounded-full flex items-center justify-center shadow-xl font-black text-[10px] text-accent">
+                    {r.label}
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); deleteRivalMarker(r.id); }}
+                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                  >
+                    <UserX className="h-2 w-2" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -447,7 +504,7 @@ export function HockeyTacticalBoard({
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[280px]">
+            <ScrollArea className="h-[200px]">
               {tacticsLoading ? (
                 <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>
               ) : savedTactics?.length === 0 ? (
@@ -473,7 +530,7 @@ export function HockeyTacticalBoard({
 
         <Card className="border-none bg-white shadow-2xl overflow-hidden rounded-[2rem]">
           <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
-            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ajustes del Campo</CardTitle>
+            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500">Ajustes del Campo</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
             <div className="space-y-3">
@@ -488,15 +545,26 @@ export function HockeyTacticalBoard({
 
             <div className="space-y-4 bg-slate-50 p-4 rounded-xl border">
               <div className="flex justify-between items-center">
-                <Label className="text-[10px] font-black uppercase">Plantel</Label>
+                <Label className="text-[10px] font-black uppercase">Plantel Local</Label>
                 <div className="px-2.5 py-0.5 rounded-full bg-primary text-white font-black text-[10px]">{playerCount}</div>
               </div>
               <Slider value={[playerCount]} min={5} max={sport === 'rugby' ? 15 : 11} step={1} onValueChange={(v) => updateSettings(v[0], sport)} />
             </div>
 
+            <div className="space-y-3">
+              <Button 
+                onClick={addRivalMarker}
+                variant="outline"
+                className="w-full h-11 font-black uppercase text-[10px] tracking-widest border-accent text-accent hover:bg-accent hover:text-white transition-all gap-2 rounded-xl"
+              >
+                <Plus className="h-4 w-4" /> Añadir Ficha Rival
+              </Button>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center italic">Añade fichas para simular al oponente</p>
+            </div>
+
             <div className="space-y-2">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Arrastrar jugadora al campo:</p>
-              <ScrollArea className="h-[180px] pr-2">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Local (Arrastra al campo):</p>
+              <ScrollArea className="h-[150px] pr-2">
                 <div className="space-y-1.5">
                   {roster.map((player: any) => {
                     const isAssigned = positions.some(p => p.assignedPlayerId === player.playerId);
