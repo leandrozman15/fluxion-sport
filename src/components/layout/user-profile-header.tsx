@@ -80,6 +80,10 @@ export function UserProfileHeader() {
           icon: Settings, 
           color: "text-orange-600" 
         };
+      case 'coach_lvl1':
+        return { label: "Entrenador Nivel 1", icon: UserCheck, color: "text-blue-700" };
+      case 'coach_lvl2':
+        return { label: "Entrenador Nivel 2", icon: UserCheck, color: "text-blue-500" };
       case 'coach': 
         return { label: "Entrenador Oficial", icon: UserCheck, color: "text-blue-600" };
       case 'player': 

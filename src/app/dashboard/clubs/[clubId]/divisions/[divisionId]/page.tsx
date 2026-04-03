@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { 
   Plus, 
   Loader2,
@@ -20,8 +20,8 @@ import {
   LayoutGrid
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, query, where } from "firebase/firestore";
-import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { collection, doc, setDoc, query, where, getDoc } from "firebase/firestore";
+import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,10 +36,13 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function CategoryAdminPage() {
   const { clubId, divisionId } = useParams() as { clubId: string, divisionId: string };
+  const { user, firestore } = useFirebase();
   const db = useFirestore();
+  const router = useRouter();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   
   const [newTeam, setNewTeam] = useState({ 
     name: "", 
@@ -47,6 +50,29 @@ export default function CategoryAdminPage() {
     coachName: "", 
     season: new Date().getFullYear().toString() 
   });
+
+  // 0. Seguridad de Roles
+  useEffect(() => {
+    async function checkAccess() {
+      if (!user || !firestore) return;
+      try {
+        const userDoc = await getDoc(doc(firestore, "users", user.uid));
+        if (userDoc.exists()) {
+          const role = userDoc.data().role;
+          // Bloquear si es Coach Nivel 2
+          if (role === 'coach_lvl2') {
+            toast({ variant: "destructive", title: "Acceso Denegado", description: "Tu nivel de usuario no permite administrar categorías." });
+            router.replace('/dashboard/coach');
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+    checkAccess();
+  }, [user, firestore, router]);
 
   // 1. Datos de la Categoría (División)
   const divRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId), [db, clubId, divisionId]);
@@ -62,7 +88,7 @@ export default function CategoryAdminPage() {
 
   // 4. Staff Técnico (Todos los coaches del club)
   const coachesQuery = useMemoFirebase(() => 
-    query(collection(db, "users"), where("clubId", "==", clubId), where("role", "in", ["coach", "coordinator"]))
+    query(collection(db, "users"), where("clubId", "==", clubId), where("role", "in", ["coach", "coach_lvl1", "coach_lvl2", "coordinator"]))
   , [db, clubId]);
   const { data: allCoaches } = useCollection(coachesQuery);
 
@@ -100,7 +126,7 @@ export default function CategoryAdminPage() {
     }
   };
 
-  if (divLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
+  if (authLoading || divLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   const filteredPlayers = allPlayers?.filter(p => 
     `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -276,7 +302,9 @@ export default function CategoryAdminPage() {
                     </Avatar>
                     <div className="min-w-0">
                       <p className="font-black text-slate-900 text-lg leading-none truncate">{coach.name || `${coach.firstName} ${coach.lastName}`}</p>
-                      <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-tighter mt-1">{coach.role === 'coordinator' ? 'COORDINADOR' : 'ENTRENADOR'}</Badge>
+                      <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-tighter mt-1">
+                        {coach.role === 'coordinator' ? 'COORDINADOR' : coach.role === 'coach_lvl1' ? 'NIVEL 1' : 'ENTRENADOR'}
+                      </Badge>
                     </div>
                   </div>
                   <div className="mt-6 pt-4 border-t border-slate-50 flex justify-between items-center">

@@ -18,7 +18,8 @@ import {
   ShieldCheck,
   ShoppingBag,
   Trophy,
-  ArrowRight
+  ArrowRight,
+  ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -51,25 +52,15 @@ export default function CoachDashboard() {
       if (!user || !firestore) return;
       try {
         const userEmail = user.email?.toLowerCase().trim();
-        if (!userEmail) {
-          const uidDoc = await getDoc(doc(firestore, "users", user.uid));
-          if (uidDoc.exists()) {
-            const profile = uidDoc.data();
-            setStaffProfile(profile);
-            setLoading(false);
-            return;
-          }
-          setLoading(false);
-          return;
-        }
-
-        const staffQuery = query(collection(firestore, "users"), where("email", "==", userEmail));
-        const staffSnap = await getDocs(staffQuery);
-        let profile = staffSnap.empty ? null : staffSnap.docs[0].data();
+        let profile = null;
         
-        if (!profile) {
-          const uidDoc = await getDoc(doc(firestore, "users", user.uid));
-          if (uidDoc.exists()) profile = uidDoc.data();
+        const uidDoc = await getDoc(doc(firestore, "users", user.uid));
+        if (uidDoc.exists()) profile = uidDoc.data();
+
+        if (!profile && userEmail) {
+          const staffQuery = query(collection(firestore, "users"), where("email", "==", userEmail));
+          const staffSnap = await getDocs(staffQuery);
+          if (!staffSnap.empty) profile = staffSnap.docs[0].data();
         }
 
         if (!profile) {
@@ -185,6 +176,8 @@ export default function CoachDashboard() {
     </div>
   );
 
+  const isLvl1 = staffProfile?.role === 'coach_lvl1' || staffProfile?.role === 'coordinator' || staffProfile?.role === 'club_admin' || staffProfile?.role === 'admin';
+
   if (myTeams.length === 0) return (
     <div className="flex flex-col md:flex-row gap-8 min-h-screen">
       <SectionNav items={coachNav} basePath="/dashboard/coach" />
@@ -219,7 +212,10 @@ export default function CoachDashboard() {
                   </Badge>
                 )}
               </div>
-              <p className="text-white font-black uppercase tracking-[0.3em] text-[9px] drop-shadow-md opacity-90">{selectedTeam.divisionName} • Consola Técnica</p>
+              <p className="text-white font-black uppercase tracking-[0.3em] text-[9px] drop-shadow-md opacity-90">
+                {selectedTeam.divisionName} • Consola Técnica 
+                {staffProfile?.role === 'coach_lvl1' && " (Admin Nivel 1)"}
+              </p>
             </div>
             
             <div className="flex flex-col gap-3">
@@ -245,17 +241,24 @@ export default function CoachDashboard() {
                   <ScrollBar orientation="horizontal" className="h-1" />
                 </ScrollArea>
               )}
-              <div className="grid grid-cols-2 gap-2 w-full">
-                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl font-black uppercase text-[10px] tracking-widest h-12 gap-2">
+              <div className="flex flex-wrap gap-2 w-full">
+                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl font-black uppercase text-[10px] tracking-widest h-12 gap-2 flex-1 min-w-[140px]">
                   <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/match-live`}>
                     <PlayCircle className="h-5 w-5" /> Iniciar Live
                   </Link>
                 </Button>
-                <Button variant="outline" asChild className="font-black border-white/40 text-white bg-black/20 hover:bg-black/40 backdrop-blur-md h-12 gap-2 uppercase text-[10px] tracking-widest">
+                <Button variant="outline" asChild className="font-black border-white/40 text-white bg-black/20 hover:bg-black/40 backdrop-blur-md h-12 gap-2 uppercase text-[10px] tracking-widest flex-1 min-w-[140px]">
                   <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events`}>
                     <Calendar className="h-5 w-5" /> Agenda
                   </Link>
                 </Button>
+                {isLvl1 && (
+                  <Button asChild variant="secondary" className="h-12 px-6 font-black uppercase text-[10px] tracking-widest gap-2 bg-white text-primary hover:bg-slate-50 shadow-xl">
+                    <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}`}>
+                      <Settings2 className="h-5 w-5" /> Administrar Rama
+                    </Link>
+                  </Button>
+                )}
               </div>
             </div>
           </div>

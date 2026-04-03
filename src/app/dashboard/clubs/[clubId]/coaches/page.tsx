@@ -65,7 +65,7 @@ export default function ClubCoachesPage() {
     dni: "",
     address: "",
     password: "",
-    role: "coach",
+    role: "coach_lvl2",
     specialty: "",
     license: "",
     photoUrl: "",
@@ -79,7 +79,7 @@ export default function ClubCoachesPage() {
     query(
       collection(db, "users"), 
       where("clubId", "==", clubId),
-      where("role", "in", ["coach", "coordinator", "club_admin"])
+      where("role", "in", ["coach", "coach_lvl1", "coach_lvl2", "coordinator", "club_admin"])
     ),
     [db, clubId]
   );
@@ -116,7 +116,7 @@ export default function ClubCoachesPage() {
       });
       
       toast({ title: "Miembro Registrado", description: `Cuenta creada para ${newCoach.name}.` });
-      setNewCoach({ name: "", email: "", phone: "", dni: "", address: "", password: "", role: "coach", specialty: "", license: "", photoUrl: "", sport: "hockey" });
+      setNewCoach({ name: "", email: "", phone: "", dni: "", address: "", password: "", role: "coach_lvl2", specialty: "", license: "", photoUrl: "", sport: "hockey" });
       setIsCreateOpen(false);
     } catch (error) {
       console.error(error);
@@ -152,6 +152,8 @@ export default function ClubCoachesPage() {
 
   const getRoleLabel = (role: string) => {
     switch(role) {
+      case 'coach_lvl1': return 'Entrenador Nivel 1';
+      case 'coach_lvl2': return 'Entrenador Nivel 2';
       case 'coach': return 'Entrenador';
       case 'coordinator': return 'Coordinador';
       case 'club_admin': return 'Administrador Club';
@@ -213,7 +215,8 @@ export default function ClubCoachesPage() {
                     <Select value={newCoach.role} onValueChange={v => setNewCoach({...newCoach, role: v})}>
                       <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="coach" className="font-bold">Entrenador Oficial</SelectItem>
+                        <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Admin Categoria)</SelectItem>
+                        <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
                         <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
                         <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
                       </SelectContent>
@@ -292,14 +295,16 @@ export default function ClubCoachesPage() {
                       <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
                         <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
                       </div>
-                      <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
-                        <Mail className="h-4 w-4 text-primary" /> {coach.email}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-                        <Phone className="h-4 w-4 text-primary" /> {coach.phone || 'Sin teléfono'}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600 truncate">
-                        <MapPin className="h-4 w-4 text-primary" /> {coach.address || 'Sin dirección'}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                          <Mail className="h-4 w-4 text-primary" /> {coach.email}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+                          <Phone className="h-4 w-4 text-primary" /> {coach.phone || 'Sin teléfono'}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs font-bold text-slate-600 truncate">
+                          <MapPin className="h-4 w-4 text-primary" /> {coach.address || 'Sin dirección'}
+                        </div>
                       </div>
                     </div>
 
@@ -365,6 +370,18 @@ export default function ClubCoachesPage() {
             <div className="space-y-2">
               <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Completo</Label>
               <Input value={editingCoach?.name || ""} onChange={e => setEditingCoach({...editingCoach, name: e.target.value})} className="h-12 border-2 font-bold" />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Rol Institucional</Label>
+              <Select value={editingCoach?.role} onValueChange={v => setEditingCoach({...editingCoach, role: v})}>
+                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Admin Categoria)</SelectItem>
+                  <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
+                  <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
+                  <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

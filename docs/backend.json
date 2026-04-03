@@ -14,7 +14,7 @@
         "phone": { "type": "string" },
         "role": { 
           "type": "string", 
-          "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee", "coordinator"]
+          "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach_lvl1", "coach_lvl2", "coach", "player", "referee", "coordinator"]
         },
         "clubId": { "type": "string" },
         "clubName": { "type": "string" },
