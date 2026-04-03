@@ -3,14 +3,12 @@
 
 import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
-import { doc, getDoc, collection, query, where, onSnapshot, limit, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Shield, UserCheck, UserCircle, Settings } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
@@ -21,59 +19,43 @@ export function UserProfileHeader() {
     if (!user || !firestore) return;
     const email = user.email?.toLowerCase().trim() || "";
 
-    async function findAndListenProfile() {
+    async function findProfile() {
       try {
-        // 1. Intentar por Email como ID (común en staff y jugadores con acceso)
-        if (email) {
-          const emailRef = doc(firestore, "users", email);
-          const emailSnap = await getDoc(emailRef);
-          if (emailSnap.exists()) {
-            setupListener(emailRef);
-            return;
-          }
-        }
-
-        // 2. Intentar por UID directo
-        const uidRef = doc(firestore, "users", user.uid);
-        const uidSnap = await getDoc(uidRef);
-        if (uidSnap.exists()) {
-          setupListener(uidRef);
+        // Intentar STAFF por UID
+        const staffRef = doc(firestore, "users", user.uid);
+        const staffSnap = await getDoc(staffRef);
+        if (staffSnap.exists()) {
+          setProfile(staffSnap.data());
           return;
         }
 
-        // 3. Buscar en padrón de jugadores por email
+        // Intentar STAFF por Email
         if (email) {
-          const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email), limit(1));
-          const playerSnap = await getDocs(qPlayer);
-          if (!playerSnap.empty) {
-            setupListener(playerSnap.docs[0].ref);
+          const qStaff = query(collection(firestore, "users"), where("email", "==", email));
+          const staffByEmail = await getDocs(qStaff);
+          if (!staffByEmail.empty) {
+            setProfile(staffByEmail.docs[0].data());
             return;
           }
         }
 
-        // Fallback si no se encuentra nada
+        // Intentar JUGADOR por Email en índice global
+        if (email) {
+          const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
+          const playerSnap = await getDocs(qPlayer);
+          if (!playerSnap.empty) {
+            setProfile({ ...playerSnap.docs[0].data(), role: 'player' });
+            return;
+          }
+        }
+
         setProfile({ name: user.email, role: 'guest' });
       } catch (e) {
-        console.error("Error buscando perfil:", e);
+        console.error("Error identificando usuario:", e);
       }
     }
 
-    function setupListener(ref: any) {
-      return onSnapshot(ref, (snap) => {
-        if (snap.exists()) {
-          setProfile(snap.data());
-        }
-      }, (error) => {
-        if (error.code === 'permission-denied') {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: ref.path,
-            operation: 'get'
-          }));
-        }
-      });
-    }
-
-    findAndListenProfile();
+    findProfile();
   }, [user, firestore]);
 
   const handleLogout = async () => {
@@ -84,15 +66,13 @@ export function UserProfileHeader() {
   if (!user) return null;
 
   const role = profile?.role || "guest";
-  const sport = profile?.sport || "hockey";
-
-  const getRoleDisplay = () => {
+  const display = (() => {
     switch(role) {
       case 'admin': 
       case 'club_admin':
         return { label: "Director Club", icon: Shield, color: "text-primary" };
       case 'coordinator': 
-        return { label: `Coord. ${sport === 'rugby' ? 'Rugby' : 'Hockey'}`, icon: Settings, color: "text-orange-600" };
+        return { label: "Coordinador", icon: Settings, color: "text-orange-600" };
       case 'coach_lvl1':
       case 'coach_lvl2':
       case 'coach': 
@@ -102,13 +82,11 @@ export function UserProfileHeader() {
       default: 
         return { label: "Usuario Fluxion", icon: UserCircle, color: "text-slate-500" };
     }
-  };
-
-  const display = getRoleDisplay();
+  })();
 
   return (
     <div className="w-full px-8 pt-6 flex justify-end items-center gap-4 z-50">
-      <div className="flex items-center gap-4 bg-white/95 backdrop-blur-md p-2 pl-2 pr-5 rounded-full border border-slate-200 shadow-lg group transition-all">
+      <div className="flex items-center gap-4 bg-white/95 backdrop-blur-md p-2 pl-2 pr-5 rounded-full border border-slate-200 shadow-lg">
         <Avatar className="h-10 w-10 border-2 border-slate-100 shadow-sm">
           <AvatarImage src={profile?.photoUrl} className="object-cover" />
           <AvatarFallback className="bg-primary/5 text-primary text-xs font-black">
