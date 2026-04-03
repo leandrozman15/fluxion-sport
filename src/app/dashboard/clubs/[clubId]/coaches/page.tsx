@@ -267,22 +267,18 @@ export default function ClubCoachesPage() {
                       </div>
                     </div>
 
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
-                          <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
-                          <Mail className="h-4 w-4 text-primary" /> {coach.email}
-                        </div>
+                    <div className="flex-1 p-6 space-y-2.5">
+                      <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                        <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-                          <Phone className="h-4 w-4 text-primary" /> {coach.phone || 'Sin teléfono'}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs font-bold text-slate-600 truncate">
-                          <MapPin className="h-4 w-4 text-primary" /> {coach.address || 'Sin dirección'}
-                        </div>
+                      <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                        <Mail className="h-4 w-4 text-primary" /> {coach.email}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+                        <Phone className="h-4 w-4 text-primary" /> {coach.phone || 'Sin teléfono'}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600 truncate">
+                        <MapPin className="h-4 w-4 text-primary" /> {coach.address || 'Sin dirección'}
                       </div>
                     </div>
 
