@@ -1,0 +1,3 @@
+{
+  "/dashboard/clubs/[clubId]/divisions/[divisionId]/subcategories/[subcategoryId]/page": "app/dashboard/clubs/[clubId]/divisions/[divisionId]/subcategories/[subcategoryId]/page.js"
+}

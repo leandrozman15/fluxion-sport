@@ -1,0 +1,3 @@
+{
+  "/dashboard/federations/[federationId]/associations/[associationId]/page": "app/dashboard/federations/[federationId]/associations/[associationId]/page.js"
+}

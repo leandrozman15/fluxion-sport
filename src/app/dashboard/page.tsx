@@ -5,11 +5,12 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trophy } from "lucide-react";
 import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 /**
- * MOTOR DE REDIRECCIÓN Y SOLDADURA DE IDENTIDAD (V5 - FINAL)
- * Este componente es el corazón de la vinculación UID <-> EMAIL.
+ * MOTOR DE REDIRECCIÓN Y SOLDADURA DE IDENTIDAD (V6 - MIGRACIÓN COMPLETA)
+ * Vincula UID <-> EMAIL y ELIMINA los documentos originales basados en email
+ * para evitar duplicados y desincronización.
  */
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -23,7 +24,7 @@ export default function DashboardRedirectPage() {
         const email = user.email?.toLowerCase().trim() || "";
         let finalProfile: any = null;
 
-        // 1. BUSCAR VÍNCULO EXISTENTE POR UID
+        // 1. BUSCAR VÍNCULO EXISTENTE POR UID (ya migrado)
         const staffByUid = await getDoc(doc(firestore, "users", user.uid));
         if (staffByUid.exists()) {
           finalProfile = staffByUid.data();
@@ -41,23 +42,38 @@ export default function DashboardRedirectPage() {
           const snapStaff = await getDocs(qStaff);
           
           if (!snapStaff.empty) {
-            const data = snapStaff.docs[0].data();
+            const oldDoc = snapStaff.docs[0];
+            const oldDocId = oldDoc.id;
+            const data = oldDoc.data();
+
             // SOLDADURA MAESTRA: Creamos documento con ID = UID
             await setDoc(doc(firestore, "users", user.uid), {
               ...data,
               id: user.uid,
               uid: user.uid,
+              email: email,
               updatedAt: new Date().toISOString()
             });
+
+            // LIMPIEZA: Eliminar el documento original basado en email
+            // para evitar duplicados en queries de staff
+            if (oldDocId !== user.uid) {
+              await deleteDoc(doc(firestore, "users", oldDocId));
+              console.log(`[SOLDADURA] Staff migrado: ${oldDocId} → ${user.uid}`);
+            }
+
             finalProfile = data;
           } else {
-            // Buscar en JUGADORES
+            // Buscar en JUGADORES (índice global)
             const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
             const snapPlayer = await getDocs(qPlayer);
             
             if (!snapPlayer.empty) {
-              const data = snapPlayer.docs[0].data();
-              // SOLDADURA MAESTRA JUGADOR: Creamos documento con ID = UID
+              const oldDoc = snapPlayer.docs[0];
+              const oldDocId = oldDoc.id;
+              const data = oldDoc.data();
+
+              // SOLDADURA MAESTRA JUGADOR: Crear doc con ID = UID en el índice global
               await setDoc(doc(firestore, "all_players_index", user.uid), {
                 ...data,
                 id: user.uid,
@@ -65,6 +81,30 @@ export default function DashboardRedirectPage() {
                 role: 'player',
                 updatedAt: new Date().toISOString()
               });
+
+              // LIMPIEZA índice global
+              if (oldDocId !== user.uid) {
+                await deleteDoc(doc(firestore, "all_players_index", oldDocId));
+                console.log(`[SOLDADURA] Índice jugador migrado: ${oldDocId} → ${user.uid}`);
+              }
+
+              // MIGRAR DOCUMENTO PRINCIPAL DEL JUGADOR DENTRO DEL CLUB
+              if (data.clubId && oldDocId !== user.uid) {
+                const oldPlayerRef = doc(firestore, "clubs", data.clubId, "players", oldDocId);
+                const oldPlayerSnap = await getDoc(oldPlayerRef);
+                if (oldPlayerSnap.exists()) {
+                  const playerData = oldPlayerSnap.data();
+                  await setDoc(doc(firestore, "clubs", data.clubId, "players", user.uid), {
+                    ...playerData,
+                    id: user.uid,
+                    uid: user.uid,
+                    updatedAt: new Date().toISOString()
+                  });
+                  await deleteDoc(oldPlayerRef);
+                  console.log(`[SOLDADURA] Ficha club migrada: clubs/${data.clubId}/players/${oldDocId} → ${user.uid}`);
+                }
+              }
+
               finalProfile = { ...data, role: 'player' };
             }
           }

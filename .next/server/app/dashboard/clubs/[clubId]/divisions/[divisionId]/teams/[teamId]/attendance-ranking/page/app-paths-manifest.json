@@ -1,0 +1,3 @@
+{
+  "/dashboard/clubs/[clubId]/divisions/[divisionId]/teams/[teamId]/attendance-ranking/page": "app/dashboard/clubs/[clubId]/divisions/[divisionId]/teams/[teamId]/attendance-ranking/page.js"
+}

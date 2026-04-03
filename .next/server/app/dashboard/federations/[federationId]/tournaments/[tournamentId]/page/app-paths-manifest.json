@@ -1,0 +1,3 @@
+{
+  "/dashboard/federations/[federationId]/tournaments/[tournamentId]/page": "app/dashboard/federations/[federationId]/tournaments/[tournamentId]/page.js"
+}
