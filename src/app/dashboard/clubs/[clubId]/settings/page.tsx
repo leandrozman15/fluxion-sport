@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -8,7 +9,6 @@ import {
   Building2, 
   Save, 
   ImagePlus, 
-  Trash2, 
   MapPin, 
   Phone, 
   Globe,
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { doc } from "firebase/firestore";
-import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,15 +24,16 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 export default function ClubSettingsPage() {
   const { clubId } = useParams() as { clubId: string };
-  const db = useFirestore();
+  const { firestore, storage } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
+  const clubRef = useMemoFirebase(() => doc(firestore, "clubs", clubId), [firestore, clubId]);
   const { data: club, isLoading } = useDoc(clubRef);
 
   const [form, setForm] = useState({
@@ -43,6 +44,8 @@ export default function ClubSettingsPage() {
   });
 
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   useEffect(() => {
     if (club) {
@@ -52,27 +55,41 @@ export default function ClubSettingsPage() {
         phone: club.phone || "",
         logoUrl: club.logoUrl || ""
       });
+      setImagePreview(club.logoUrl || "");
     }
   }, [club]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setForm(prev => ({ ...prev, logoUrl: reader.result as string }));
+        setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
-      updateDocumentNonBlocking(clubRef, form);
+      let finalLogoUrl = form.logoUrl;
+
+      if (imageFile) {
+        // Subir a Storage en lugar de guardar Base64
+        finalLogoUrl = await uploadFileAndGetUrl(
+          storage, 
+          `clubs/${clubId}/logo_${Date.now()}`, 
+          imageFile
+        );
+      }
+
+      updateDocumentNonBlocking(clubRef, { ...form, logoUrl: finalLogoUrl });
+      
       toast({
         title: "Cambios guardados",
-        description: "La información del club se ha actualizado correctamente.",
+        description: "La información institucional se ha actualizado en la nube.",
       });
       setTimeout(() => router.push(`/dashboard/clubs/${clubId}`), 500);
     } catch (e) {
@@ -80,7 +97,7 @@ export default function ClubSettingsPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudieron guardar los cambios.",
+        description: "No se pudieron guardar los cambios en Storage.",
       });
     } finally {
       setSaving(false);
@@ -109,8 +126,8 @@ export default function ClubSettingsPage() {
           <CardContent className="flex flex-col items-center gap-6 pt-8 pb-8">
             <div className="relative group">
               <div className="h-44 w-44 rounded-full border-4 border-slate-100 shadow-2xl overflow-hidden bg-white flex items-center justify-center">
-                {form.logoUrl ? (
-                  <img src={form.logoUrl} className="h-full w-full object-contain p-2" alt="Logo" />
+                {imagePreview ? (
+                  <img src={imagePreview} className="h-full w-full object-contain p-2" alt="Logo" />
                 ) : (
                   <Building2 className="h-20 w-20 text-slate-200" />
                 )}
@@ -136,7 +153,7 @@ export default function ClubSettingsPage() {
                 <UploadCloud className="h-4 w-4" /> Subir Logo
               </Button>
               <p className="text-[10px] text-slate-400 px-4 italic font-medium">
-                PNG transparente recomendado (512x512px).
+                Sube el escudo para Storage.
               </p>
             </div>
           </CardContent>
@@ -194,9 +211,9 @@ export default function ClubSettingsPage() {
                   <Globe className="h-5 w-5 text-primary" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Visibilidad del Ecosistema</p>
+                  <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Almacenamiento Cloud</p>
                   <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                    Los cambios realizados aquí se verán reflejados en el Padrón Nacional de Instituciones, permitiendo que la CAH y las Federaciones tengan sus datos actualizados.
+                    Toda la multimedia ahora se procesa a través de Google Cloud Storage para mayor seguridad y velocidad.
                   </p>
                 </div>
               </div>

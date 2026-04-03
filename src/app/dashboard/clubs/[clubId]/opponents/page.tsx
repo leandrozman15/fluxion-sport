@@ -9,17 +9,15 @@ import {
   Trash2, 
   ChevronLeft, 
   MapPin, 
-  Trophy, 
   Shield, 
   ImagePlus,
   Search,
-  Building2,
   Pencil,
   ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, orderBy } from "firebase/firestore";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,15 +27,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 export default function OpponentsManagerPage() {
   const { clubId } = useParams() as { clubId: string };
-  const db = useFirestore();
+  const { firestore, storage } = useFirebase();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingOpp, setEditingOpp] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [newOpp, setNewOpp] = useState({ 
@@ -49,27 +49,36 @@ export default function OpponentsManagerPage() {
   });
 
   const opponentsQuery = useMemoFirebase(() => 
-    query(collection(db, "clubs", clubId, "opponents"), orderBy("name", "asc")),
-    [db, clubId]
+    query(collection(firestore, "clubs", clubId, "opponents"), orderBy("name", "asc")),
+    [firestore, clubId]
   );
   const { data: opponents, isLoading } = useCollection(opponentsQuery);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      if (isEdit) setEditingOpp({ ...editingOpp, logoUrl: base64 });
-      else setNewOpp({ ...newOpp, logoUrl: base64 });
-    };
-    reader.readAsDataURL(file);
+    
+    setUploading(true);
+    try {
+      const path = `clubs/${clubId}/opponents/logo_${Date.now()}`;
+      const url = await uploadFileAndGetUrl(storage, path, file);
+      
+      if (isEdit) setEditingOpp({ ...editingOpp, logoUrl: url });
+      else setNewOpp({ ...newOpp, logoUrl: url });
+      
+      toast({ title: "Escudo guardado en la nube" });
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Error al subir escudo" });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleCreateOpponent = async () => {
     if (!newOpp.name) return;
-    const oppId = doc(collection(db, "clubs", clubId, "opponents")).id;
-    const oppDoc = doc(db, "clubs", clubId, "opponents", oppId);
+    const oppId = doc(collection(firestore, "clubs", clubId, "opponents")).id;
+    const oppDoc = doc(firestore, "clubs", clubId, "opponents", oppId);
     
     await setDoc(oppDoc, {
       ...newOpp,
@@ -79,12 +88,12 @@ export default function OpponentsManagerPage() {
     
     setNewOpp({ name: "", shortName: "", address: "", city: "", logoUrl: "" });
     setIsDialogOpen(false);
-    toast({ title: "Club Rival Registrado", description: `${newOpp.name} ya está en la base de datos.` });
+    toast({ title: "Club Rival Registrado", description: `${newOpp.name} guardado con éxito.` });
   };
 
   const handleUpdateOpponent = () => {
     if (!editingOpp) return;
-    updateDocumentNonBlocking(doc(db, "clubs", clubId, "opponents", editingOpp.id), { ...editingOpp });
+    updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "opponents", editingOpp.id), { ...editingOpp });
     setIsEditOpen(false);
     toast({ title: "Información Actualizada" });
   };
@@ -103,7 +112,7 @@ export default function OpponentsManagerPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Base de Clubes Rivales</h1>
-            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Gestión centralizada de escudos y sedes de la liga.</p>
+            <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Gestión centralizada cloud de escudos y sedes.</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -114,23 +123,26 @@ export default function OpponentsManagerPage() {
             <DialogContent className="max-w-md bg-white border-none shadow-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black text-slate-900">Nuevo Oponente</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Registra el escudo y la dirección para los mapas del plantel.</DialogDescription>
+                <DialogDescription className="font-bold text-slate-500">Registra el escudo oficial alojado en Storage.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-6">
                 <div className="flex flex-col items-center gap-4">
                   <div className="relative group">
                     <Avatar className="h-24 w-24 border-4 border-slate-100 shadow-xl rounded-2xl bg-slate-50">
                       <AvatarImage src={newOpp.logoUrl} className="object-contain p-2" />
-                      <AvatarFallback className="bg-slate-50 text-slate-300"><Shield className="h-10 w-10" /></AvatarFallback>
+                      <AvatarFallback className="bg-slate-50 text-slate-300">
+                        {uploading ? <Loader2 className="animate-spin" /> : <Shield className="h-10 w-10" />}
+                      </AvatarFallback>
                     </Avatar>
                     <button 
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
                       className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <ImagePlus className="h-6 w-6 text-white" />
                     </button>
                   </div>
-                  <p className="text-[10px] font-black uppercase text-slate-400">Escudo Oficial</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400">Escudo Oficial (Storage)</p>
                 </div>
 
                 <div className="space-y-4">
@@ -149,8 +161,8 @@ export default function OpponentsManagerPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-primary" /> Dirección de Sede (GPS)
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-primary" /> Sede GPS
                     </Label>
                     <Input value={newOpp.address} onChange={e => setNewOpp({...newOpp, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
                   </div>
@@ -159,7 +171,7 @@ export default function OpponentsManagerPage() {
               </div>
               <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
                 <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold">Cancelar</Button>
-                <Button onClick={handleCreateOpponent} disabled={!newOpp.name} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Guardar Rival</Button>
+                <Button onClick={handleCreateOpponent} disabled={!newOpp.name || uploading} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Guardar Rival</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -168,7 +180,7 @@ export default function OpponentsManagerPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
           <Input 
             placeholder="Buscar por nombre o sigla..." 
-            className="pl-10 h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-primary backdrop-blur-md"
+            className="pl-10 h-14 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/30 backdrop-blur-md"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -197,7 +209,7 @@ export default function OpponentsManagerPage() {
                     <MapPin className="h-3.5 w-3.5 text-primary" /> {opp.city || 'Sede'}
                   </div>
                   <p className="text-sm font-bold text-slate-700 leading-tight">
-                    {opp.address || 'Sin dirección cargada'}
+                    {opp.address || 'Sin dirección'}
                   </p>
                   {opp.address && (
                     <a 
@@ -206,28 +218,17 @@ export default function OpponentsManagerPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-primary hover:underline pt-1"
                     >
-                      <ExternalLink className="h-3 w-3" /> Ver en Google Maps
+                      <ExternalLink className="h-3 w-3" /> Abrir GPS
                     </a>
                   )}
                 </div>
               </CardContent>
               <CardFooter className="bg-slate-50/50 border-t flex justify-end gap-2 p-4">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingOpp(opp); setIsEditOpen(true); }}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-destructive rounded-xl" onClick={() => deleteDocumentNonBlocking(doc(db, "clubs", clubId, "opponents", opp.id))}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingOpp(opp); setIsEditOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-destructive rounded-xl" onClick={() => deleteDocumentNonBlocking(doc(firestore, "clubs", clubId, "opponents", opp.id))}><Trash2 className="h-4 w-4" /></Button>
               </CardFooter>
             </Card>
           ))}
-          {filteredOpponents?.length === 0 && (
-            <div className="col-span-full text-center py-32 border-2 border-dashed rounded-[2.5rem] bg-white/5 opacity-50">
-              <Building2 className="h-20 w-20 mx-auto text-white mb-6 opacity-20" />
-              <p className="text-white font-black uppercase tracking-[0.3em] text-sm">No hay rivales registrados</p>
-              <p className="text-white/60 text-xs mt-2 font-bold uppercase tracking-widest">Registra los clubes de la liga para automatizar fixture y mapas.</p>
-            </div>
-          )}
         </div>
       )}
 
@@ -239,9 +240,11 @@ export default function OpponentsManagerPage() {
               <div className="relative group">
                 <Avatar className="h-24 w-24 border-4 border-slate-100 shadow-xl rounded-2xl bg-white">
                   <AvatarImage src={editingOpp?.logoUrl} className="object-contain p-2" />
-                  <AvatarFallback className="bg-slate-50 text-slate-300"><Shield className="h-10 w-10" /></AvatarFallback>
+                  <AvatarFallback className="bg-slate-50 text-slate-300">
+                    {uploading ? <Loader2 className="animate-spin" /> : <Shield className="h-10 w-10" />}
+                  </AvatarFallback>
                 </Avatar>
-                <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <ImagePlus className="h-6 w-6 text-white" />
                 </button>
               </div>
@@ -256,10 +259,11 @@ export default function OpponentsManagerPage() {
                 <Input value={editingOpp?.address || ""} onChange={e => setEditingOpp({...editingOpp, address: e.target.value})} className="h-12 border-2" />
               </div>
             </div>
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, true)} />
           </div>
           <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
             <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpdateOpponent} className="font-black uppercase text-xs tracking-widest h-12 px-10">Guardar Cambios</Button>
+            <Button onClick={handleUpdateOpponent} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg" disabled={uploading}>Guardar en Cloud</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

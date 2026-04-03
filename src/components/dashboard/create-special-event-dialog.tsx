@@ -8,7 +8,6 @@ import {
   Camera, 
   Megaphone, 
   CheckCircle2, 
-  X,
   UploadCloud
 } from "lucide-react";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -19,13 +18,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: string, authorName: string }) {
-  const db = useFirestore();
+  const { firestore, storage } = useFirebase();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -34,22 +34,30 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
     imageUrl: ""
   });
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm(prev => ({ ...prev, imageUrl: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
+    if (!file || !clubId) return;
+    
+    setUploading(true);
+    try {
+      const path = `clubs/${clubId}/events/img_${Date.now()}`;
+      const url = await uploadFileAndGetUrl(storage, path, file);
+      setForm(prev => ({ ...prev, imageUrl: url }));
+      toast({ title: "Banner cargado correctamente" });
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Error al subir banner" });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handlePublish = async () => {
     if (!form.title || !form.comment || !clubId) return;
     setLoading(true);
     try {
-      const eventId = doc(collection(db, "clubs", clubId, "special_events")).id;
-      const eventRef = doc(db, "clubs", clubId, "special_events", eventId);
+      const eventId = doc(collection(firestore, "clubs", clubId, "special_events")).id;
+      const eventRef = doc(firestore, "clubs", clubId, "special_events", eventId);
 
       await setDoc(eventRef, {
         ...form,
@@ -59,7 +67,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
         createdAt: new Date().toISOString()
       });
 
-      toast({ title: "Evento Publicado", description: "La novedad ya es visible en todos los dashboards." });
+      toast({ title: "Evento Publicado", description: "La novedad ya es visible en la nube." });
       setForm({ title: "", comment: "", imageUrl: "" });
       setIsOpen(false);
     } catch (e) {
@@ -80,7 +88,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
       <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2.5rem]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Nuevo Comunicado</DialogTitle>
-          <DialogDescription className="font-bold text-slate-500">Publica noticias o eventos que aparecerán en el inicio de todos los socios.</DialogDescription>
+          <DialogDescription className="font-bold text-slate-500">Publica noticias en el inicio institucional.</DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6 py-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
@@ -95,7 +103,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
           </div>
 
           <div className="space-y-2">
-            <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Imagen / Banner</Label>
+            <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Imagen / Banner (Cloud Storage)</Label>
             <div 
               onClick={() => fileInputRef.current?.click()}
               className="aspect-video w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-all overflow-hidden group"
@@ -109,8 +117,8 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
                 </div>
               ) : (
                 <>
-                  <UploadCloud className="h-10 w-10 text-slate-300 mb-2" />
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subir Imagen</p>
+                  {uploading ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <UploadCloud className="h-10 w-10 text-slate-300 mb-2" />}
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{uploading ? "Subiendo..." : "Subir Imagen"}</p>
                 </>
               )}
             </div>
@@ -122,7 +130,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
             <Textarea 
               value={form.comment} 
               onChange={e => setForm({...form, comment: e.target.value})} 
-              placeholder="Escribe el mensaje oficial aquí..." 
+              placeholder="Mensaje oficial..." 
               className="min-h-[120px] border-2 font-medium"
             />
           </div>
@@ -130,7 +138,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
 
         <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t border-slate-100 mt-4 rounded-b-[2.5rem]">
           <Button variant="ghost" onClick={() => setIsOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-          <Button onClick={handlePublish} disabled={loading || !form.title || !form.comment} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-xl shadow-primary/20 gap-2">
+          <Button onClick={handlePublish} disabled={loading || uploading || !form.title || !form.comment} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-xl shadow-primary/20 gap-2">
             {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
             Confirmar y Publicar
           </Button>

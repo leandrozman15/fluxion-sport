@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { collection, query, where, getDocs, doc } from "firebase/firestore";
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { uploadFileAndGetUrl } from "@/lib/storage-utils";
 
 interface NavItem {
   title: string;
@@ -28,7 +29,7 @@ interface SectionNavProps {
 
 export function SectionNav({ items }: SectionNavProps) {
   const pathname = usePathname();
-  const { auth, firestore, user } = useFirebase();
+  const { auth, firestore, storage, user } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const [isPhotoOpen, setIsPhotoOpen] = useState(false);
@@ -50,43 +51,43 @@ export function SectionNav({ items }: SectionNavProps) {
     if (!file || !user || !firestore) return;
 
     setUploading(true);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
+    try {
+      // 1. Subir a Cloud Storage
+      const path = `profiles/${user.uid}/photo_${Date.now()}`;
+      const url = await uploadFileAndGetUrl(storage, path, file);
+      
       const email = user.email?.toLowerCase().trim();
 
-      try {
-        setDocumentNonBlocking(doc(firestore, "users", user.uid), { 
-          photoUrl: base64,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
+      // 2. Actualizar perfiles vinculados con la nueva URL
+      setDocumentNonBlocking(doc(firestore, "users", user.uid), { 
+        photoUrl: url,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
 
-        if (email) {
-          const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
-          staffSnap.forEach(d => {
-            if (d.id !== user.uid) updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: base64 });
-          });
+      if (email) {
+        const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
+        staffSnap.forEach(d => {
+          if (d.id !== user.uid) updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: url });
+        });
 
-          const indexSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
-          indexSnap.forEach(d => {
-            updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: base64 });
-            const clubId = d.data().clubId;
-            if (clubId) {
-              updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "players", d.id), { photoUrl: base64 });
-            }
-          });
-        }
-
-        toast({ title: "Foto Actualizada", description: "Tu nueva imagen ya es visible en tu carnet y pizarra." });
-        setIsPhotoOpen(false);
-      } catch (err) {
-        console.error("Error subiendo foto:", err);
-        toast({ variant: "destructive", title: "Error al subir", description: "No se pudo actualizar la imagen." });
-      } finally {
-        setUploading(false);
+        const indexSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
+        indexSnap.forEach(d => {
+          updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: url });
+          const clubId = d.data().clubId;
+          if (clubId) {
+            updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "players", d.id), { photoUrl: url });
+          }
+        });
       }
-    };
-    reader.readAsDataURL(file);
+
+      toast({ title: "Foto en la Nube", description: "Tu imagen oficial ha sido actualizada." });
+      setIsPhotoOpen(false);
+    } catch (err) {
+      console.error("Error subiendo foto:", err);
+      toast({ variant: "destructive", title: "Error en Storage", description: "No se pudo subir la imagen." });
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (!mounted) {
@@ -146,12 +147,12 @@ export function SectionNav({ items }: SectionNavProps) {
             </Tooltip>
             <DialogContent className="max-w-sm bg-white border-none shadow-2xl">
               <DialogHeader>
-                <DialogTitle className="text-xl font-black text-slate-900">Actualizar Perfil</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Sube una foto o tómate una selfie para tu carnet oficial.</DialogDescription>
+                <DialogTitle className="text-xl font-black text-slate-900">Actualizar Perfil (Cloud)</DialogTitle>
+                <DialogDescription className="font-bold text-slate-500">Sube una foto para tu carnet oficial alojado en Storage.</DialogDescription>
               </DialogHeader>
               <div className="flex flex-col items-center justify-center py-8 space-y-6">
                 <div className="h-32 w-32 rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center relative overflow-hidden group">
-                  <UserCircle className="h-16 w-16 text-slate-200" />
+                  {uploading ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : <UserCircle className="h-16 w-16 text-slate-200" />}
                   <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Upload className="h-8 w-8 text-primary" />
                   </div>
@@ -160,7 +161,7 @@ export function SectionNav({ items }: SectionNavProps) {
                 <div className="grid grid-cols-1 w-full gap-2">
                   <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="font-black uppercase text-[10px] tracking-widest h-12 gap-2 shadow-lg shadow-primary/20">
                     {uploading ? <Loader2 className="animate-spin h-4 w-4" /> : <Camera className="h-4 w-4" />}
-                    Seleccionar Foto o Selfie
+                    {uploading ? "Subiendo..." : "Seleccionar Foto"}
                   </Button>
                   <Button variant="ghost" onClick={() => setIsPhotoOpen(false)} className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Cancelar</Button>
                 </div>
