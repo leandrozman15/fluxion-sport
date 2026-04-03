@@ -1,6 +1,8 @@
+
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Plus, 
   ShieldCheck, 
@@ -14,7 +16,7 @@ import {
   Building
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, getDocs } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, updateDoc } from "firebase/firestore";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -25,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,9 +42,12 @@ import {
 
 export default function InstitutionsPage() {
   const { firestore, auth, user, isUserLoading } = useFirebase();
+  const router = useRouter();
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingClub, setEditingClub] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [newClub, setNewClub] = useState({ name: "", address: "", phone: "", logoUrl: "", associationId: "" });
 
   const clubsQuery = useMemoFirebase(() => {
@@ -72,23 +78,42 @@ export default function InstitutionsPage() {
     }
   };
 
-  const handleCreateClub = () => {
+  const handleCreateClub = async () => {
     if (!firestore || !user) {
       initiateAnonymousSignIn(auth);
       return;
     }
-    const clubId = doc(collection(firestore, "clubs")).id;
-    const clubDoc = doc(firestore, "clubs", clubId);
-    
-    setDoc(clubDoc, {
-      ...newClub,
-      id: clubId,
-      ownerId: user.uid,
-      createdAt: new Date().toISOString()
-    });
-    
-    setNewClub({ name: "", address: "", phone: "", logoUrl: "", associationId: "" });
-    setIsDialogOpen(false);
+    setLoading(true);
+    try {
+      const clubId = doc(collection(firestore, "clubs")).id;
+      const clubDoc = doc(firestore, "clubs", clubId);
+      
+      // 1. Crear el Club
+      await setDoc(clubDoc, {
+        ...newClub,
+        id: clubId,
+        ownerId: user.uid,
+        createdAt: new Date().toISOString()
+      });
+
+      // 2. Vincular el perfil del usuario actual al nuevo club (IMPORTANTE para corregir el cache)
+      await setDoc(doc(firestore, "users", user.uid), {
+        clubId: clubId,
+        role: "club_admin"
+      }, { merge: true });
+      
+      setNewClub({ name: "", address: "", phone: "", logoUrl: "", associationId: "" });
+      setIsDialogOpen(false);
+      toast({ title: "Club Registrado", description: "Has sido vinculado como administrador de esta institución." });
+      
+      // 3. Redirigir inmediatamente al dashboard del nuevo club
+      router.push(`/dashboard/clubs/${clubId}`);
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al registrar" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpdateClub = () => {
@@ -170,8 +195,10 @@ export default function InstitutionsPage() {
               </div>
             </div>
             <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6">
-              <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleCreateClub} disabled={!newClub.name || !newClub.associationId} className="font-bold">Registrar</Button>
+              <Button variant="ghost" onClick={() => setIsDialogOpen(false)} disabled={loading}>Cancelar</Button>
+              <Button onClick={handleCreateClub} disabled={!newClub.name || !newClub.associationId || loading} className="font-bold">
+                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Registrar"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 /**
@@ -37,7 +37,10 @@ export default function DashboardRedirectPage() {
           if (clubId) {
             const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
             if (!clubDoc.exists()) {
-              // Club eliminado: Notificar y enviar al listado general
+              // ERROR DE CACHE DETECTADO: El club ya no existe. 
+              // Limpiamos la referencia en el perfil del usuario para permitir un nuevo comienzo.
+              await updateDoc(doc(firestore, "users", staffSnap.docs[0].id), { clubId: null });
+              
               toast({ 
                 variant: "destructive", 
                 title: "Institución no encontrada", 
