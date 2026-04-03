@@ -18,7 +18,8 @@ import {
   ShoppingBag,
   IdCard,
   MapPin,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle2
 } from "lucide-react";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, useAuth, useFirebase } from "@/firebase";
@@ -36,6 +37,17 @@ import { SectionNav } from "@/components/layout/section-nav";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ClubCoachesPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -123,11 +135,8 @@ export default function ClubCoachesPage() {
     toast({ title: "Perfil Actualizado" });
   };
 
-  const handleDeleteCoach = (e: React.MouseEvent, coach: any) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (currentUser && (currentUser.email === coach.email || currentUser.uid === coach.id)) {
+  const handleDeleteCoachConfirmed = (coachId: string, coachName: string) => {
+    if (currentUser && (currentUser.email === coachId || currentUser.uid === coachId)) {
       toast({ 
         variant: "destructive", 
         title: "Acción no permitida", 
@@ -136,11 +145,9 @@ export default function ClubCoachesPage() {
       return;
     }
 
-    if(confirm(`¿Seguro que deseas eliminar a ${coach.name}? Se borrará su legajo y acceso al panel.`)) {
-      const coachDocRef = doc(db, "users", coach.id);
-      deleteDocumentNonBlocking(coachDocRef);
-      toast({ variant: "destructive", title: "Miembro Eliminado", description: "El registro ha sido removido con éxito." });
-    }
+    const coachDocRef = doc(db, "users", coachId);
+    deleteDocumentNonBlocking(coachDocRef);
+    toast({ variant: "destructive", title: "Miembro Eliminado", description: `El registro de ${coachName} ha sido removido.` });
   };
 
   const getRoleLabel = (role: string) => {
@@ -170,7 +177,7 @@ export default function ClubCoachesPage() {
                 <Plus className="h-5 w-5" /> Registrar Nuevo Miembro
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-white border-none shadow-2xl">
+            <DialogContent className="max-w-2xl bg-white border-none shadow-2xl rounded-[2rem]">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black text-slate-900">Nueva Ficha de Personal</DialogTitle>
                 <DialogDescription className="font-bold text-slate-500">Completa el legajo oficial del staff técnico o administrativo.</DialogDescription>
@@ -247,7 +254,7 @@ export default function ClubCoachesPage() {
                   </div>
                 </div>
               </ScrollArea>
-              <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
+              <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2rem]">
                 <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
                 <Button onClick={handleCreateCoach} disabled={!newCoach.name || !newCoach.email || newCoach.password.length < 6 || !newCoach.dni} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">Registrar Staff</Button>
               </DialogFooter>
@@ -260,7 +267,7 @@ export default function ClubCoachesPage() {
             <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white h-10 w-10" /></div>
           ) : (
             coaches?.map((coach: any) => (
-              <Card key={coach.id} className="hover:border-primary/50 transition-all overflow-hidden border-none shadow-xl bg-white group">
+              <Card key={coach.id} className="hover:border-primary/50 transition-all overflow-hidden border-none shadow-xl bg-white group rounded-[1.5rem]">
                 <CardContent className="p-0">
                   <div className="flex flex-col md:flex-row md:items-center">
                     <div className="flex items-center gap-5 p-6 md:w-1/3 border-b md:border-b-0 md:border-r bg-slate-50/50">
@@ -281,7 +288,7 @@ export default function ClubCoachesPage() {
                       </div>
                     </div>
 
-                    <div className="flex-1 p-6 space-y-2">
+                    <div className="flex-1 p-6 space-y-3">
                       <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
                         <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
                       </div>
@@ -300,15 +307,36 @@ export default function ClubCoachesPage() {
                       <Button variant="ghost" size="sm" className="h-11 w-11 p-0 hover:bg-primary/5 rounded-xl border border-transparent hover:border-primary/10" onClick={() => { setEditingCoach(coach); setIsEditOpen(true); }}>
                         <Pencil className="h-5 w-5 text-slate-400 hover:text-primary" />
                       </Button>
-                      <Button 
-                        type="button"
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-11 w-11 p-0 text-destructive hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100" 
-                        onClick={(e) => handleDeleteCoach(e, coach)}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            type="button"
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-11 w-11 p-0 text-destructive hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-white border-none shadow-2xl rounded-[2rem]">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">¿Confirmas la baja?</AlertDialogTitle>
+                            <AlertDialogDescription className="font-bold text-slate-500">
+                              Estás a punto de eliminar a <strong>{coach.name}</strong> del staff oficial. Esta acción removerá su legajo y revocará su acceso a la consola técnica.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="pt-4">
+                            <AlertDialogCancel className="font-bold border-2 rounded-xl">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleDeleteCoachConfirmed(coach.id, coach.name)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black uppercase text-xs tracking-widest rounded-xl px-8 h-11"
+                            >
+                              Eliminar Staff
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </CardContent>
@@ -319,7 +347,7 @@ export default function ClubCoachesPage() {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-md bg-white border-none shadow-2xl">
+        <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
           <DialogHeader><DialogTitle className="text-2xl font-black text-slate-900">Editar Perfil Staff</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
             <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border">
@@ -353,7 +381,7 @@ export default function ClubCoachesPage() {
               <Input value={editingCoach?.specialty || ""} onChange={e => setEditingCoach({...editingCoach, specialty: e.target.value})} className="h-12 border-2 font-bold" />
             </div>
           </div>
-          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t">
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2rem]">
             <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="font-bold">Cancelar</Button>
             <Button onClick={handleUpdateCoach} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Guardar Cambios</Button>
           </DialogFooter>
