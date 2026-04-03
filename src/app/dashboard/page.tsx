@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 /**
  * Motor de Redireccionamiento Maestro.
- * Valida la existencia del club antes de permitir el acceso.
+ * Limpia referencias de clubes inexistentes y gestiona el estado inicial de la app.
  */
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -33,56 +33,45 @@ export default function DashboardRedirectPage() {
           const role = staffData.role;
           const clubId = staffData.clubId;
 
-          // Verificar si el club existe si tiene uno asignado
+          // Verificar si el club existe
           if (clubId) {
             const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
             if (!clubDoc.exists()) {
+              // Club eliminado: Notificar y enviar al listado general
               toast({ 
                 variant: "destructive", 
                 title: "Institución no encontrada", 
-                description: "Tu club ha sido removido del sistema. Contacta al administrador global." 
+                description: "Tu club anterior ya no existe. Selecciona o registra uno nuevo." 
               });
               return router.replace('/dashboard/clubs');
             }
           }
 
-          // PRIORIDAD 1: Super Administradores
-          if (role === 'admin' || role === 'fed_admin') {
-            return router.replace('/dashboard/superadmin');
-          } 
+          // Redirección por Rol
+          if (role === 'admin' || role === 'fed_admin') return router.replace('/dashboard/superadmin');
+          if (role === 'coordinator') return router.replace('/dashboard/coordinator');
+          if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) return router.replace('/dashboard/coach');
           
-          // PRIORIDAD 2: Coordinadores
-          if (role === 'coordinator') {
-            return router.replace('/dashboard/coordinator');
-          } 
-          
-          // PRIORIDAD 3: Entrenadores
-          if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) {
-            return router.replace('/dashboard/coach');
-          } 
-
-          // PRIORIDAD 4: Directores de Club
           if (role === 'club_admin' || clubId) {
             return router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
           }
         }
 
-        // 2. JUGADORES
+        // 2. Buscar en JUGADORES
         const playerQuery = query(collection(firestore, "all_players_index"), where("email", "==", email));
         const playerSnap = await getDocs(playerQuery);
         
         if (!playerSnap.empty) {
           const pData = playerSnap.docs[0].data();
-          // Verificar club del jugador
           const clubDoc = await getDoc(doc(firestore, "clubs", pData.clubId));
           if (!clubDoc.exists()) {
-            toast({ variant: "destructive", title: "Club Inactivo", description: "Tu institución ya no forma parte del sistema." });
+            toast({ variant: "destructive", title: "Club Inactivo", description: "Tu institución ha sido removida del sistema." });
             return router.replace('/login');
           }
           return router.replace('/dashboard/player');
         }
 
-        // 3. Fallback
+        // 3. Fallback: No hay datos vinculados (App recién instalada o vacía)
         router.replace('/dashboard/clubs');
 
       } catch (e) {
@@ -99,9 +88,9 @@ export default function DashboardRedirectPage() {
 
   return (
     <div className="flex flex-col h-[60vh] items-center justify-center space-y-4 text-center">
-      <Loader2 className="h-10 w-10 animate-spin text-white opacity-50" />
+      <Loader2 className="h-10 w-10 animate-spin text-white opacity-20" />
       <p className="text-white font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
-        Validando Credenciales Institucionales...
+        Sincronizando Sistema...
       </p>
     </div>
   );
