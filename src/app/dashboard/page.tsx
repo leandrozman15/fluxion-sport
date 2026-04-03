@@ -5,12 +5,12 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, setDoc, collectionGroup } from "firebase/firestore";
 
 /**
  * Motor de Redirección Principal de Fluxion Sport.
  * Determina el destino del usuario basándose en su rol jerárquico en Firestore.
- * Incluye lógica de auto-vinculación de UID para legajos creados por email.
+ * Utiliza búsqueda en cascada: Staff -> Índice Global -> Búsqueda en Clubes.
  */
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -22,25 +22,23 @@ export default function DashboardRedirectPage() {
       
       try {
         const email = user.email?.toLowerCase().trim() || "";
-        let userData = null;
+        let userData: any = null;
         let isPlayer = false;
 
-        // 1. INTENTAR BUSCAR EN STAFF (users)
-        // Primero por UID
+        // 1. BUSCAR EN STAFF (users)
         const staffByUid = await getDoc(doc(firestore, "users", user.uid));
         if (staffByUid.exists()) {
           userData = staffByUid.data();
         } else if (email) {
-          // Si no está por UID, buscar por Email
           const staffByEmail = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
           if (!staffByEmail.empty) {
             userData = staffByEmail.docs[0].data();
-            // AUTO-VINCULACIÓN: Si lo encontramos por email, guardamos el UID para la próxima
+            // Auto-vincular UID
             await setDoc(doc(firestore, "users", user.uid), { ...userData, uid: user.uid }, { merge: true });
           }
         }
 
-        // 2. SI NO ES STAFF, BUSCAR EN PADRÓN DE JUGADORES (all_players_index)
+        // 2. SI NO ES STAFF, BUSCAR EN ÍNDICE DE JUGADORES (all_players_index)
         if (!userData) {
           const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
           if (playerByUid.exists()) {
@@ -51,13 +49,29 @@ export default function DashboardRedirectPage() {
             if (!playerByEmail.empty) {
               userData = playerByEmail.docs[0].data();
               isPlayer = true;
-              // AUTO-VINCULACIÓN: Guardar UID en el índice global
               await setDoc(doc(firestore, "all_players_index", user.uid), { ...userData, uid: user.uid }, { merge: true });
             }
           }
         }
 
-        // 3. REDIRECCIÓN BASADA EN ROL DETECTADO
+        // 3. SI AÚN NO SE ENCUENTRA, BUSCAR EN TODOS LOS CLUBES (Collection Group)
+        // Esto soluciona casos como el de Brenda donde el legajo solo está en el club
+        if (!userData && email) {
+          const playerGroupQuery = query(collectionGroup(firestore, "players"), where("email", "==", email));
+          const groupSnap = await getDocs(playerGroupQuery);
+          if (!groupSnap.empty) {
+            userData = { ...groupSnap.docs[0].data(), role: 'player' };
+            isPlayer = true;
+            // Registrar en el índice global para rapidez futura
+            await setDoc(doc(firestore, "all_players_index", user.uid), { 
+              ...userData, 
+              uid: user.uid,
+              id: userData.id || email 
+            }, { merge: true });
+          }
+        }
+
+        // 4. REDIRECCIÓN BASADA EN ROL DETECTADO
         if (userData) {
           const role = userData.role;
           
@@ -77,11 +91,10 @@ export default function DashboardRedirectPage() {
             return router.replace('/dashboard/coach');
           }
 
-          // Si el rol es player o fue encontrado en el índice de jugadores
           return router.replace('/dashboard/player');
         }
 
-        // 4. FALLBACK: Si no hay perfil en ninguna parte
+        // 5. FALLBACK: Si no hay perfil en ninguna parte, es un usuario nuevo/invitado
         router.replace('/dashboard/player');
 
       } catch (e) {
@@ -103,7 +116,7 @@ export default function DashboardRedirectPage() {
     <div className="flex flex-col h-[60vh] items-center justify-center space-y-4 text-center">
       <Loader2 className="h-10 w-10 animate-spin text-white opacity-20" />
       <p className="text-white font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
-        Sincronizando con Fluxion Sport...
+        Identificando Acceso Oficial...
       </p>
     </div>
   );
