@@ -16,7 +16,8 @@ import {
   Clock,
   MapPin,
   Building2,
-  LayoutDashboard
+  LayoutDashboard,
+  AlertCircle
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase } from "@/firebase";
@@ -28,10 +29,6 @@ import { SectionNav } from "@/components/layout/section-nav";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 
-/**
- * HUB CENTRAL DEL JUGADOR (V4)
- * Identificación persistente cruzando UID y Email.
- */
 export default function PlayerDashboardHub() {
   const { firestore, user } = useFirebase();
   const [playerInfo, setPlayerInfo] = useState<any>(null);
@@ -47,12 +44,12 @@ export default function PlayerDashboardHub() {
         const email = user.email?.toLowerCase().trim() || "";
         let pData = null;
 
-        // 1. BUSCAR POR UID (Vínculo soldado)
+        // BUSCAR POR UID (Vínculo soldado)
         const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
         if (playerByUid.exists()) {
           pData = playerByUid.data();
         } else {
-          // 2. BUSCAR POR EMAIL (Vínculo pendiente)
+          // BUSCAR POR EMAIL (Vínculo pendiente)
           const qEmail = query(collection(firestore, "all_players_index"), where("email", "==", email));
           const snapEmail = await getDocs(qEmail);
           if (!snapEmail.empty) pData = snapEmail.docs[0].data();
@@ -61,26 +58,10 @@ export default function PlayerDashboardHub() {
         if (pData) {
           setPlayerInfo(pData);
 
-          // 3. CARGAR CONTEXTO DE EQUIPO
-          if (pData.clubId && pData.teamId && pData.divisionId) {
-            const teamDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId));
-            const divDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId));
-            
-            if (teamDoc.exists()) {
-              const teamData = { 
-                ...teamDoc.data(), 
-                divisionName: divDoc.exists() ? divDoc.data().name : "Rama"
-              };
-              setTeamInfo(teamData);
-
-              // Clasificación
-              const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "standings"));
-              const standings = standingsSnap.docs.map(doc => doc.data());
-              const sorted = standings.sort((a: any, b: any) => b.points - a.points);
-              const teamRank = sorted.findIndex((s: any) => s.teamName?.toLowerCase().includes(teamData.name.toLowerCase())) + 1;
-              if (teamRank > 0) setRank(teamRank);
-
-              // Próximo evento
+          // CARGAR CONTEXTO DE EQUIPO Y CLUB
+          if (pData.clubId) {
+            // Próximo evento
+            if (pData.teamId && pData.divisionId) {
               const eventsSnap = await getDocs(query(
                 collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId, "events"),
                 where("date", ">=", new Date().toISOString()),
@@ -88,11 +69,18 @@ export default function PlayerDashboardHub() {
                 limit(1)
               ));
               if (!eventsSnap.empty) setNextEvent(eventsSnap.docs[0].data());
+
+              // Posición en tabla
+              const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "standings"));
+              const standings = standingsSnap.docs.map(doc => doc.data());
+              const sorted = standings.sort((a: any, b: any) => b.points - a.points);
+              const teamRank = sorted.findIndex((s: any) => s.teamName?.toLowerCase().includes(pData.teamName?.toLowerCase())) + 1;
+              if (teamRank > 0) setRank(teamRank);
             }
           }
         }
       } catch (e) {
-        console.error("Player Hub Error:", e);
+        console.error("Player Hub Sync Error:", e);
       } finally {
         setLoading(false);
       }
@@ -119,10 +107,14 @@ export default function PlayerDashboardHub() {
   if (!playerInfo) return (
     <div className="flex flex-col md:flex-row gap-8 min-h-screen">
       <SectionNav items={playerNav} basePath="/dashboard/player" />
-      <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-6 space-y-4">
-        <UserCircle className="h-20 w-20 text-white opacity-20" />
-        <h2 className="text-2xl font-black text-white font-headline uppercase tracking-tighter">Acceso de Invitado</h2>
-        <p className="text-white/60 max-w-sm font-bold">Inicia sesión con tu email oficial para activar tu legajo federativo.</p>
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6">
+        <div className="bg-white/10 p-8 rounded-full border border-white/20 backdrop-blur-md">
+          <AlertCircle className="h-16 w-16 text-white opacity-40" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-3xl font-black text-white uppercase tracking-tighter font-headline">Ficha no Encontrada</h2>
+          <p className="text-white/60 max-w-sm font-bold">Tu cuenta {user?.email} no tiene un legajo federativo vinculado. Contacta a la secretaría de tu club.</p>
+        </div>
       </div>
     </div>
   );
@@ -143,15 +135,15 @@ export default function PlayerDashboardHub() {
           <div className="flex-1 space-y-0.5">
             <h1 className="text-xl md:text-3xl font-black font-headline tracking-tight text-slate-900">{playerInfo.firstName} {playerInfo.lastName}</h1>
             <p className="text-slate-500 text-sm font-semibold flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 text-primary" /> {playerInfo.clubName}</p>
-            {teamInfo && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-widest px-2">{teamInfo.divisionName}</Badge>
-                <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase tracking-widest px-2">{teamInfo.name}</Badge>
-                {rank && (
-                  <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest px-2 border-yellow-500 text-yellow-600">Puesto #{rank}</Badge>
-                )}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-widest px-2">{playerInfo.divisionName || 'Federada'}</Badge>
+              {playerInfo.teamName && (
+                <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase tracking-widest px-2">{playerInfo.teamName}</Badge>
+              )}
+              {rank && (
+                <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest px-2 border-yellow-500 text-yellow-600">Puesto #{rank}</Badge>
+              )}
+            </div>
           </div>
         </header>
 

@@ -10,10 +10,6 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-/**
- * ENCABEZADO DE PERFIL DINÁMICO (V4)
- * No muestra "Guest" ni "Fluxion" a menos que la búsqueda falle en todas las capas.
- */
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
   const [profile, setProfile] = useState<any>(null);
@@ -29,7 +25,7 @@ export function UserProfileHeader() {
         const email = user.email?.toLowerCase().trim() || "";
         let data = null;
 
-        // CAPA 1: Búsqueda por UID (Vínculo soldado)
+        // BUSCAR POR UID PRIMERO (Identidad soldada)
         const staffByUid = await getDoc(doc(firestore, "users", user.uid));
         if (staffByUid.exists()) {
           data = staffByUid.data();
@@ -38,7 +34,7 @@ export function UserProfileHeader() {
           if (playerByUid.exists()) data = { ...playerByUid.data(), role: 'player' };
         }
 
-        // CAPA 2: Búsqueda por Email (Si aún no se ha soldado el UID)
+        // SI NO EXISTE VÍNCULO POR UID, BUSCAR POR EMAIL
         if (!data && email) {
           const qS = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
           if (!qS.empty) {
@@ -51,7 +47,7 @@ export function UserProfileHeader() {
 
         setProfile(data);
       } catch (e) {
-        console.error("Identity fetch error:", e);
+        console.error("Profile Header Error:", e);
       } finally {
         setLoading(false);
       }
@@ -68,7 +64,7 @@ export function UserProfileHeader() {
   if (!user) return null;
 
   const display = (() => {
-    if (loading) return { label: "Verificando...", icon: Loader2, color: "text-slate-400", bg: "bg-slate-50" };
+    if (loading) return { label: "Validando...", icon: Loader2, color: "text-slate-400", bg: "bg-slate-50" };
     
     const role = profile?.role || "player";
     switch(role) {
