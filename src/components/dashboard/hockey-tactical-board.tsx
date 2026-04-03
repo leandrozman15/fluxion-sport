@@ -20,7 +20,8 @@ import {
   Loader2,
   Palette,
   Plus,
-  UserX
+  UserX,
+  Shield
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ interface PositionSlot {
 
 interface TacticalBoardProps {
   roster: any[];
+  clubLogo?: string;
   initialPlayerCount?: number;
   initialSport?: 'hockey' | 'rugby';
   captainId?: string | null;
@@ -55,6 +57,7 @@ interface TacticalBoardProps {
 
 export function HockeyTacticalBoard({ 
   roster = [], 
+  clubLogo = "",
   initialPlayerCount = 11, 
   initialSport = 'hockey',
   captainId = null,
@@ -425,7 +428,7 @@ export function HockeyTacticalBoard({
             )}
           />
 
-          {/* Local Players */}
+          {/* Local Players (Club Shield) */}
           {positions.map((p) => {
             const player = roster.find(r => r.playerId === p.assignedPlayerId);
             const isCaptain = p.assignedPlayerId === captainId;
@@ -447,7 +450,7 @@ export function HockeyTacticalBoard({
                       "h-12 w-12 border-4 shadow-xl bg-white",
                       player ? (isCaptain ? "border-yellow-400" : "border-primary") : "border-dashed border-white/20 bg-white/5"
                     )}>
-                      <AvatarImage src={player?.playerPhoto} className="object-cover" />
+                      <AvatarImage src={clubLogo} className="object-contain p-1" />
                       <AvatarFallback className="text-[10px] font-black opacity-50 bg-slate-100 text-slate-900">{p.label}</AvatarFallback>
                     </Avatar>
                     {isCaptain && (
@@ -467,7 +470,7 @@ export function HockeyTacticalBoard({
             );
           })}
 
-          {/* Rival Players */}
+          {/* Rival Players (Generic Shield) */}
           {rivals.map((r) => (
             <div
               key={r.id}
@@ -480,8 +483,9 @@ export function HockeyTacticalBoard({
             >
               <div className="flex flex-col items-center group cursor-grab active:cursor-grabbing">
                 <div className="relative">
-                  <div className="h-10 w-10 border-4 border-accent bg-white rounded-full flex items-center justify-center shadow-xl font-black text-[10px] text-accent">
-                    {r.label}
+                  <div className="h-10 w-10 border-4 border-accent bg-white rounded-full flex items-center justify-center shadow-xl font-black text-[10px] text-accent overflow-hidden">
+                    <Shield className="h-6 w-6 text-accent opacity-40 absolute" />
+                    <span className="relative z-10">{r.label}</span>
                   </div>
                   <button 
                     onClick={(e) => { e.stopPropagation(); deleteRivalMarker(r.id); }}
@@ -559,7 +563,7 @@ export function HockeyTacticalBoard({
               >
                 <Plus className="h-4 w-4" /> Añadir Ficha Rival
               </Button>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center italic">Añade fichas para simular al oponente</p>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center italic">Simula al oponente con escudos genéricos</p>
             </div>
 
             <div className="space-y-2">
@@ -582,7 +586,7 @@ export function HockeyTacticalBoard({
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <Avatar className="h-7 w-7 border shadow-sm shrink-0">
-                            <AvatarImage src={player.playerPhoto} />
+                            <AvatarImage src={clubLogo} className="object-contain p-0.5" />
                             <AvatarFallback className="font-bold text-slate-400 text-[8px]">{player.playerName[0]}</AvatarFallback>
                           </Avatar>
                           <span className="text-[10px] font-black text-slate-900 truncate leading-none">{player.playerName}</span>

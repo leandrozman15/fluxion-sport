@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -45,6 +46,9 @@ export default function TeamDetailPage() {
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [todayEvent, setTodayEvent] = useState<any>(null);
   const [eventLoading, setEventLoading] = useState(true);
+
+  const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
+  const { data: club } = useDoc(clubRef);
 
   const teamRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), [db, clubId, divisionId, teamId]);
   const { data: team, isLoading: teamLoading } = useDoc(teamRef);
@@ -381,9 +385,13 @@ export default function TeamDetailPage() {
         <TabsContent value="tactical" className="animate-in fade-in zoom-in-95 duration-500">
           <HockeyTacticalBoard 
             roster={roster || []} 
+            clubLogo={club?.logoUrl || ""}
             initialPlayerCount={team?.tacticalPlayerCount || 11}
             initialSport={team?.tacticalSport || 'hockey'}
             captainId={team?.captainId}
+            teamId={teamId}
+            clubId={clubId}
+            divisionId={divisionId}
             onSettingsChange={handleTacticalSettingsSave}
           />
         </TabsContent>

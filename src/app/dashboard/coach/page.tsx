@@ -42,6 +42,7 @@ export default function CoachDashboard() {
   const [loading, setLoading] = useState(true);
   const [todayEvent, setTodayEvent] = useState<any>(null);
   const [staffProfile, setStaffProfile] = useState<any>(null);
+  const [club, setClub] = useState<any>(null);
   const [rank, setRank] = useState<number | null>(null);
 
   useEffect(() => {
@@ -84,6 +85,10 @@ export default function CoachDashboard() {
           setLoading(false);
           return;
         }
+
+        // Fetch Club Info for logo
+        const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
+        if (clubDoc.exists()) setClub({ ...clubDoc.data(), id: clubDoc.id });
 
         const divsSnap = await getDocs(collection(firestore, "clubs", clubId, "divisions"));
         const teamsPromises = divsSnap.docs.map(async (divDoc) => {
@@ -373,6 +378,7 @@ export default function CoachDashboard() {
           <TabsContent value="tactical" className="animate-in fade-in zoom-in-95 duration-500">
             <HockeyTacticalBoard 
               roster={roster || []} 
+              clubLogo={club?.logoUrl || ""}
               initialPlayerCount={selectedTeam.tacticalPlayerCount || 11}
               initialSport={selectedTeam.tacticalSport || selectedTeam.sport}
               captainId={selectedTeam.captainId}

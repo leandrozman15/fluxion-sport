@@ -23,7 +23,8 @@ import {
   Stethoscope,
   HeartPulse,
   UserPlus,
-  ArrowLeft
+  ArrowLeft,
+  Shield
 } from "lucide-react";
 import { doc, setDoc, collection, deleteDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -577,7 +578,7 @@ export default function MatchLiveTrackerPage() {
                         "h-16 w-16 border-4 shadow-2xl bg-white transition-all",
                         stats ? "border-primary" : "border-dashed border-white/30 bg-black/10"
                       )}>
-                        <AvatarImage src={stats?.playerPhoto} className="object-cover" />
+                        <AvatarImage src={club?.logoUrl} className="object-contain p-1" />
                         <AvatarFallback className="text-[10px] font-black opacity-50 bg-slate-100 text-slate-900">{p.label}</AvatarFallback>
                       </Avatar>
                       {stats && (
@@ -656,8 +657,8 @@ export default function MatchLiveTrackerPage() {
                       >
                         <div className="flex items-center gap-4">
                           <div className="relative">
-                            <Avatar className="h-12 w-12 border-2 border-slate-50 shadow-sm">
-                              <AvatarImage src={p.playerPhoto} className="object-cover" />
+                            <Avatar className="h-12 w-12 border-2 border-slate-100 shadow-sm">
+                              <AvatarImage src={club?.logoUrl} className="object-contain p-1" />
                               <AvatarFallback className="font-black text-slate-300">{p.playerName[0]}</AvatarFallback>
                             </Avatar>
                             {isSuspended && (
@@ -730,7 +731,10 @@ export default function MatchLiveTrackerPage() {
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase text-slate-400">Jugadora a Evaluar</Label>
               <div className="p-4 bg-red-50 rounded-2xl font-black text-red-900 border-2 border-red-100 flex items-center gap-3">
-                <Avatar className="h-10 w-10 border-2 border-white"><AvatarImage src={playerStats[medicalModal?.playerId || ""]?.playerPhoto} /><AvatarFallback>P</AvatarFallback></Avatar>
+                <Avatar className="h-10 w-10 border-2 border-white">
+                  <AvatarImage src={club?.logoUrl} className="object-contain p-1" />
+                  <AvatarFallback>P</AvatarFallback>
+                </Avatar>
                 {playerStats[medicalModal?.playerId || ""]?.playerName}
               </div>
             </div>
@@ -746,7 +750,10 @@ export default function MatchLiveTrackerPage() {
                       className="w-full justify-start gap-4 h-14 bg-white border-2 border-transparent hover:border-primary rounded-xl"
                       onClick={() => handleMedicalSustitution(p.playerId, 'hia')}
                     >
-                      <Avatar className="h-9 w-9 border-2 border-slate-50"><AvatarImage src={p.playerPhoto} /><AvatarFallback>{p.playerName[0]}</AvatarFallback></Avatar>
+                      <Avatar className="h-9 w-9 border-2 border-slate-100">
+                        <AvatarImage src={club?.logoUrl} className="object-contain p-1" />
+                        <AvatarFallback>{p.playerName[0]}</AvatarFallback>
+                      </Avatar>
                       <span className="font-black text-slate-900">{p.playerName}</span>
                     </Button>
                   ))}
