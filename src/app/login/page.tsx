@@ -50,7 +50,7 @@ export default function LoginPage() {
           router.replace('/dashboard/superadmin');
         } else if (role === 'coordinator') {
           router.replace('/dashboard/coordinator');
-        } else if (role === 'coach') {
+        } else if (role === 'coach' || role === 'coach_lvl1' || role === 'coach_lvl2') {
           router.replace('/dashboard/coach');
         } else if (role === 'club_admin' || clubId) {
           router.replace(clubId ? `/dashboard/clubs/${clubId}` : '/dashboard/clubs');
