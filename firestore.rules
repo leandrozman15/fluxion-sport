@@ -2,29 +2,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGLAS GLOBALES PARA PROTOTIPADO EN BASE DE DATOS ESPECÍFICA:
-    // ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7
+    // REGLAS DE ACCESO TOTAL PARA PROTOTIPADO - FORZAR DESPLIEGUE: 2024-04-03_1705
+    // DATABASE INSTANCE: ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7
     
     match /{document=**} {
-      allow read, write: if true;
-    }
-
-    match /clubs/{clubId} {
-      allow read, write: if true;
-      match /{allSubcollections=**} {
-        allow read, write: if true;
-      }
-    }
-
-    match /users/{userId} {
-      allow read, write: if true;
-    }
-    
-    match /all_players_index/{playerId} {
-      allow read, write: if true;
-    }
-    
-    match /live_matches_index/{matchId} {
       allow read, write: if true;
     }
   }
