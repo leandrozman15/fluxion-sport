@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trophy } from "lucide-react";
 import { useFirebase } from "@/firebase";
@@ -15,11 +15,14 @@ import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc } fro
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
   const router = useRouter();
+  const isRunning = useRef(false);
 
   useEffect(() => {
     async function bindIdentityAndRedirect() {
       if (!user || !firestore) return;
-      
+      if (isRunning.current) return;
+      isRunning.current = true;
+
       try {
         const email = user.email?.toLowerCase().trim() || "";
         let finalProfile: any = null;
@@ -150,6 +153,7 @@ export default function DashboardRedirectPage() {
 
       } catch (e) {
         console.error("Critical Identity Redirection Error:", e);
+        isRunning.current = false;
         router.replace('/login');
       }
     }
@@ -161,7 +165,8 @@ export default function DashboardRedirectPage() {
         bindIdentityAndRedirect();
       }
     }
-  }, [user, isUserLoading, firestore, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isUserLoading, firestore]);
 
   return (
     <div className="flex flex-col h-screen items-center justify-center bg-slate-950">
