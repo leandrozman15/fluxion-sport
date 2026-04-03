@@ -16,7 +16,9 @@ import {
   CalendarDays,
   Shield,
   ArrowRight,
-  Users
+  Users,
+  UserRound,
+  FileText
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
@@ -40,6 +42,11 @@ export default function CoordinatorDashboard() {
       if (!user || !firestore) return;
       try {
         const email = user.email?.toLowerCase().trim();
+        if (!email) {
+          setLoading(false);
+          return;
+        }
+
         const staffQuery = query(collection(firestore, "users"), where("email", "==", email));
         const staffSnap = await getDocs(staffQuery);
         
@@ -85,11 +92,12 @@ export default function CoordinatorDashboard() {
 
   const coordNav = [
     { title: "Dashboard", href: "/dashboard/coordinator", icon: Trophy },
-    { title: "Rivales", href: club ? `/dashboard/clubs/${club.id}/opponents` : "#", icon: Shield },
-    { title: "Gestor Fixture", href: club ? `/dashboard/clubs/${club.id}/fixture` : "#", icon: CalendarDays },
-    { title: "Categorías", href: club ? `/dashboard/clubs/${club.id}/divisions` : "#", icon: Layers },
-    { title: "Staff Técnico", href: club ? `/dashboard/clubs/${club.id}/coaches` : "#", icon: Users },
-    { title: "Tesorería", href: club ? `/dashboard/clubs/${club.id}/finances` : "#", icon: CreditCard },
+    { title: "Rivales", href: club ? `/dashboard/clubs/${club.id}/opponents` : "/dashboard/coordinator", icon: Shield },
+    { title: "Gestor Fixture", href: club ? `/dashboard/clubs/${club.id}/fixture` : "/dashboard/coordinator", icon: CalendarDays },
+    { title: "Categorías", href: club ? `/dashboard/clubs/${club.id}/divisions` : "/dashboard/coordinator", icon: Layers },
+    { title: "Padrón Socios", href: club ? `/dashboard/clubs/${club.id}/players` : "/dashboard/coordinator", icon: FileText },
+    { title: "Staff Técnico", href: club ? `/dashboard/clubs/${club.id}/coaches` : "/dashboard/coordinator", icon: UserRound },
+    { title: "Tesorería", href: club ? `/dashboard/clubs/${club.id}/finances` : "/dashboard/coordinator", icon: CreditCard },
   ];
 
   if (loading) return (
@@ -119,10 +127,10 @@ export default function CoordinatorDashboard() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild className="bg-white text-primary hover:bg-slate-50 border-none h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
-              <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 mr-2" /> Clubes Rivales</Link>
+              <Link href={club ? `/dashboard/clubs/${club.id}/opponents` : "#"}><Shield className="h-4 w-4 mr-2" /> Clubes Rivales</Link>
             </Button>
             <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 font-black uppercase text-[10px] tracking-widest h-12 px-6 shadow-xl">
-              <Link href={`/dashboard/clubs/${club?.id}/fixture`}><Plus className="h-4 w-4 mr-2" /> Armar Fixture</Link>
+              <Link href={club ? `/dashboard/clubs/${club.id}/fixture` : "#"}><Plus className="h-4 w-4 mr-2" /> Armar Fixture</Link>
             </Button>
           </div>
         </header>
@@ -190,10 +198,10 @@ export default function CoordinatorDashboard() {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" asChild className="h-9 gap-2 text-[9px] font-black uppercase border-slate-200 text-slate-600 hover:bg-slate-50">
-                          <Link href={`/dashboard/clubs/${club.id}/divisions/${div.id}/standings`}><TableIcon className="h-3 w-3" /> Ver Tabla</Link>
+                          <Link href={club ? `/dashboard/clubs/${club.id}/divisions/${div.id}/standings` : "#"}><TableIcon className="h-3 w-3" /> Ver Tabla</Link>
                         </Button>
                         <Button variant="ghost" size="sm" asChild className="h-9 w-9 p-0 rounded-full hover:bg-primary hover:text-white transition-colors">
-                          <Link href={`/dashboard/clubs/${club.id}/divisions`}><ArrowRight className="h-5 w-5" /></Link>
+                          <Link href={club ? `/dashboard/clubs/${club.id}/divisions` : "#"}><ArrowRight className="h-5 w-5" /></Link>
                         </Button>
                       </div>
                     </div>
@@ -242,22 +250,25 @@ export default function CoordinatorDashboard() {
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-2 pt-6 px-8 pb-8">
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/opponents`}><Shield className="h-4 w-4 text-primary" /> Base Maestra Rivales</Link>
+                  <Link href={club ? `/dashboard/clubs/${club.id}/opponents` : "#"}><Shield className="h-4 w-4 text-primary" /> Base Maestra Rivales</Link>
                 </Button>
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/fixture`}><CalendarDays className="h-4 w-4 text-primary" /> Cronograma de Fixture</Link>
+                  <Link href={club ? `/dashboard/clubs/${club.id}/fixture` : "#"}><CalendarDays className="h-4 w-4 text-primary" /> Cronograma de Fixture</Link>
                 </Button>
                 <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
-                  <Link href={`/dashboard/clubs/${club?.id}/divisions`}><Layers className="h-4 w-4 text-primary" /> Ramas y Categorías</Link>
+                  <Link href={club ? `/dashboard/clubs/${club.id}/players` : "#"}><FileText className="h-4 w-4 text-primary" /> Padrón de Socios y Jugadores</Link>
+                </Button>
+                <Button variant="outline" className="justify-start gap-3 h-14 border-slate-100 hover:border-primary hover:bg-primary/5 text-slate-900 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-sm transition-all" asChild>
+                  <Link href={club ? `/dashboard/clubs/${club.id}/divisions` : "#"}><Layers className="h-4 w-4 text-primary" /> Ramas y Categorías</Link>
                 </Button>
               </CardContent>
             </Card>
 
             <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center space-y-4 shadow-xl">
-              <Calendar className="h-10 w-10 text-primary mx-auto opacity-20" />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Control de Actividades</p>
+              <Users className="h-10 w-10 text-primary mx-auto opacity-20" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Control de Altas</p>
               <Button variant="outline" asChild className="w-full bg-slate-900 text-white hover:bg-slate-800 font-black uppercase text-[10px] tracking-widest h-12 border-none shadow-lg rounded-xl">
-                <Link href={`/dashboard/clubs/${club?.id}/divisions`}>Administrar Equipos</Link>
+                <Link href={club ? `/dashboard/clubs/${club.id}/players` : "#"}>Gestionar Jugadores</Link>
               </Button>
             </div>
           </div>
