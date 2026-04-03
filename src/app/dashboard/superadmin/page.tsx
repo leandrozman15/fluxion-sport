@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -8,9 +9,11 @@ import {
   Loader2, 
   CheckCircle2,
   Trophy,
-  Megaphone
+  Activity,
+  ShieldAlert,
+  Database
 } from "lucide-react";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc } from "firebase/firestore";
 import { useFirestore, useAuth, useFirebase } from "@/firebase";
 import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
 import { Button } from "@/components/ui/button";
@@ -19,9 +22,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
-import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
-import { CreateSpecialEventDialog } from "@/components/dashboard/create-special-event-dialog";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+
+const DATABASE_ID = "ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7";
 
 export default function SuperAdminPage() {
   const { user } = useFirebase();
@@ -50,19 +53,19 @@ export default function SuperAdminPage() {
       const clubId = doc(collection(db, "clubs")).id;
       const clubDoc = doc(db, "clubs", clubId);
       
-      // 1. Crear el Club en Firestore (Aseguramos el guardado antes de Auth)
-      await setDoc(clubDoc, {
+      // 1. Crear el Club en Firestore (No bloqueante)
+      setDocumentNonBlocking(clubDoc, {
         id: clubId,
         name: form.clubName,
         address: form.clubAddress,
         createdAt: new Date().toISOString()
-      });
+      }, {});
 
       const userId = form.adminEmail.toLowerCase().trim();
       const userDoc = doc(db, "users", userId);
       
       // 2. Crear el perfil del administrador en Firestore VINCULADO al club
-      await setDoc(userDoc, {
+      setDocumentNonBlocking(userDoc, {
         id: userId,
         name: form.adminName,
         email: userId,
@@ -71,19 +74,19 @@ export default function SuperAdminPage() {
         clubId: clubId, 
         sport: form.sport,
         createdAt: new Date().toISOString()
-      });
+      }, {});
 
-      // 3. Crear acceso en Auth (esto cerrará la sesión actual del superadmin)
+      // 3. Crear acceso en Auth (esto cerrará la sesión actual del superadmin para seguridad)
       initiateEmailSignUp(auth, form.adminEmail, form.adminPassword);
 
       setSuccess(true);
       toast({ 
         title: "Sistema Desplegado", 
-        description: `El club ${form.clubName} ha sido creado en la base de datos central.` 
+        description: `El club ${form.clubName} ha sido creado. La sesión se reiniciará.` 
       });
     } catch (error) {
       console.error("Error en despliegue SuperAdmin:", error);
-      toast({ variant: "destructive", title: "Error en el despliegue", description: "No se pudieron guardar los datos en Firestore." });
+      toast({ variant: "destructive", title: "Error en el despliegue" });
     } finally {
       setLoading(false);
     }
@@ -99,12 +102,12 @@ export default function SuperAdminPage() {
             </div>
             <CardTitle className="text-3xl font-black text-slate-900 tracking-tight uppercase">¡Sistema Desplegado!</CardTitle>
             <CardDescription className="text-slate-500 font-bold mt-2">
-              El club <strong>{form.clubName}</strong> ya puede acceder con sus credenciales. La sesión se reiniciará para seguridad.
+              El club <strong>{form.clubName}</strong> ha sido dado de alta. Al cerrar esta ventana, el sistema te permitirá ingresar con las nuevas credenciales.
             </CardDescription>
           </CardHeader>
           <CardFooter className="pt-8">
-            <Button className="w-full font-black uppercase text-xs tracking-widest h-14 shadow-xl" onClick={() => { setSuccess(false); setForm({ clubName: "", clubAddress: "", adminName: "", adminEmail: "", adminPassword: "", adminPhone: "", sport: "hockey" }); }}>
-              Registrar Nueva Institución
+            <Button className="w-full font-black uppercase text-xs tracking-widest h-14 shadow-xl" onClick={() => window.location.href = '/login'}>
+              Finalizar y Salir
             </Button>
           </CardFooter>
         </Card>
@@ -116,33 +119,38 @@ export default function SuperAdminPage() {
     <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500 pb-24 px-4 md:px-0">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
-          <h1 className="text-4xl font-black font-headline text-white drop-shadow-2xl tracking-tight">Infraestructura Global</h1>
-          <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] drop-shadow-md">Alta de Clientes • Base: {DATABASE_ID}</p>
+          <div className="flex items-center gap-3">
+            <div className="bg-red-600 p-2 rounded-xl text-white shadow-lg">
+              <ShieldAlert className="h-6 w-6" />
+            </div>
+            <h1 className="text-4xl font-black font-headline text-white drop-shadow-2xl tracking-tight">Infraestructura Global</h1>
+          </div>
+          <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] drop-shadow-md flex items-center gap-2">
+            <Database className="h-3 w-3" /> Instancia Activa: {DATABASE_ID}
+          </p>
         </div>
       </header>
-
-      <LiveMatchesCard />
 
       <form onSubmit={handleCreateClient}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-[2.5rem]">
             <CardHeader className="bg-slate-50 border-b border-slate-100 pb-8 pt-8 px-8">
               <CardTitle className="flex items-center gap-4 text-xl font-black text-slate-900 uppercase tracking-tighter">
-                <Building2 className="h-6 w-6 text-primary" /> Datos del Club
+                <Building2 className="h-6 w-6 text-primary" /> Datos de la Institución
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-8 pt-8 px-8 pb-8">
               <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Oficial</Label>
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Oficial del Club</Label>
                 <Input required value={form.clubName} onChange={e => setForm({...form, clubName: e.target.value})} placeholder="Ej. Club Atlético Vicentinos" className="h-14 border-2 font-black text-lg focus:border-primary transition-all bg-white" />
               </div>
               <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Ubicación</Label>
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Ubicación / Sede</Label>
                 <Input value={form.clubAddress} onChange={e => setForm({...form, clubAddress: e.target.value})} placeholder="Ciudad, Provincia" className="h-14 border-2 font-bold bg-white" />
               </div>
               <div className="space-y-4 pt-4 border-t">
                 <Label className="font-black text-xs uppercase tracking-widest text-primary flex items-center gap-2">
-                  <Trophy className="h-4 w-4" /> Deporte Base
+                  <Activity className="h-4 w-4" /> Deporte de Inicio
                 </Label>
                 <Tabs value={form.sport} onValueChange={v => setForm({...form, sport: v})} className="w-full">
                   <TabsList className="grid grid-cols-2 w-full h-14 bg-slate-100 p-1.5 rounded-2xl">
@@ -162,22 +170,22 @@ export default function SuperAdminPage() {
             </CardHeader>
             <CardContent className="space-y-6 pt-8 px-8 pb-8">
               <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Completo</Label>
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Completo del Admin</Label>
                 <Input required value={form.adminName} onChange={e => setForm({...form, adminName: e.target.value})} placeholder="Ej. Roberto Director" className="h-14 border-2 font-black text-slate-900 bg-white" />
               </div>
               <div className="grid grid-cols-1 gap-6 pt-2">
                 <div className="space-y-2">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Email de Acceso</Label>
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Email de Acceso (Usuario)</Label>
                   <Input required type="email" value={form.adminEmail} onChange={e => setForm({...form, adminEmail: e.target.value})} placeholder="admin@club.com" className="h-14 border-2 font-medium bg-white" />
                 </div>
                 <div className="space-y-2">
                   <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Clave Temporal</Label>
-                  <Input required type="password" value={form.adminPassword} onChange={e => setForm({...form, adminPassword: e.target.value})} placeholder="Min. 6 car." className="h-14 border-2 font-medium bg-white" />
+                  <Input required type="password" value={form.adminPassword} onChange={e => setForm({...form, adminPassword: e.target.value})} placeholder="Min. 6 caracteres" className="h-14 border-2 font-medium bg-white" />
                 </div>
               </div>
             </CardContent>
             <CardFooter className="bg-slate-50/50 border-t p-8">
-              <Button type="submit" className="w-full h-16 text-lg font-black uppercase tracking-[0.2em] gap-4 shadow-2xl shadow-primary/30 rounded-2xl" disabled={loading}>
+              <Button type="submit" className="w-full h-16 text-lg font-black uppercase tracking-[0.2em] gap-4 shadow-2xl shadow-primary/30 rounded-2xl transition-all hover:scale-[1.01]" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin h-6 w-6" /> : <ShieldCheck className="h-7 w-7" />}
                 Dar de Alta Institución
               </Button>
@@ -185,8 +193,10 @@ export default function SuperAdminPage() {
           </Card>
         </div>
       </form>
+      
+      <div className="text-center">
+        <p className="text-white/20 font-black uppercase tracking-[0.5em] text-[8px]">Fluxion Sport Protocol • Prototyping Level 4</p>
+      </div>
     </div>
   );
 }
-
-const DATABASE_ID = "ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7";
