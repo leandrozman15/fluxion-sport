@@ -21,7 +21,10 @@ import {
   ChevronLeft,
   Activity,
   ChevronRight,
-  Table as TableIcon
+  Table as TableIcon,
+  UserCheck,
+  ShieldCheck,
+  Search
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
@@ -39,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,7 +84,6 @@ export default function ClubCategoriesListPage() {
   const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
   const { data: categories, isLoading: divsLoading } = useCollection(divisionsQuery);
 
-  // Consulta de Staff para el selector de la Rama
   const staffQuery = useMemoFirebase(() => 
     query(
       collection(db, "users"), 
@@ -278,6 +281,12 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
   );
   const { data: teams } = useCollection(teamsQuery);
 
+  const playersQuery = useMemoFirebase(() => 
+    query(collection(db, "clubs", clubId, "players"), where("divisionId", "==", division.id)),
+    [db, clubId, division.id]
+  );
+  const { data: players, isLoading: playersLoading } = useCollection(playersQuery);
+
   const coachesQuery = useMemoFirebase(() => 
     query(
       collection(db, "users"), 
@@ -327,6 +336,9 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
             <div className="flex items-center gap-2 mb-1">
               <Badge className="bg-slate-800 text-white font-black text-[8px] px-2 h-4 uppercase">{division.sport?.toUpperCase()}</Badge>
               <Badge variant="outline" className="border-primary text-primary font-black text-[8px] px-2 h-4 uppercase">{division.gender || 'Femenino'}</Badge>
+              <Badge className="bg-primary/5 text-primary border-none font-black text-[8px] px-2 h-4 uppercase flex items-center gap-1">
+                <Users className="h-2.5 w-2.5" /> {players?.length || 0} Jugadoras
+              </Badge>
             </div>
             <h3 className="font-black text-xl text-slate-900 leading-none">{division.name}</h3>
             {division.coachName && (
@@ -395,80 +407,113 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
       </div>
 
       <AccordionContent className="border-t bg-slate-50/50 p-6">
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Subcategorías / Equipos</h4>
-            <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-primary text-white shadow-lg">
-                  <Plus className="h-3.5 w-3.5" /> Agregar Equipo
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem]">
-                <DialogHeader>
-                  <DialogTitle className="text-xl font-black text-slate-900">Nuevo Equipo: {division.name}</DialogTitle>
-                  <DialogDescription className="font-bold text-slate-500">Crea un equipo específico dentro de esta rama.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Equipo</Label>
-                    <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A, Sub 12 Blanca..." className="h-12 border-2 font-bold" />
+        <div className="space-y-8">
+          {/* SECCIÓN DE EQUIPOS */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Subcategorías / Equipos</h4>
+              <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-primary text-white shadow-lg">
+                    <Plus className="h-3.5 w-3.5" /> Agregar Equipo
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem]">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-black text-slate-900">Nuevo Equipo: {division.name}</DialogTitle>
+                    <DialogDescription className="font-bold text-slate-500">Crea un equipo específico dentro de esta rama.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Equipo</Label>
+                      <Input value={newTeam.name} onChange={e => setNewTeam({...newTeam, name: e.target.value})} placeholder="Ej. Primera A, Sub 12 Blanca..." className="h-12 border-2 font-bold" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Profesor Responsable (Nivel 1/2)</Label>
+                      <Select value={newTeam.coachId} onValueChange={handleSelectCoach}>
+                        <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
+                        <SelectContent>
+                          {coaches?.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id} className="font-bold">
+                              {c.name || `${c.firstName} ${c.lastName}`} 
+                              <span className="ml-2 opacity-50 text-[10px]">({c.role === 'coach_lvl1' ? 'Nivel 1' : c.role === 'coach_lvl2' ? 'Nivel 2' : 'Staff'})</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Profesor Responsable (Nivel 1/2)</Label>
-                    <Select value={newTeam.coachId} onValueChange={handleSelectCoach}>
-                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar Entrenador..." /></SelectTrigger>
-                      <SelectContent>
-                        {coaches?.map((c: any) => (
-                          <SelectItem key={c.id} value={c.id} className="font-bold">
-                            {c.name || `${c.firstName} ${c.lastName}`} 
-                            <span className="ml-2 opacity-50 text-[10px]">({c.role === 'coach_lvl1' ? 'Nivel 1' : c.role === 'coach_lvl2' ? 'Nivel 2' : 'Staff'})</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
+                    <Button variant="ghost" onClick={() => setIsTeamDialogOpen(false)} className="font-bold">Cancelar</Button>
+                    <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachId} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Confirmar Equipo</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {teams?.map((team: any) => (
+                <Card key={team.id} className="border-none shadow-xl hover:scale-105 transition-all bg-white rounded-2xl overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <Badge variant="outline" className="text-[8px] font-black uppercase border-slate-200">{team.season}</Badge>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 text-slate-300 hover:text-destructive" 
+                        onClick={(e) => { e.stopPropagation(); deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", division.id, "teams", team.id)); }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <CardTitle className="text-base font-black text-slate-900">{team.name}</CardTitle>
+                    <CardDescription className="text-[9px] font-bold uppercase text-primary flex items-center gap-1.5 mt-1">
+                      <UserRound className="h-3 w-3" /> Coach: {team.coachName}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardFooter className="pt-2">
+                    <Button asChild size="sm" className="w-full h-10 font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl">
+                      <Link href={`/dashboard/clubs/${clubId}/divisions/${division.id}/teams/${team.id}`}>Gestionar <ChevronRight className="h-3.5 w-3.5" /></Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+              {(!teams || teams.length === 0) && (
+                <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl opacity-30 bg-slate-100/50">
+                  <p className="text-[10px] font-black uppercase tracking-widest">Sin equipos registrados</p>
                 </div>
-                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t rounded-b-[2.5rem]">
-                  <Button variant="ghost" onClick={() => setIsTeamDialogOpen(false)} className="font-bold">Cancelar</Button>
-                  <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coachId} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Confirmar Equipo</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {teams?.map((team: any) => (
-              <Card key={team.id} className="border-none shadow-xl hover:scale-105 transition-all bg-white rounded-2xl overflow-hidden">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <Badge variant="outline" className="text-[8px] font-black uppercase border-slate-200">{team.season}</Badge>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 w-6 p-0 text-slate-300 hover:text-destructive" 
-                      onClick={(e) => { e.stopPropagation(); deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", division.id, "teams", team.id)); }}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
+          {/* SECCIÓN DE JUGADORAS (VISIBLE SIEMPRE O CUANDO NO HAY EQUIPOS) */}
+          <div className="space-y-6 pt-6 border-t border-slate-100">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Padrón de la Categoría</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {playersLoading ? (
+                <div className="col-span-full py-10 text-center"><Loader2 className="animate-spin mx-auto text-primary h-6 w-6" /></div>
+              ) : players && players.length > 0 ? (
+                players.map((p: any) => (
+                  <div key={p.id} className="flex items-center gap-4 p-3 bg-white rounded-2xl border-2 border-slate-50 shadow-sm hover:border-primary/20 transition-all">
+                    <Avatar className="h-12 w-10 border-2 border-slate-100 shadow-sm rounded-xl">
+                      <AvatarImage src={p.photoUrl} className="object-cover" />
+                      <AvatarFallback className="font-black text-slate-300 text-xs">{p.firstName[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-900 text-sm truncate leading-none">{p.firstName} {p.lastName}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-1">
+                        <ShieldCheck className="h-3 w-3 text-green-500" /> DNI: {p.dni}
+                      </p>
+                    </div>
                   </div>
-                  <CardTitle className="text-base font-black text-slate-900">{team.name}</CardTitle>
-                  <CardDescription className="text-[9px] font-bold uppercase text-primary flex items-center gap-1.5 mt-1">
-                    <UserRound className="h-3 w-3" /> Coach: {team.coachName}
-                  </CardDescription>
-                </CardHeader>
-                <CardFooter className="pt-2">
-                  <Button asChild size="sm" className="w-full h-10 font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl">
-                    <Link href={`/dashboard/clubs/${clubId}/divisions/${division.id}/teams/${team.id}`}>Gestionar <ChevronRight className="h-3.5 w-3.5" /></Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-            {(!teams || teams.length === 0) && (
-              <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl opacity-30">
-                <p className="text-[10px] font-black uppercase tracking-widest">Sin subcategorías registradas</p>
-              </div>
-            )}
+                ))
+              ) : (
+                <div className="col-span-full py-12 text-center border-2 border-dashed rounded-2xl opacity-30 bg-slate-100/50">
+                  <p className="text-[10px] font-black uppercase tracking-widest italic">Aún no hay jugadoras federadas en esta rama.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </AccordionContent>
