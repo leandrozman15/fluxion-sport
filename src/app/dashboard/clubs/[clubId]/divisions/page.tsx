@@ -24,7 +24,9 @@ import {
   Table as TableIcon,
   UserCheck,
   ShieldCheck,
-  Search
+  Search,
+  Target,
+  Trophy
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
@@ -325,6 +327,18 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
     }
   };
 
+  const calculateAge = (birthDate: string) => {
+    if (!birthDate) return "--";
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   return (
     <AccordionItem value={division.id} className="border-none rounded-2xl bg-white shadow-xl overflow-hidden px-0 mb-4 transition-all group">
       <div className="flex items-center px-6 py-5">
@@ -486,33 +500,70 @@ function CategoryRow({ division, clubId, onEdit, onDelete }: { division: any, cl
             </div>
           </div>
 
-          {/* SECCIÓN DE JUGADORAS (VISIBLE SIEMPRE O CUANDO NO HAY EQUIPOS) */}
+          {/* SECCIÓN DE JUGADORAS (Padrón Detallado) */}
           <div className="space-y-6 pt-6 border-t border-slate-100">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Padrón de la Categoría</h4>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {playersLoading ? (
-                <div className="col-span-full py-10 text-center"><Loader2 className="animate-spin mx-auto text-primary h-6 w-6" /></div>
-              ) : players && players.length > 0 ? (
-                players.map((p: any) => (
-                  <div key={p.id} className="flex items-center gap-4 p-3 bg-white rounded-2xl border-2 border-slate-50 shadow-sm hover:border-primary/20 transition-all">
-                    <Avatar className="h-12 w-10 border-2 border-slate-100 shadow-sm rounded-xl">
-                      <AvatarImage src={p.photoUrl} className="object-cover" />
-                      <AvatarFallback className="font-black text-slate-300 text-xs">{p.firstName[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="font-black text-slate-900 text-sm truncate leading-none">{p.firstName} {p.lastName}</p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-1">
-                        <ShieldCheck className="h-3 w-3 text-green-500" /> DNI: {p.dni}
-                      </p>
+            <div className="bg-white rounded-3xl border-2 border-slate-50 shadow-xl overflow-hidden">
+              <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-slate-50/50 border-b text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <div className="col-span-4">Jugadora</div>
+                <div className="col-span-2 text-center">Edad</div>
+                <div className="col-span-3 text-center">Posición</div>
+                <div className="col-span-1 text-center">PJ</div>
+                <div className="col-span-1 text-center">G</div>
+                <div className="col-span-1 text-right">Ficha</div>
+              </div>
+              
+              <div className="divide-y divide-slate-50">
+                {playersLoading ? (
+                  <div className="py-10 text-center"><Loader2 className="animate-spin mx-auto text-primary h-6 w-6" /></div>
+                ) : players && players.length > 0 ? (
+                  players.map((p: any) => (
+                    <div key={p.id} className="grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-slate-50 transition-colors group">
+                      <div className="col-span-4 flex items-center gap-3 min-w-0">
+                        <Avatar className="h-10 w-8 border-2 border-slate-100 shadow-sm rounded-lg">
+                          <AvatarImage src={p.photoUrl} className="object-cover" />
+                          <AvatarFallback className="font-black text-slate-300 text-[10px]">{p.firstName[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="font-black text-slate-900 text-sm truncate leading-none">{p.firstName} {p.lastName}</p>
+                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">DNI: {p.dni}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="col-span-2 text-center">
+                        <Badge variant="outline" className="font-black text-[10px] rounded-lg border-slate-200">
+                          {calculateAge(p.birthDate)} años
+                        </Badge>
+                      </div>
+                      
+                      <div className="col-span-3 text-center">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight truncate">
+                          {p.position || "Sin definir"}
+                        </span>
+                      </div>
+                      
+                      <div className="col-span-1 text-center">
+                        <span className="text-sm font-black text-primary">0</span>
+                      </div>
+                      
+                      <div className="col-span-1 text-center">
+                        <span className="text-sm font-black text-accent">0</span>
+                      </div>
+                      
+                      <div className="col-span-1 text-right">
+                        <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                          <Link href={`/dashboard/clubs/${clubId}/players`}><ChevronRight className="h-4 w-4" /></Link>
+                        </Button>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="py-16 text-center opacity-30 italic">
+                    <p className="text-[10px] font-black uppercase tracking-widest">Aún no hay jugadoras federadas en esta rama.</p>
                   </div>
-                ))
-              ) : (
-                <div className="col-span-full py-12 text-center border-2 border-dashed rounded-2xl opacity-30 bg-slate-100/50">
-                  <p className="text-[10px] font-black uppercase tracking-widest italic">Aún no hay jugadoras federadas en esta rama.</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
