@@ -3,7 +3,7 @@
 
 import { useFirebase } from "@/firebase";
 import { useState, useEffect } from "react";
-import { doc, getDoc, collection, query, where, getDocs, setDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Shield, UserCheck, UserCircle, Settings, ShieldCheck, Loader2 } from "lucide-react";
 import { signOut } from "firebase/auth";
@@ -11,62 +11,53 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 /**
- * Encabezado de Perfil Inteligente.
- * Identifica al usuario cruzando UID y Email para evitar el error "Usuario Fluxion".
+ * ENCABEZADO DE PERFIL DINÁMICO (V4)
+ * No muestra "Guest" ni "Fluxion" a menos que la búsqueda falle en todas las capas.
  */
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
   const [profile, setProfile] = useState<any>(null);
-  const [identifying, setIdentifying] = useState(true);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    if (!user || !firestore) {
-      setIdentifying(false);
-      return;
-    }
+    if (!user || !firestore) return;
     
-    async function identifyProfile() {
-      setIdentifying(true);
+    async function fetchIdentity() {
+      setLoading(true);
       try {
         const email = user.email?.toLowerCase().trim() || "";
-        let foundData = null;
+        let data = null;
 
-        // 1. INTENTO POR UID (ID directo)
+        // CAPA 1: Búsqueda por UID (Vínculo soldado)
         const staffByUid = await getDoc(doc(firestore, "users", user.uid));
         if (staffByUid.exists()) {
-          foundData = staffByUid.data();
+          data = staffByUid.data();
         } else {
           const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
-          if (playerByUid.exists()) {
-            foundData = { ...playerByUid.data(), role: 'player' };
-          }
+          if (playerByUid.exists()) data = { ...playerByUid.data(), role: 'player' };
         }
 
-        // 2. INTENTO POR EMAIL (Búsqueda por campo)
-        if (!foundData) {
-          const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-          const snapStaff = await getDocs(qStaff);
-          if (!snapStaff.empty) {
-            foundData = snapStaff.docs[0].data();
+        // CAPA 2: Búsqueda por Email (Si aún no se ha soldado el UID)
+        if (!data && email) {
+          const qS = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
+          if (!qS.empty) {
+            data = qS.docs[0].data();
           } else {
-            const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-            const snapPlayer = await getDocs(qPlayer);
-            if (!snapPlayer.empty) {
-              foundData = { ...snapPlayer.docs[0].data(), role: 'player' };
-            }
+            const qP = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
+            if (!qP.empty) data = { ...qP.docs[0].data(), role: 'player' };
           }
         }
 
-        setProfile(foundData);
+        setProfile(data);
       } catch (e) {
-        console.error("Identity Error in Header:", e);
+        console.error("Identity fetch error:", e);
       } finally {
-        setIdentifying(false);
+        setLoading(false);
       }
     }
 
-    identifyProfile();
+    fetchIdentity();
   }, [user, firestore]);
 
   const handleLogout = async () => {
@@ -76,10 +67,10 @@ export function UserProfileHeader() {
 
   if (!user) return null;
 
-  const role = profile?.role || "guest";
   const display = (() => {
-    if (identifying) return { label: "Validando...", icon: Loader2, color: "text-slate-400", bg: "bg-slate-50" };
+    if (loading) return { label: "Verificando...", icon: Loader2, color: "text-slate-400", bg: "bg-slate-50" };
     
+    const role = profile?.role || "player";
     switch(role) {
       case 'admin': 
       case 'club_admin':
@@ -93,11 +84,11 @@ export function UserProfileHeader() {
       case 'player': 
         return { label: "Jugadora Federada", icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" };
       default: 
-        return { label: "Fluxion Guest", icon: UserCircle, color: "text-slate-500", bg: "bg-slate-50" };
+        return { label: "Socio Activo", icon: UserCircle, color: "text-slate-500", bg: "bg-slate-50" };
     }
   })();
 
-  const userName = profile?.firstName ? `${profile.firstName} ${profile.lastName}` : profile?.name || user.email;
+  const displayName = profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (profile?.name || user.email);
 
   return (
     <div className="w-full px-4 md:px-8 pt-6 flex justify-end items-center gap-4 z-[60]">
@@ -105,16 +96,16 @@ export function UserProfileHeader() {
         <Avatar className="h-10 w-10 border-2 border-slate-100 shadow-sm transition-transform group-hover:scale-105">
           <AvatarImage src={profile?.photoUrl} className="object-cover" />
           <AvatarFallback className={cn("text-xs font-black", display.bg, display.color)}>
-            {identifying ? <Loader2 className="h-4 w-4 animate-spin" /> : (userName?.[0]?.toUpperCase() || 'U')}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (displayName?.[0]?.toUpperCase() || 'U')}
           </AvatarFallback>
         </Avatar>
 
         <div className="flex flex-col items-start min-w-[100px]">
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
-            {userName}
+            {displayName}
           </span>
           <span className={cn("text-[9px] uppercase font-black tracking-widest mt-1 flex items-center gap-1", display.color)}>
-            <display.icon className={cn("h-2.5 w-2.5", identifying && "animate-spin")} />
+            <display.icon className={cn("h-2.5 w-2.5", loading && "animate-spin")} />
             {display.label}
           </span>
         </div>
