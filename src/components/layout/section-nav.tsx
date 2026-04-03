@@ -104,22 +104,24 @@ export function SectionNav({ items }: SectionNavProps) {
             const Icon = item.icon;
             
             return (
-              <Tooltip key={item.href}>
+              <Tooltip key={item.title}>
                 <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 group relative",
-                      isReallyActive 
-                        ? "bg-primary text-primary-foreground shadow-lg scale-110 md:scale-105" 
-                        : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                    )}
-                  >
-                    {Icon && <Icon className={cn("h-6 w-6 md:h-5 md:w-5", isReallyActive ? "scale-110" : "group-hover:scale-110")} />}
-                    {isReallyActive && (
-                      <span className="absolute -top-1 -right-1 md:hidden w-2 h-2 bg-accent rounded-full animate-pulse shadow-sm" />
-                    )}
-                  </Link>
+                  <div className="inline-flex">
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 group relative",
+                        isReallyActive 
+                          ? "bg-primary text-primary-foreground shadow-lg scale-110 md:scale-105" 
+                          : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                      )}
+                    >
+                      {Icon && <Icon className={cn("h-6 w-6 md:h-5 md:w-5", isReallyActive ? "scale-110" : "group-hover:scale-110")} />}
+                      {isReallyActive && (
+                        <span className="absolute -top-1 -right-1 md:hidden w-2 h-2 bg-accent rounded-full animate-pulse shadow-sm" />
+                      )}
+                    </Link>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="hidden md:block font-black uppercase text-[10px] tracking-widest bg-primary text-primary-foreground border-none">
                   {item.title}
