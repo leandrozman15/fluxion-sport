@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, orderBy, doc, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,49 +42,54 @@ export default function PlayerDashboardHub() {
     async function fetchPlayerData() {
       if (!user || !firestore) return;
       try {
-        const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", user.email)));
+        const email = user.email?.toLowerCase().trim() || "";
+        const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
+        
         if (!playerSnap.empty) {
           const pData = playerSnap.docs[0].data();
           setPlayerInfo(pData);
-          const divSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions"));
-          for (const dDoc of divSnap.docs) {
-            const teamsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "teams"));
-            for (const tDoc of teamsSnap.docs) {
-              const rosterSnap = await getDocs(query(
-                collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "teams", tDoc.id, "assignments"),
-                where("playerId", "==", pData.id)
-              ));
-              if (!rosterSnap.empty) {
-                const teamData = { ...tDoc.data(), divisionName: dDoc.data().name, id: tDoc.id, clubId: pData.clubId, divisionId: dDoc.id };
-                setTeamInfo(teamData);
-                
-                const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "standings"));
-                const standings = standingsSnap.docs.map(doc => doc.data());
-                const sorted = standings.sort((a: any, b: any) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst));
-                const teamRank = sorted.findIndex((s: any) => s.teamName.toLowerCase().includes(teamData.name.toLowerCase())) + 1;
-                if (teamRank > 0) setRank(teamRank);
 
-                const eventsSnap = await getDocs(query(
-                  collection(firestore, "clubs", pData.clubId, "divisions", dDoc.id, "teams", tDoc.id, "events"),
-                  where("date", ">=", new Date().toISOString()),
-                  orderBy("date", "asc"),
-                  limit(1)
-                ));
-                if (!eventsSnap.empty) setNextEvent(eventsSnap.docs[0].data());
-                break;
-              }
+          // Si ya tiene teamId en el perfil, lo usamos directamente
+          if (pData.teamId && pData.divisionId) {
+            const teamDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId));
+            const divDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId));
+            
+            if (teamDoc.exists()) {
+              const teamData = { 
+                ...teamDoc.data(), 
+                id: teamDoc.id, 
+                clubId: pData.clubId, 
+                divisionId: pData.divisionId,
+                divisionName: divDoc.exists() ? divDoc.data().name : "Rama"
+              };
+              setTeamInfo(teamData);
+
+              // Cargar posición en la tabla
+              const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "standings"));
+              const standings = standingsSnap.docs.map(doc => doc.data());
+              const sorted = standings.sort((a: any, b: any) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst));
+              const teamRank = sorted.findIndex((s: any) => s.teamName.toLowerCase().includes(teamData.name.toLowerCase())) + 1;
+              if (teamRank > 0) setRank(teamRank);
+
+              // Cargar próximo evento
+              const eventsSnap = await getDocs(query(
+                collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId, "events"),
+                where("date", ">=", new Date().toISOString()),
+                orderBy("date", "asc"),
+                limit(1)
+              ));
+              if (!eventsSnap.empty) setNextEvent(eventsSnap.docs[0].data());
             }
-            if (teamInfo) break;
           }
         }
       } catch (e) {
-        console.error(e);
+        console.error("Player Dashboard Error:", e);
       } finally {
         setLoading(false);
       }
     }
     fetchPlayerData();
-  }, [user, firestore, teamInfo]);
+  }, [user, firestore]);
 
   const callupsQuery = useMemoFirebase(() => {
     if (!firestore || !playerInfo) return null;
@@ -105,7 +110,7 @@ export default function PlayerDashboardHub() {
     { title: "Estadísticas", href: "/dashboard/player/stats", icon: Star },
     { title: "Posiciones", href: "/dashboard/player/standings", icon: TableIcon },
     { title: "Pagos", href: "/dashboard/player/payments", icon: CreditCard },
-    { title: "Tienda Club", href: teamInfo ? `/dashboard/clubs/${teamInfo.clubId}/shop` : "/dashboard/player", icon: ShoppingBag },
+    { title: "Tienda Club", href: playerInfo ? `/dashboard/clubs/${playerInfo.clubId}/shop` : "/dashboard/player", icon: ShoppingBag },
   ];
 
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;

@@ -23,16 +23,7 @@ export function UserProfileHeader() {
 
     async function findAndListenProfile() {
       try {
-        // 1. Intentar por UID directo
-        const uidRef = doc(firestore, "users", user.uid);
-        const uidSnap = await getDoc(uidRef);
-        
-        if (uidSnap.exists()) {
-          setupListener(uidRef);
-          return;
-        }
-
-        // 2. Intentar por Email como ID (común en staff cargado por Admin)
+        // 1. Intentar por Email como ID (común en staff y jugadores con acceso)
         if (email) {
           const emailRef = doc(firestore, "users", email);
           const emailSnap = await getDoc(emailRef);
@@ -40,16 +31,18 @@ export function UserProfileHeader() {
             setupListener(emailRef);
             return;
           }
+        }
 
-          // 3. Buscar por consulta de campo email en staff
-          const qStaff = query(collection(firestore, "users"), where("email", "==", email), limit(1));
-          const staffSnap = await getDocs(qStaff);
-          if (!staffSnap.empty) {
-            setupListener(staffSnap.docs[0].ref);
-            return;
-          }
+        // 2. Intentar por UID directo
+        const uidRef = doc(firestore, "users", user.uid);
+        const uidSnap = await getDoc(uidRef);
+        if (uidSnap.exists()) {
+          setupListener(uidRef);
+          return;
+        }
 
-          // 4. Buscar en padrón de jugadores
+        // 3. Buscar en padrón de jugadores por email
+        if (email) {
           const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email), limit(1));
           const playerSnap = await getDocs(qPlayer);
           if (!playerSnap.empty) {

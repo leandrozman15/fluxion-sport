@@ -23,7 +23,7 @@ export default function DashboardRedirectPage() {
         const userDoc = await getDoc(doc(firestore, "users", email));
         let userData = userDoc.exists() ? userDoc.data() : null;
 
-        // 2. Si no existe por Email, buscamos por UID (por si acaso)
+        // 2. Si no existe por Email, buscamos por UID
         if (!userData) {
           const uidDoc = await getDoc(doc(firestore, "users", user.uid));
           if (uidDoc.exists()) userData = uidDoc.data();
@@ -44,12 +44,15 @@ export default function DashboardRedirectPage() {
             return router.replace('/dashboard/superadmin');
           }
 
+          // Si es JUGADOR, va a su panel específico
+          if (role === 'player') {
+            return router.replace('/dashboard/player');
+          }
+
           // Otros roles de staff van a sus dashboards específicos
           if (clubId) {
-            // VERIFICAR EXISTENCIA DEL CLUB PARA EVITAR DEAD-ENDS
             const clubCheck = await getDoc(doc(firestore, "clubs", clubId));
             if (!clubCheck.exists()) {
-              // Limpiar referencia huérfana
               const userRef = doc(firestore, "users", userData.id || user.uid);
               setDocumentNonBlocking(userRef, { clubId: null }, { merge: true });
               return router.replace('/dashboard/player');
@@ -57,12 +60,12 @@ export default function DashboardRedirectPage() {
 
             if (role === 'coordinator') return router.replace('/dashboard/coordinator');
             if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) return router.replace('/dashboard/coach');
-            // Por defecto al club gestionado
+            
             return router.replace(`/dashboard/clubs/${clubId}`);
           }
         }
 
-        // 4. Si no es staff, buscamos en JUGADORES
+        // 4. Si no es staff ni admin, buscamos en JUGADORES
         const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
         if (!playerSnap.empty) return router.replace('/dashboard/player');
 
