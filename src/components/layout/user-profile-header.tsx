@@ -11,7 +11,8 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 /**
- * Encabezado de Perfil con Sincronización de UID Reforzada.
+ * Encabezado de Perfil Inteligente.
+ * Identifica al usuario cruzando UID y Email para evitar el error "Usuario Fluxion".
  */
 export function UserProfileHeader() {
   const { user, firestore, auth } = useFirebase();
@@ -25,14 +26,13 @@ export function UserProfileHeader() {
       return;
     }
     
-    async function identifyAndLink() {
+    async function identifyProfile() {
       setIdentifying(true);
       try {
         const email = user.email?.toLowerCase().trim() || "";
         let foundData = null;
-        let sourceColl = "";
 
-        // 1. INTENTO DIRECTO POR UID (Lo más rápido si ya está vinculado)
+        // 1. INTENTO POR UID (ID directo)
         const staffByUid = await getDoc(doc(firestore, "users", user.uid));
         if (staffByUid.exists()) {
           foundData = staffByUid.data();
@@ -43,42 +43,30 @@ export function UserProfileHeader() {
           }
         }
 
-        // 2. INTENTO POR EMAIL (Búsqueda inicial)
+        // 2. INTENTO POR EMAIL (Búsqueda por campo)
         if (!foundData) {
           const qStaff = query(collection(firestore, "users"), where("email", "==", email));
           const snapStaff = await getDocs(qStaff);
           if (!snapStaff.empty) {
             foundData = snapStaff.docs[0].data();
-            sourceColl = "users";
           } else {
             const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
             const snapPlayer = await getDocs(qPlayer);
             if (!snapPlayer.empty) {
               foundData = { ...snapPlayer.docs[0].data(), role: 'player' };
-              sourceColl = "all_players_index";
             }
-          }
-
-          // 3. VINCULACIÓN EN CALIENTE (Si se encontró por email, grabamos el UID)
-          if (foundData && sourceColl) {
-            await setDoc(doc(firestore, sourceColl, user.uid), { 
-              ...foundData, 
-              id: user.uid,
-              uid: user.uid,
-              updatedAt: new Date().toISOString() 
-            }, { merge: true });
           }
         }
 
-        setProfile(foundData || { name: user.email, role: 'guest' });
+        setProfile(foundData);
       } catch (e) {
-        console.error("Identity Error:", e);
+        console.error("Identity Error in Header:", e);
       } finally {
         setIdentifying(false);
       }
     }
 
-    identifyAndLink();
+    identifyProfile();
   }, [user, firestore]);
 
   const handleLogout = async () => {
@@ -105,7 +93,7 @@ export function UserProfileHeader() {
       case 'player': 
         return { label: "Jugadora Federada", icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50" };
       default: 
-        return { label: "Usuario Fluxion", icon: UserCircle, color: "text-slate-500", bg: "bg-slate-50" };
+        return { label: "Fluxion Guest", icon: UserCircle, color: "text-slate-500", bg: "bg-slate-50" };
     }
   })();
 

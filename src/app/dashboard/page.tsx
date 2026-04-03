@@ -5,11 +5,11 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
 
 /**
- * Motor de Redirección y Vinculación Definitiva de Fluxion Sport.
- * Garantiza que el UID del usuario esté soldado al Legajo de Firestore.
+ * Motor Maestro de Redirección y Soldadura de Identidad.
+ * Vincula permanentemente el UID de Auth con el Legajo de Firestore.
  */
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
@@ -23,54 +23,48 @@ export default function DashboardRedirectPage() {
         const email = user.email?.toLowerCase().trim() || "";
         let userData: any = null;
         let sourceColl = "";
-        let originalDocId = "";
 
-        // --- 1. BUSCAR EN STAFF (users) ---
+        // 1. BUSCAR POR UID (Vínculo ya existente)
         const staffByUid = await getDoc(doc(firestore, "users", user.uid));
         if (staffByUid.exists()) {
           userData = staffByUid.data();
+          sourceColl = "users";
         } else {
-          // Buscar por Email si no está por UID
+          const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
+          if (playerByUid.exists()) {
+            userData = { ...playerByUid.data(), role: 'player' };
+            sourceColl = "all_players_index";
+          }
+        }
+
+        // 2. BUSCAR POR EMAIL (Vínculo pendiente)
+        if (!userData && email) {
           const qStaff = query(collection(firestore, "users"), where("email", "==", email));
           const snapStaff = await getDocs(qStaff);
           if (!snapStaff.empty) {
             userData = snapStaff.docs[0].data();
             sourceColl = "users";
-            originalDocId = snapStaff.docs[0].id;
-          }
-        }
-
-        // --- 2. BUSCAR EN JUGADORES (all_players_index) ---
-        if (!userData) {
-          const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
-          if (playerByUid.exists()) {
-            userData = { ...playerByUid.data(), role: 'player' };
           } else {
             const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
             const snapPlayer = await getDocs(qPlayer);
             if (!snapPlayer.empty) {
               userData = { ...snapPlayer.docs[0].data(), role: 'player' };
               sourceColl = "all_players_index";
-              originalDocId = snapPlayer.docs[0].id;
             }
+          }
+
+          // 3. SOLDADURA DE IDENTIDAD (UID -> Document ID)
+          if (userData && sourceColl) {
+            await setDoc(doc(firestore, sourceColl, user.uid), { 
+              ...userData, 
+              id: user.uid, 
+              uid: user.uid,
+              updatedAt: new Date().toISOString() 
+            }, { merge: true });
           }
         }
 
-        // --- 3. VINCULACIÓN PERMANENTE (SOLDADURA) ---
-        if (userData && sourceColl && originalDocId !== user.uid) {
-          // Creamos una copia exacta del documento usando el UID como ID definitivo
-          await setDoc(doc(firestore, sourceColl, user.uid), { 
-            ...userData, 
-            id: user.uid, 
-            uid: user.uid,
-            linkedEmail: email,
-            updatedAt: new Date().toISOString() 
-          }, { merge: true });
-          
-          // Si el ID original era el email, lo mantenemos como alias o lo dejamos estar
-          // pero el sistema ya usará el UID de ahora en adelante.
-        }
-
+        // REDIRECCIÓN BASADA EN ROL
         if (userData) {
           const role = userData.role || 'player';
           if (role === 'admin' || role === 'fed_admin') return router.replace('/dashboard/superadmin');
@@ -80,7 +74,7 @@ export default function DashboardRedirectPage() {
           return router.replace('/dashboard/player');
         }
 
-        // Si no se encuentra nada, enviamos al hub de invitado/jugador para que pida vinculación
+        // Fallback: Perfil no encontrado, enviar a Hub de Jugador para solicitar vinculación
         router.replace('/dashboard/player');
 
       } catch (e) {
@@ -102,7 +96,7 @@ export default function DashboardRedirectPage() {
     <div className="flex flex-col h-[60vh] items-center justify-center space-y-4 text-center">
       <Loader2 className="h-10 w-10 animate-spin text-white opacity-20" />
       <p className="text-white font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
-        Asegurando Identidad Oficial...
+        Autenticando Perfil Oficial...
       </p>
     </div>
   );

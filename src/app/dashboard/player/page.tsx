@@ -29,7 +29,8 @@ import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 
 /**
- * Hub Central del Jugador con carga de datos optimizada por UID.
+ * Hub Central del Jugador.
+ * Carga robusta de datos cruzando UID y Email.
  */
 export default function PlayerDashboardHub() {
   const { firestore, user } = useFirebase();
@@ -43,15 +44,15 @@ export default function PlayerDashboardHub() {
     async function fetchPlayerData() {
       if (!user || !firestore) return;
       try {
-        // 1. Buscamos el legajo por el UID del usuario (ya vinculado)
-        const playerDoc = await getDoc(doc(firestore, "all_players_index", user.uid));
-        
         let pData = null;
+        const email = user.email?.toLowerCase().trim() || "";
+
+        // 1. Buscar por UID (Legajo soldado)
+        const playerDoc = await getDoc(doc(firestore, "all_players_index", user.uid));
         if (playerDoc.exists()) {
           pData = playerDoc.data();
         } else {
-          // Fallback por email si el UID aún no se ha vinculado en el doc
-          const email = user.email?.toLowerCase().trim() || "";
+          // 2. Buscar por Email (Legajo huérfano)
           const qEmail = query(collection(firestore, "all_players_index"), where("email", "==", email));
           const snapEmail = await getDocs(qEmail);
           if (!snapEmail.empty) pData = snapEmail.docs[0].data();
@@ -60,41 +61,43 @@ export default function PlayerDashboardHub() {
         if (pData) {
           setPlayerInfo(pData);
 
-          // 2. Cargar contexto de equipo
-          if (pData.teamId && pData.divisionId && pData.clubId) {
-            const teamDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId));
-            const divDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId));
-            
-            if (teamDoc.exists()) {
-              const teamData = { 
-                ...teamDoc.data(), 
-                id: teamDoc.id, 
-                clubId: pData.clubId, 
-                divisionId: pData.divisionId,
-                divisionName: divDoc.exists() ? divDoc.data().name : "Rama"
-              };
-              setTeamInfo(teamData);
+          // 3. Cargar contexto de equipo y club
+          if (pData.clubId) {
+            if (pData.teamId && pData.divisionId) {
+              const teamDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId));
+              const divDoc = await getDoc(doc(firestore, "clubs", pData.clubId, "divisions", pData.divisionId));
+              
+              if (teamDoc.exists()) {
+                const teamData = { 
+                  ...teamDoc.data(), 
+                  id: teamDoc.id, 
+                  clubId: pData.clubId, 
+                  divisionId: pData.divisionId,
+                  divisionName: divDoc.exists() ? divDoc.data().name : "Rama"
+                };
+                setTeamInfo(teamData);
 
-              // 3. Cargar posición en la tabla de liga
-              const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "standings"));
-              const standings = standingsSnap.docs.map(doc => doc.data());
-              const sorted = standings.sort((a: any, b: any) => b.points - a.points);
-              const teamRank = sorted.findIndex((s: any) => s.teamName?.toLowerCase().includes(teamData.name.toLowerCase())) + 1;
-              if (teamRank > 0) setRank(teamRank);
+                // Clasificación
+                const standingsSnap = await getDocs(collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "standings"));
+                const standings = standingsSnap.docs.map(doc => doc.data());
+                const sorted = standings.sort((a: any, b: any) => b.points - a.points);
+                const teamRank = sorted.findIndex((s: any) => s.teamName?.toLowerCase().includes(teamData.name.toLowerCase())) + 1;
+                if (teamRank > 0) setRank(teamRank);
 
-              // 4. Cargar próximo compromiso en agenda
-              const eventsSnap = await getDocs(query(
-                collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId, "events"),
-                where("date", ">=", new Date().toISOString()),
-                orderBy("date", "asc"),
-                limit(1)
-              ));
-              if (!eventsSnap.empty) setNextEvent(eventsSnap.docs[0].data());
+                // Próximo evento
+                const eventsSnap = await getDocs(query(
+                  collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId, "events"),
+                  where("date", ">=", new Date().toISOString()),
+                  orderBy("date", "asc"),
+                  limit(1)
+                ));
+                if (!eventsSnap.empty) setNextEvent(eventsSnap.docs[0].data());
+              }
             }
           }
         }
       } catch (e) {
-        console.error("Player Hub Error:", e);
+        console.error("Player Hub Fetch Error:", e);
       } finally {
         setLoading(false);
       }
@@ -112,9 +115,9 @@ export default function PlayerDashboardHub() {
   ];
 
   if (loading) return (
-    <div className="flex flex-col h-screen items-center justify-center space-y-4">
-      <Loader2 className="animate-spin text-white h-12 w-12" />
-      <p className="text-white font-black uppercase tracking-widest text-[10px]">Identificando...</p>
+    <div className="flex flex-col h-[80vh] items-center justify-center space-y-4">
+      <Loader2 className="animate-spin text-white h-12 w-12 opacity-20" />
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Sincronizando Legajo...</p>
     </div>
   );
 
@@ -124,7 +127,7 @@ export default function PlayerDashboardHub() {
       <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-6 space-y-4">
         <UserCircle className="h-20 w-20 text-white opacity-20" />
         <h2 className="text-2xl font-black text-white font-headline">Ficha no vinculada</h2>
-        <p className="text-white/60 max-w-sm font-bold">Contacta con la administración del club para que sincronicen tu acceso oficial.</p>
+        <p className="text-white/60 max-w-sm font-bold">No se encontró una jugadora federada asociada a tu cuenta. Contacta a la secretaría del club.</p>
       </div>
     </div>
   );

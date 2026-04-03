@@ -3,8 +3,11 @@
 
 import { useState, useEffect } from "react";
 import { useFirebase } from "@/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 
+/**
+ * Fondo Dinámico que detecta el deporte del usuario cruzando UID y Email.
+ */
 export function DynamicBackground() {
   const { user, firestore } = useFirebase();
   const [sport, setSport] = useState<'hockey' | 'rugby' | 'none'>('hockey');
@@ -15,31 +18,41 @@ export function DynamicBackground() {
       return;
     }
 
-    const email = user.email?.toLowerCase().trim();
-    if (!email) {
-      setSport('none');
-      return;
+    async function detectSport() {
+      try {
+        const email = user.email?.toLowerCase().trim() || "";
+        let profileData = null;
+
+        // 1. Por UID
+        const uDoc = await getDoc(doc(firestore, "users", user.uid));
+        if (uDoc.exists()) {
+          profileData = uDoc.data();
+        } else {
+          const pDoc = await getDoc(doc(firestore, "all_players_index", user.uid));
+          if (pDoc.exists()) profileData = pDoc.data();
+        }
+
+        // 2. Por Email
+        if (!profileData && email) {
+          const qS = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
+          if (!qS.empty) {
+            profileData = qS.docs[0].data();
+          } else {
+            const qP = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
+            if (!qP.empty) profileData = qP.docs[0].data();
+          }
+        }
+
+        if (profileData?.sport === 'rugby') setSport('rugby');
+        else if (profileData?.sport === 'hockey') setSport('hockey');
+        else setSport('none');
+
+      } catch (err) {
+        console.warn("Sport detection suppressed");
+      }
     }
 
-    const qStaff = query(collection(firestore, "users"), where("email", "==", email));
-    const unsubStaff = onSnapshot(qStaff, (snap) => {
-      if (!snap.empty) {
-        const data = snap.docs[0].data();
-        setSport(data.sport === 'rugby' ? 'rugby' : data.sport === 'hockey' ? 'hockey' : 'none');
-      } else {
-        const qPlayer = query(collection(firestore, "all_players_index"), where("email", "==", email));
-        onSnapshot(qPlayer, (pSnap) => {
-          if (!pSnap.empty) {
-            const data = pSnap.docs[0].data();
-            setSport(data.sport === 'rugby' ? 'rugby' : data.sport === 'hockey' ? 'hockey' : 'none');
-          } else {
-            setSport('none');
-          }
-        }, (err) => console.warn("Background player listener suppressed"));
-      }
-    }, (err) => console.warn("Background staff listener suppressed"));
-
-    return () => unsubStaff();
+    detectSport();
   }, [user, firestore]);
 
   const bgUrl = sport === 'rugby' ? "/rugby.jpg" : sport === 'hockey' ? "/hockey.jpg" : null;
