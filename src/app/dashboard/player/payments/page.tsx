@@ -17,7 +17,7 @@ import {
   ShoppingBag
 } from "lucide-react";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -38,13 +38,11 @@ export default function PlayerPaymentsView() {
     async function fetchPlayerData() {
       if (!user || !firestore) return;
       try {
-        const clubsSnap = await getDocs(collection(firestore, "clubs"));
-        for (const clubDoc of clubsSnap.docs) {
-          const pSnap = await getDocs(query(collection(firestore, "clubs", clubDoc.id, "players"), where("email", "==", user.email || "")));
-          if (!pSnap.empty) {
-            setPlayerInfo({ ...pSnap.docs[0].data(), clubId: clubDoc.id });
-            break;
-          }
+        const email = user.email?.toLowerCase().trim() || "";
+        const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
+        if (!playerSnap.empty) {
+          const pData = playerSnap.docs[0].data();
+          setPlayerInfo(pData);
         }
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
@@ -54,14 +52,17 @@ export default function PlayerPaymentsView() {
 
   const paymentsQuery = useMemoFirebase(() => {
     if (!firestore || !playerInfo) return null;
-    return query(
-      collection(firestore, "clubs", playerInfo.clubId, "players", playerInfo.id, "payments"),
-      orderBy("year", "desc"),
-      orderBy("month", "desc")
-    );
+    // Simplificamos la consulta eliminando orderBy para evitar necesidad de índices compuestos en prototipo
+    return collection(firestore, "clubs", playerInfo.clubId, "players", playerInfo.id, "payments");
   }, [firestore, playerInfo]);
 
-  const { data: payments, isLoading: paymentsLoading } = useCollection(paymentsQuery);
+  const { data: rawPayments, isLoading: paymentsLoading } = useCollection(paymentsQuery);
+
+  // Ordenamos en memoria para evitar errores de índice en Firestore
+  const payments = rawPayments?.sort((a: any, b: any) => {
+    if (b.year !== a.year) return b.year - a.year;
+    return b.month - a.month;
+  });
 
   const playerNav = [
     { title: "Inicio Hub", href: "/dashboard/player", icon: LayoutDashboard },
@@ -72,96 +73,113 @@ export default function PlayerPaymentsView() {
     { title: "Tienda Club", href: playerInfo ? `/dashboard/clubs/${playerInfo.clubId}/shop` : "/dashboard/player", icon: ShoppingBag },
   ];
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
 
   if (!playerInfo) return (
-    <div className="text-center py-20 px-4">
-      <AlertCircle className="h-16 w-16 mx-auto text-muted-foreground opacity-20 mb-4" />
-      <h2 className="text-xl font-bold">Perfil no vinculado</h2>
-      <p className="text-muted-foreground mt-2">No hemos encontrado un jugador asociado a {user?.email}</p>
+    <div className="flex flex-col md:flex-row gap-8 min-h-screen">
+      <SectionNav items={playerNav} basePath="/dashboard/player" />
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-4">
+        <AlertCircle className="h-16 w-16 text-white opacity-20 mb-4" />
+        <h2 className="text-2xl font-black text-white">Perfil no vinculado</h2>
+        <p className="text-white/60 max-w-sm">No hemos encontrado un jugador asociado a {user?.email}</p>
+      </div>
     </div>
   );
 
-  const totalDebt = payments?.filter(p => p.status !== 'paid').reduce((acc, p) => acc + p.amount, 0) || 0;
-  const totalPaid = payments?.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0) || 0;
+  const totalDebt = payments?.filter(p => p.status !== 'paid').reduce((acc, p) => acc + (p.amount || 0), 0) || 0;
+  const totalPaid = payments?.filter(p => p.status === 'paid').reduce((acc, p) => acc + (p.amount || 0), 0) || 0;
 
   return (
-    <div className="flex gap-8 animate-in fade-in duration-500">
+    <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={playerNav} basePath="/dashboard/player" />
       
-      <div className="flex-1 space-y-8">
+      <div className="flex-1 space-y-8 pb-24">
         <header>
-          <h1 className="text-3xl font-bold font-headline text-foreground">Mis Mensualidades</h1>
-          <p className="text-muted-foreground">Estado de cuenta y control de pagos.</p>
+          <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Mis Mensualidades</h1>
+          <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Estado de cuenta y control de pagos institucionales.</p>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-primary/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-destructive" /> Deuda Total
-              </CardTitle>
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-red-500 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Deuda Pendiente</CardTitle>
+              <TrendingDown className="h-5 w-5 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-destructive">${totalDebt}</div>
-              <p className="text-xs text-muted-foreground">Meses pendientes o vencidos</p>
+              <div className="text-4xl font-black text-red-700">${totalDebt.toLocaleString()}</div>
+              <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Cuotas a regularizar</p>
             </CardContent>
           </Card>
-          <Card className="bg-green-50/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-600" /> Total Pagado
-              </CardTitle>
+          
+          <Card className="bg-white border-none shadow-xl border-l-8 border-l-green-500 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Abonado</CardTitle>
+              <TrendingUp className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">${totalPaid}</div>
-              <p className="text-xs text-muted-foreground">Suma de cuotas abonadas</p>
+              <div className="text-4xl font-black text-green-700">${totalPaid.toLocaleString()}</div>
+              <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Suma de cuotas pagas</p>
             </CardContent>
           </Card>
-          <Card>
+
+          <Card className="bg-primary text-primary-foreground border-none shadow-xl rounded-2xl overflow-hidden">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Estado de Cuenta</CardTitle>
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-80">Estado Anual</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-               <div className="flex justify-between text-xs font-bold mb-1">
-                 <span>Progreso Anual</span>
-                 <span>Al día</span>
+            <CardContent className="space-y-3">
+               <div className="flex justify-between text-[10px] font-black uppercase">
+                 <span className="opacity-70">Progreso</span>
+                 <span>{totalDebt === 0 && totalPaid > 0 ? "Al día" : "En proceso"}</span>
                </div>
-               <Progress value={totalDebt === 0 ? 100 : (totalPaid / (totalPaid + totalDebt)) * 100} />
+               <Progress value={totalDebt === 0 && totalPaid > 0 ? 100 : (totalPaid / (totalPaid + totalDebt || 1)) * 100} className="h-2 bg-white/20" />
             </CardContent>
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Historial Reciente</CardTitle>
+        <Card className="border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md rounded-[2rem]">
+          <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 px-8">
+            <CardTitle className="text-xl font-black text-slate-900 uppercase tracking-tighter">Historial de Movimientos</CardTitle>
+            <CardDescription className="font-medium text-slate-500">Registro detallado de tus cuotas sociales.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {paymentsLoading ? (
-              <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+              <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Mes</TableHead>
-                    <TableHead>Año</TableHead>
-                    <TableHead>Monto</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Referencia</TableHead>
+                  <TableRow className="border-none bg-slate-50/50">
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400 pl-8">Periodo</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400">Monto</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-400">Estado</TableHead>
+                    <TableHead className="text-right font-black uppercase text-[10px] tracking-widest text-slate-400 pr-8">Referencia</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payments?.map((p: any) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-bold">{MONTHS[p.month - 1]}</TableCell>
-                      <TableCell>{p.year}</TableCell>
-                      <TableCell>${p.amount}</TableCell>
-                      <TableCell>
-                        {p.status === 'paid' ? <Badge className="bg-green-100 text-green-700">Pagado</Badge> : <Badge variant="secondary">Pendiente</Badge>}
+                    <TableRow key={p.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors h-16">
+                      <TableCell className="font-black text-slate-900 pl-8 uppercase text-xs">
+                        {MONTHS[p.month - 1]} {p.year}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{p.paymentDate ? `Pagado el ${new Date(p.paymentDate).toLocaleDateString()}` : "Sin fecha"}</TableCell>
+                      <TableCell className="font-black text-slate-700">${(p.amount || 0).toLocaleString()}</TableCell>
+                      <TableCell>
+                        {p.status === 'paid' ? (
+                          <Badge className="bg-green-100 text-green-700 border-none font-black text-[9px] uppercase px-3 py-1">Pagado</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-none font-black text-[9px] uppercase px-3 py-1">Pendiente</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right pr-8 text-[10px] font-bold text-slate-400 uppercase">
+                        {p.paymentDate ? `Abonado el ${new Date(p.paymentDate).toLocaleDateString()}` : "Sin procesar"}
+                      </TableCell>
                     </TableRow>
                   ))}
+                  {(!payments || payments.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-32 text-slate-300 font-black uppercase tracking-widest text-xs italic">
+                        No hay registros de pago en tu cuenta corriente.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             )}

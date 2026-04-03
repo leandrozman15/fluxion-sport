@@ -11,19 +11,18 @@
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "email": { "type": "string" },
-        "phone": { "type": "string", "description": "Teléfono de contacto personal." },
+        "phone": { "type": "string" },
         "role": { 
           "type": "string", 
-          "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee", "coordinator"],
-          "description": "Determina el alcance de permisos: global, regional, de club o individual."
+          "enum": ["admin", "fed_admin", "assoc_admin", "club_admin", "coach", "player", "referee", "coordinator"]
         },
         "clubId": { "type": "string" },
         "clubName": { "type": "string" },
-        "dni": { "type": "string", "description": "Documento Nacional de Identidad." },
+        "dni": { "type": "string" },
         "birthDate": { "type": "string", "format": "date" },
         "weight": { "type": "number" },
         "height": { "type": "number" },
-        "photoUrl": { "type": "string", "description": "URL base64 o remota de la foto de perfil." },
+        "photoUrl": { "type": "string" },
         "sport": { "type": "string", "enum": ["hockey", "rugby"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
@@ -41,34 +40,19 @@
         "phone": { "type": "string" }
       }
     },
-    "SpecialEvent": {
-      "title": "Evento Especial",
-      "description": "Comunicado oficial con imagen y comentario para todo el club.",
+    "Payment": {
+      "title": "Pago / Cuota Social",
+      "description": "Registro de pago mensual de un socio.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "clubId": { "type": "string" },
-        "title": { "type": "string" },
-        "comment": { "type": "string" },
-        "imageUrl": { "type": "string" },
-        "authorName": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "title", "clubId", "createdAt"]
-    },
-    "LiveMatch": {
-      "title": "Partido en Vivo",
-      "description": "Estado de un partido en tiempo real para el monitor global.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "clubId": { "type": "string" },
-        "teamName": { "type": "string" },
-        "opponentName": { "type": "string" },
-        "homeScore": { "type": "number" },
-        "awayScore": { "type": "number" },
-        "timeDisplay": { "type": "string" },
-        "status": { "type": "string", "enum": ["live", "finished"] }
+        "playerId": { "type": "string" },
+        "month": { "type": "number" },
+        "year": { "type": "number" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["paid", "pending", "overdue"] },
+        "paymentMethod": { "type": "string" },
+        "paymentDate": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -84,21 +68,17 @@
       "schema": "#/backend/entities/Club",
       "description": "Instituciones deportivas."
     },
-    "/clubs/{clubId}/special_events/{eventId}": {
-      "schema": "#/backend/entities/SpecialEvent",
-      "description": "Novedades institucionales visibles para todos."
-    },
     "/clubs/{clubId}/players/{playerId}": {
       "schema": "#/backend/entities/UserProfile",
-      "description": "Fichas individuales del padrón del club."
+      "description": "Fichas individuales del club."
+    },
+    "/clubs/{clubId}/players/{playerId}/payments/{paymentId}": {
+      "schema": "#/backend/entities/Payment",
+      "description": "Historial de pagos del socio."
     },
     "/all_players_index/{playerId}": {
       "schema": "#/backend/entities/UserProfile",
-      "description": "Índice global para acceso de socios por email."
-    },
-    "/live_matches_index/{matchId}": {
-      "schema": "#/backend/entities/LiveMatch",
-      "description": "Monitor de partidos en tiempo real."
+      "description": "Índice global para acceso de socios."
     }
   }
 }
