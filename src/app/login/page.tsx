@@ -15,7 +15,7 @@ import {
   Database
 } from "lucide-react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
 import { useFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -34,6 +34,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFirstTimeAdmin, setShowFirstTimeAdmin] = useState(false);
 
   const [isRegOpen, setIsRegOpen] = useState(false);
   const [regForm, setRegForm] = useState({
@@ -41,6 +42,21 @@ export default function LoginPage() {
     email: "",
     password: ""
   });
+
+  // Verificar si ya existe un SuperAdmin para mostrar el botón de registro inicial
+  useEffect(() => {
+    async function checkExistingAdmin() {
+      if (!firestore) return;
+      try {
+        const q = query(collection(firestore, "users"), where("role", "==", "admin"), limit(1));
+        const snap = await getDocs(q);
+        setShowFirstTimeAdmin(snap.empty);
+      } catch (e) {
+        console.warn("Error verificando admins existentes:", e);
+      }
+    }
+    checkExistingAdmin();
+  }, [firestore]);
 
   useEffect(() => {
     if (user && !isUserLoading) {
@@ -54,7 +70,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
-      toast({ title: "Acceso Concedido", description: "Sincronizando perfil oficial..." });
+      toast({ title: "Acceso Concedido", description: "Sincronizando perfil institucional..." });
     } catch (err: any) {
       console.error("Login error:", err);
       setError("Email o contraseña incorrectos.");
@@ -75,23 +91,24 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // 1. Crear usuario en Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, regForm.email.toLowerCase().trim(), regForm.password);
       const newUser = cred.user;
       
-      // 2. Registrar perfil jerárquico en la base de datos específica ai-studio...
-      await setDoc(doc(firestore, "users", newUser.uid), {
-        id: newUser.uid,
-        email: regForm.email.toLowerCase().trim(),
+      const normalizedEmail = regForm.email.toLowerCase().trim();
+      
+      // Creamos el perfil usando el Email como ID para máxima consistencia en staff
+      await setDoc(doc(firestore, "users", normalizedEmail), {
+        id: normalizedEmail,
+        uid: newUser.uid,
+        email: normalizedEmail,
         name: regForm.name,
-        role: "admin", // ROL MAESTRO
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        role: "admin",
+        createdAt: new Date().toISOString()
       });
 
       toast({ 
         title: "Super Administrador Creado", 
-        description: "Acceso maestro activado en la infraestructura global." 
+        description: "Acceso maestro activado. Bienvenido a Fluxion Sport." 
       });
       
       setIsRegOpen(false);
@@ -101,7 +118,7 @@ export default function LoginPage() {
       toast({ 
         variant: "destructive", 
         title: "Error de Registro", 
-        description: err.code === 'auth/email-already-in-use' ? "Este email ya tiene una cuenta activa." : "No se pudo crear el perfil maestro." 
+        description: err.code === 'auth/email-already-in-use' ? "Este email ya está registrado." : "No se pudo crear la cuenta maestra." 
       });
     } finally {
       setLoading(false);
@@ -125,14 +142,14 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1">
             <h1 className="text-5xl font-black text-white tracking-tighter drop-shadow-2xl">Fluxion Sport</h1>
-            <p className="text-primary-foreground font-black uppercase tracking-[0.4em] text-[10px] opacity-70">SISTEMA DE GESTIÓN DE CLUBES</p>
+            <p className="text-primary-foreground font-black uppercase tracking-[0.4em] text-[10px] opacity-70">CONTROL INSTITUCIONAL</p>
           </div>
         </div>
 
         <Card className="shadow-[0_30px_100px_rgba(0,0,0,0.5)] border-none bg-white/95 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
           <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-8 pt-8 px-8">
-            <CardTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Ingreso al Sistema</CardTitle>
-            <CardDescription className="font-bold text-slate-500">Accede a tu consola institucional o técnica.</CardDescription>
+            <CardTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Ingreso</CardTitle>
+            <CardDescription className="font-bold text-slate-500">Accede con tus credenciales registradas.</CardDescription>
           </CardHeader>
           
           <form onSubmit={handleLogin}>
@@ -146,7 +163,7 @@ export default function LoginPage() {
               )}
               
               <div className="space-y-2">
-                <Label className="text-slate-400 font-black uppercase text-[9px] tracking-[0.2em] ml-1">Email del Usuario</Label>
+                <Label className="text-slate-400 font-black uppercase text-[9px] tracking-[0.2em] ml-1">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input 
@@ -181,67 +198,70 @@ export default function LoginPage() {
                 {loading ? <Loader2 className="animate-spin" /> : (
                   <>
                     <ShieldCheck className="h-6 w-6 mr-2" /> 
-                    <span>Iniciar Sesión</span>
+                    <span>Entrar al Sistema</span>
                     <ArrowRight className="h-5 w-5 ml-2 opacity-0 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
                   </>
                 )}
               </Button>
               
-              <div className="relative py-4 w-full">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100" /></div>
-                <div className="relative flex justify-center text-[10px] uppercase tracking-[0.3em] font-black">
-                  <span className="bg-white px-4 text-slate-300">Configuración</span>
-                </div>
-              </div>
-
-              <Dialog open={isRegOpen} onOpenChange={setIsRegOpen}>
-                <DialogTrigger asChild>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full h-12 text-[10px] font-black uppercase tracking-[0.2em] text-red-600 border-red-100 hover:bg-red-50 transition-all rounded-xl" 
-                    disabled={loading}
-                  >
-                    <Database className="h-4 w-4 mr-2" /> Registrar Super Administrador
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem]">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Nuevo Perfil Maestro</DialogTitle>
-                    <DialogDescription className="font-bold text-slate-500">Crea una cuenta con acceso total a la infraestructura de Fluxion.</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-5 py-6">
-                    <div className="space-y-2">
-                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Nombre Completo</Label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input value={regForm.name} onChange={e => setRegForm({...regForm, name: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="Ej. Admin Global" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Email de Acceso</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input type="email" value={regForm.email} onChange={e => setRegForm({...regForm, email: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="admin@fluxionsport.com" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Contraseña de Seguridad</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input type="password" value={regForm.password} onChange={e => setRegForm({...regForm, password: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="Mínimo 6 caracteres" />
-                      </div>
+              {showFirstTimeAdmin && (
+                <div className="mt-4 w-full">
+                  <div className="relative py-4 w-full">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100" /></div>
+                    <div className="relative flex justify-center text-[10px] uppercase tracking-[0.3em] font-black">
+                      <span className="bg-white px-4 text-slate-300">Configuración Inicial</span>
                     </div>
                   </div>
-                  <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2.5rem]">
-                    <Button variant="ghost" onClick={() => setIsRegOpen(false)} className="font-bold">Cancelar</Button>
-                    <Button onClick={handleRegisterSuperAdmin} disabled={loading} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-xl shadow-red-500/20 bg-red-600 text-white hover:bg-red-700 gap-2">
-                      {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <ShieldCheck className="h-5 w-5" />}
-                      Activar Super Admin
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+
+                  <Dialog open={isRegOpen} onOpenChange={setIsRegOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="w-full h-14 text-[11px] font-black uppercase tracking-[0.2em] text-red-600 border-red-200 bg-red-50/50 hover:bg-red-50 transition-all rounded-2xl animate-pulse" 
+                      >
+                        <Database className="h-5 w-5 mr-2" /> Registrar Super Administrador
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem]">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Primer Registro Maestro</DialogTitle>
+                        <DialogDescription className="font-bold text-slate-500">Crea la cuenta única con privilegios de infraestructura global.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-5 py-6">
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Nombre Completo</Label>
+                          <div className="relative">
+                            <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Input value={regForm.name} onChange={e => setRegForm({...regForm, name: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="Ej. Admin Global" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Email</Label>
+                          <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Input type="email" value={regForm.email} onChange={e => setRegForm({...regForm, email: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="admin@fluxionsport.com" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Contraseña</Label>
+                          <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Input type="password" value={regForm.password} onChange={e => setRegForm({...regForm, password: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="Mínimo 6 caracteres" />
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2.5rem]">
+                        <Button variant="ghost" onClick={() => setIsRegOpen(false)} className="font-bold">Cerrar</Button>
+                        <Button onClick={handleRegisterSuperAdmin} disabled={loading} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-xl shadow-red-500/20 bg-red-600 text-white hover:bg-red-700 gap-2">
+                          {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <ShieldCheck className="h-5 w-5" />}
+                          Activar Sistema Maestro
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
             </CardFooter>
           </form>
         </Card>

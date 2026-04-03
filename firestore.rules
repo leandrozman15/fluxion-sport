@@ -2,11 +2,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Funciones de Ayuda
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isStaffMember() {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid))
+      );
+    }
+
     // REGLAS GLOBALES PARA FLUXION CLUBES
     // DATABASE: ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7
-    // UPDATED: 2026-04-03_1800 (Liberar acceso total para prototipado)
+    // UPDATED: 2026-04-03_1900 (Acceso total para prototipado)
 
     match /{document=**} {
+      // Permitimos lectura y escritura total para asegurar que el motor encuentre los datos
+      // mientras se termina de configurar la identidad basada en Email.
       allow read, write: if true;
     }
   }

@@ -6,13 +6,10 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { useToast } from "@/hooks/use-toast";
-import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function DashboardRedirectPage() {
   const { user, firestore, isUserLoading } = useFirebase();
   const router = useRouter();
-  const { toast } = useToast();
 
   useEffect(() => {
     async function determineRoleAndRedirect() {
@@ -21,12 +18,18 @@ export default function DashboardRedirectPage() {
       try {
         const email = user.email?.toLowerCase().trim() || "";
         
-        // 1. Obtener Perfil prioritario
-        const userRef = doc(firestore, "users", user.uid);
-        let userSnap = await getDoc(userRef);
-        let userData = userSnap.exists() ? userSnap.data() : null;
+        // 1. Buscamos Perfil por Email (ID primario en staff)
+        const userDoc = await getDoc(doc(firestore, "users", email));
+        let userData = userDoc.exists() ? userDoc.data() : null;
 
+        // 2. Si no existe por Email, buscamos por UID (por si acaso)
         if (!userData) {
+          const uidDoc = await getDoc(doc(firestore, "users", user.uid));
+          if (uidDoc.exists()) userData = uidDoc.data();
+        }
+
+        // 3. Fallback: búsqueda por consulta de email
+        if (!userData && email) {
           const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
           if (!staffSnap.empty) userData = staffSnap.docs[0].data();
         }
@@ -35,43 +38,27 @@ export default function DashboardRedirectPage() {
           const role = userData.role;
           const clubId = userData.clubId;
 
-          // PRIORIDAD 1: SuperAdmin siempre va a su consola
+          // SuperAdmin va a su consola
           if (role === 'admin' || role === 'fed_admin') {
             return router.replace('/dashboard/superadmin');
           }
 
-          // PRIORIDAD 2: Verificar Club si existe en el perfil
+          // Otros roles de staff van a sus dashboards específicos
           if (clubId) {
-            try {
-              const clubDoc = await getDoc(doc(firestore, "clubs", clubId));
-              if (clubDoc.exists()) {
-                if (role === 'coordinator') return router.replace('/dashboard/coordinator');
-                if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) return router.replace('/dashboard/coach');
-                return router.replace(`/dashboard/clubs/${clubId}`);
-              } else {
-                // Solo limpiamos si el club REALMENTE no existe (404)
-                console.warn("Club ID in profile no longer exists in Firestore.");
-                updateDocumentNonBlocking(doc(firestore, "users", user.uid), { clubId: null });
-                return router.replace('/dashboard/clubs');
-              }
-            } catch (e: any) {
-              // Si es un error de permisos o red, NO borramos el clubId, 
-              // simplemente vamos al padrón de clubes y dejamos que los listeners manejen el error.
-              console.error("Firestore Access Error during redirect:", e);
-              return router.replace('/dashboard/clubs');
-            }
+            if (role === 'coordinator') return router.replace('/dashboard/coordinator');
+            if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) return router.replace('/dashboard/coach');
+            // Por defecto al club gestionado
+            return router.replace(`/dashboard/clubs/${clubId}`);
           }
-          
-          // Si no tiene clubId, al padrón
-          return router.replace('/dashboard/clubs');
         }
 
-        // 2. Buscar en JUGADORES
+        // 4. Si no es staff, buscamos en JUGADORES
         const playerSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
         if (!playerSnap.empty) return router.replace('/dashboard/player');
 
-        // 3. Fallback
-        router.replace('/dashboard/clubs');
+        // 5. Si no tiene nada asignado, el SuperAdmin (si lo es) debe asignarlo. 
+        // Como fallback general, vamos al home del club por defecto si tuviera uno.
+        router.replace('/dashboard/player'); // Dashboard de jugador como hub neutro
 
       } catch (e) {
         console.error("Critical Redirect Error:", e);
@@ -83,7 +70,7 @@ export default function DashboardRedirectPage() {
       if (!user) router.replace('/login');
       else determineRoleAndRedirect();
     }
-  }, [user, isUserLoading, firestore, router, toast]);
+  }, [user, isUserLoading, firestore, router]);
 
   return (
     <div className="flex flex-col h-[60vh] items-center justify-center space-y-4 text-center">

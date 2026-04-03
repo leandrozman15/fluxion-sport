@@ -44,42 +44,9 @@ export default function InstitutionDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  // 1. Datos del Club con verificación de existencia
+  // Datos del Club
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
-
-  useEffect(() => {
-    // Si el club no existe después de cargar, rebotar al inicio
-    if (!clubLoading && !club) {
-      toast({ 
-        variant: "destructive", 
-        title: "Institución Eliminada", 
-        description: "El club al que intentas acceder ya no existe en el sistema nacional." 
-      });
-      router.replace('/dashboard/clubs');
-    }
-  }, [club, clubLoading, router, toast]);
-
-  useEffect(() => {
-    async function checkRoleAndBounce() {
-      if (!user || !firestore) return;
-      try {
-        const email = user.email?.toLowerCase().trim() || "";
-        const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
-        if (!staffSnap.empty) {
-          const staffData = staffSnap.docs[0].data();
-          const role = staffData.role;
-          
-          if (role === 'coordinator') {
-            router.replace('/dashboard/coordinator');
-          } else if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) {
-            router.replace('/dashboard/coach');
-          }
-        }
-      } catch (e) { console.error(e); }
-    }
-    checkRoleAndBounce();
-  }, [user, firestore, router]);
 
   const categoriesQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
   const { data: categories } = useCollection(categoriesQuery);
@@ -131,7 +98,6 @@ export default function InstitutionDetailPage() {
   ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
 
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
-  if (!club) return null;
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
@@ -139,9 +105,6 @@ export default function InstitutionDetailPage() {
       
       <div className="flex-1 space-y-8 pb-24 px-4 md:px-0">
         <header className="flex flex-col gap-4">
-          <Link href="/dashboard/clubs" className="ambient-link group">
-            <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver a Instituciones
-          </Link>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border shadow-xl">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16 border-2 border-primary/10 shadow-sm rounded-2xl bg-white">
@@ -149,7 +112,7 @@ export default function InstitutionDetailPage() {
                 <AvatarFallback className="bg-primary/5 text-primary"><Building2 /></AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-3xl font-black font-headline !text-slate-900 shadow-none" style={{ textShadow: 'none' }}>{club?.name}</h1>
+                <h1 className="text-3xl font-black font-headline !text-slate-900 shadow-none">{club?.name || "Cargando Club..."}</h1>
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">{club?.address || "Sede oficial del club"}</p>
               </div>
             </div>
