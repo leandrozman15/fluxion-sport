@@ -17,13 +17,21 @@ import {
   Search,
   Pencil,
   CreditCard,
-  UserPlus
+  UserPlus,
+  Scale,
+  Ruler,
+  AlertCircle,
+  ShieldCheck,
+  Calendar,
+  MapPin,
+  Stethoscope,
+  ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, useAuth } from "@/firebase";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -35,6 +43,7 @@ import { SectionNav } from "@/components/layout/section-nav";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { initiateEmailSignUp } from "@/firebase/non-blocking-login";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Tutor {
   name: string;
@@ -65,11 +74,9 @@ export default function PlayersPage() {
     bloodType: "",
     emergencyContact: "",
     emergencyPhone: "",
-    tutors: [{ name: "", kinship: "", phone: "" }] as Tutor[],
     position: "",
-    jerseyNumber: 1,
+    jerseyNumber: "",
     photoUrl: "",
-    parkingActive: false,
     enableLogin: false,
     password: "",
     sport: "hockey"
@@ -93,10 +100,12 @@ export default function PlayersPage() {
   ];
 
   const handleCreatePlayer = async () => {
-    if (!newPlayer.firstName || !newPlayer.lastName || !newPlayer.dni) return;
+    if (!newPlayer.firstName || !newPlayer.lastName || !newPlayer.dni) {
+      toast({ variant: "destructive", title: "Faltan datos", description: "Nombre, apellido y DNI son obligatorios." });
+      return;
+    }
 
     try {
-      // Estandarizar ID por email para evitar desincronización con el UID que será igual al email en registros iniciales
       const normalizedEmail = newPlayer.email.toLowerCase().trim();
       const playerId = normalizedEmail || doc(collection(db, "clubs", clubId, "players")).id;
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
@@ -126,7 +135,7 @@ export default function PlayersPage() {
       }
 
       await setDoc(playerDoc, pData);
-      toast({ title: "Jugador Registrado" });
+      toast({ title: "Jugador Registrado", description: "Ficha oficial generada con éxito." });
       setNewPlayer(initialForm);
       setIsDialogOpen(false);
     } catch (e) {
@@ -162,7 +171,7 @@ export default function PlayersPage() {
         <header className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold font-headline text-white drop-shadow-md">Legajos Deportivos</h1>
+              <h1 className="text-3xl font-black font-headline text-white drop-shadow-md">Legajos Deportivos</h1>
               <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{club?.name} • Padrón oficial de jugadores.</p>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -171,51 +180,165 @@ export default function PlayersPage() {
                   <UserPlus className="h-5 w-5" /> Alta de Jugador
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[95vh] bg-white border-none shadow-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-black">Nueva Ficha Deportiva</DialogTitle>
+              <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
+                <DialogHeader className="bg-primary p-8 text-primary-foreground">
+                  <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                    <ShieldCheck className="h-7 w-7" /> Nueva Ficha Deportiva Oficial
+                  </DialogTitle>
+                  <DialogDescription className="text-primary-foreground/80 font-bold">
+                    Completa el legajo federativo del deportista.
+                  </DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="max-h-[70vh] pr-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+                <ScrollArea className="max-h-[70vh]">
+                  <div className="p-8 space-y-10">
+                    {/* Sección 1: Identidad */}
                     <div className="space-y-6">
-                      <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
-                        <div className="space-y-0.5">
-                          <Label className="text-sm font-bold text-slate-700">Disciplina</Label>
-                          <p className="text-[10px] text-primary font-black uppercase tracking-widest">
-                            {newPlayer.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
-                          </p>
-                        </div>
-                        <Switch 
-                          checked={newPlayer.sport === 'rugby'} 
-                          onCheckedChange={(v) => setNewPlayer({...newPlayer, sport: v ? 'rugby' : 'hockey'})} 
-                        />
+                      <div className="flex items-center gap-3 border-b pb-2">
+                        <UserRound className="h-5 w-5 text-primary" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">1. Identidad Personal</h3>
                       </div>
-                      <div className="space-y-4">
-                        <Input value={newPlayer.firstName} onChange={e => setNewPlayer({...newPlayer, firstName: e.target.value})} placeholder="Nombre" className="h-12 border-2 font-bold" />
-                        <Input value={newPlayer.lastName} onChange={e => setNewPlayer({...newPlayer, lastName: e.target.value})} placeholder="Apellido" className="h-12 border-2 font-bold" />
-                        <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} placeholder="DNI" className="h-12 border-2 font-bold" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Nombre</Label>
+                          <Input value={newPlayer.firstName} onChange={e => setNewPlayer({...newPlayer, firstName: e.target.value})} placeholder="Ej. Mateo" className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Apellido</Label>
+                          <Input value={newPlayer.lastName} onChange={e => setNewPlayer({...newPlayer, lastName: e.target.value})} placeholder="Ej. González" className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">DNI / Documento</Label>
+                          <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} placeholder="Número sin puntos" className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Fecha de Nacimiento</Label>
+                          <Input type="date" value={newPlayer.birthDate} onChange={e => setNewPlayer({...newPlayer, birthDate: e.target.value})} className="h-12 border-2" />
+                        </div>
                       </div>
                     </div>
+
+                    {/* Sección 2: Contacto */}
                     <div className="space-y-6">
-                      <div className="space-y-4 border-t pt-6 bg-slate-50 p-4 rounded-xl">
-                        <Label className="text-xs font-black uppercase text-primary">Acceso Digital (Usuario)</Label>
-                        <div className="flex items-center gap-2">
-                          <Switch checked={newPlayer.enableLogin} onCheckedChange={(v) => setNewPlayer({...newPlayer, enableLogin: v})} />
-                          <span className="text-[10px] font-black text-slate-400">ACTIVAR APP SOCIO</span>
-                        </div>
-                        {newPlayer.enableLogin && (
-                          <div className="space-y-3">
-                            <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email institucional" className="h-10 border-2" />
-                            <Input type="password" value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} placeholder="Clave temporal" className="h-10 border-2" />
-                          </div>
-                        )}
+                      <div className="flex items-center gap-3 border-b pb-2">
+                        <Mail className="h-5 w-5 text-primary" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Contacto y Residencia</h3>
                       </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Email Particular</Label>
+                          <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="mateo@ejemplo.com" className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Teléfono Celular</Label>
+                          <Input value={newPlayer.phone} onChange={e => setNewPlayer({...newPlayer, phone: e.target.value})} placeholder="+54..." className="h-12 border-2" />
+                        </div>
+                        <div className="col-span-full space-y-2">
+                          <Label className="font-bold text-slate-700">Dirección Particular</Label>
+                          <Input value={newPlayer.address} onChange={e => setNewPlayer({...newPlayer, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sección 3: Salud */}
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 border-b pb-2">
+                        <Stethoscope className="h-5 w-5 text-primary" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">3. Ficha Biométrica y Salud</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Scale className="h-3 w-3" /> Peso (kg)</Label>
+                          <Input type="number" value={newPlayer.weight} onChange={e => setNewPlayer({...newPlayer, weight: e.target.value})} className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Ruler className="h-3 w-3" /> Altura (cm)</Label>
+                          <Input type="number" value={newPlayer.height} onChange={e => setNewPlayer({...newPlayer, height: e.target.value})} className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Grupo Sanguíneo</Label>
+                          <Select value={newPlayer.bloodType} onValueChange={v => setNewPlayer({...newPlayer, bloodType: v})}>
+                            <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Elegir..." /></SelectTrigger>
+                            <SelectContent>
+                              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t} className="font-bold">{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-orange-50 p-6 rounded-2xl border border-orange-100">
+                        <div className="space-y-2">
+                          <Label className="font-black text-orange-800 uppercase text-[10px]">Contacto de Emergencia</Label>
+                          <Input value={newPlayer.emergencyContact} onChange={e => setNewPlayer({...newPlayer, emergencyContact: e.target.value})} placeholder="Nombre del familiar" className="bg-white border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-black text-orange-800 uppercase text-[10px]">Teléfono Emergencia</Label>
+                          <Input value={newPlayer.emergencyPhone} onChange={e => setNewPlayer({...newPlayer, emergencyPhone: e.target.value})} placeholder="Número 24hs" className="bg-white border-2" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sección 4: Técnica */}
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 border-b pb-2">
+                        <Layers className="h-5 w-5 text-primary" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Información Técnica</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="font-black text-xs uppercase text-slate-400">Disciplina Principal</Label>
+                          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
+                            <span className="font-black text-slate-900">{newPlayer.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}</span>
+                            <Switch 
+                              checked={newPlayer.sport === 'rugby'} 
+                              onCheckedChange={(v) => setNewPlayer({...newPlayer, sport: v ? 'rugby' : 'hockey'})} 
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Dorsal / Camiseta</Label>
+                          <Input type="number" value={newPlayer.jerseyNumber} onChange={e => setNewPlayer({...newPlayer, jerseyNumber: e.target.value})} placeholder="N°" className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">Posición Preferida</Label>
+                          <Input value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} placeholder="Ej. Delantera, Volante..." className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700">URL Foto (Opcional)</Label>
+                          <Input value={newPlayer.photoUrl} onChange={e => setNewPlayer({...newPlayer, photoUrl: e.target.value})} placeholder="https://..." className="h-12 border-2" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sección 5: Acceso Digital */}
+                    <div className="space-y-6 bg-slate-50 -mx-8 p-8 border-y">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                            <ShieldCheck className="h-5 w-5" /> Acceso App Fluxion
+                          </h3>
+                          <p className="text-xs text-slate-500 font-bold">Habilita al socio para ver su carnet y estadísticas.</p>
+                        </div>
+                        <Switch checked={newPlayer.enableLogin} onCheckedChange={(v) => setNewPlayer({...newPlayer, enableLogin: v})} />
+                      </div>
+                      {newPlayer.enableLogin && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2">
+                          <div className="space-y-2">
+                            <Label className="font-bold text-slate-700">Usuario (Email)</Label>
+                            <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email de login" className="bg-white border-2" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="font-bold text-slate-700">Clave Temporal</Label>
+                            <Input type="password" value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} placeholder="Mínimo 6 caracteres" className="bg-white border-2" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </ScrollArea>
-                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t">
-                  <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-                  <Button onClick={handleCreatePlayer} disabled={!newPlayer.firstName || !newPlayer.lastName} className="font-black uppercase text-xs tracking-widest h-12 px-8">Confirmar Alta</Button>
+                <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4">
+                  <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
+                  <Button onClick={handleCreatePlayer} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20 gap-2">
+                    Confirmar Alta Federativa <ChevronRight className="h-5 w-5" />
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -229,50 +352,81 @@ export default function PlayersPage() {
         <div className="space-y-4">
           {filteredPlayers?.map((player: any) => (
             <Card key={player.id} className="hover:border-primary/50 transition-all overflow-hidden border-none shadow-xl bg-white group">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-14 w-14 border-2 border-slate-100 shadow-md rounded-xl">
-                    <AvatarImage src={player.photoUrl} className="object-cover" />
-                    <AvatarFallback className="font-black text-slate-300 bg-slate-50">{player.firstName[0]}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-black text-lg text-slate-900 leading-none">{player.firstName} {player.lastName}</p>
-                    <div className="flex items-center gap-2 mt-1">
+              <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                  <div className="relative">
+                    <Avatar className="h-16 w-14 border-2 border-slate-100 shadow-md rounded-xl">
+                      <AvatarImage src={player.photoUrl} className="object-cover" />
+                      <AvatarFallback className="font-black text-slate-300 bg-slate-50">{player.firstName[0]}</AvatarFallback>
+                    </Avatar>
+                    {player.jerseyNumber && (
+                      <div className="absolute -bottom-2 -right-2 bg-slate-900 text-white text-[9px] font-black h-6 w-6 flex items-center justify-center rounded-lg border-2 border-white shadow-md">
+                        #{player.jerseyNumber}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-black text-xl text-slate-900 leading-none truncate">{player.firstName} {player.lastName}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
                       <Badge variant="outline" className="text-[8px] font-black uppercase border-primary text-primary px-2 h-4">
                         {player.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}
                       </Badge>
-                      <span className="text-[9px] font-bold text-slate-400">DNI: {player.dni}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">DNI: {player.dni}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}><Pencil className="h-5 w-5" /></Button>
-                  <Button variant="outline" size="sm" asChild className="font-black h-10 gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-all px-5 text-[10px] uppercase tracking-widest rounded-xl">
+                
+                <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                  <div className="hidden lg:flex flex-col items-end mr-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Posición</span>
+                    <span className="text-xs font-bold text-slate-700">{player.position || "Sin definir"}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}><Pencil className="h-5 w-5" /></Button>
+                  <Button variant="outline" size="sm" asChild className="font-black h-11 gap-2 border-primary/20 text-primary hover:bg-primary/5 transition-all px-6 text-[10px] uppercase tracking-widest rounded-xl">
                     <Link href={`/dashboard/clubs/${clubId}/players/${player.id}/payments`}>Cta. Corriente</Link>
                   </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
+          {filteredPlayers?.length === 0 && (
+            <div className="text-center py-32 opacity-40 border-2 border-dashed rounded-[2.5rem]">
+              <Users className="h-16 w-16 mx-auto mb-4 text-white" />
+              <p className="text-white font-black uppercase tracking-widest text-xs">Sin coincidencias en el padrón</p>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Dialogo de Edición: También completo y profesional */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-2xl bg-white border-none shadow-2xl">
-          <DialogHeader><DialogTitle className="text-2xl font-black text-slate-900">Editar Legajo</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-            <div className="space-y-4">
-              <Input value={editingPlayer?.firstName || ""} onChange={e => setEditingPlayer({...editingPlayer, firstName: e.target.value})} placeholder="Nombre" className="h-12 border-2 font-bold" />
-              <Input value={editingPlayer?.lastName || ""} onChange={e => setEditingPlayer({...editingPlayer, lastName: e.target.value})} placeholder="Apellido" className="h-12 border-2 font-bold" />
+        <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
+          <DialogHeader className="bg-slate-50 p-8 border-b">
+            <DialogTitle className="text-2xl font-black text-slate-900">Editar Legajo: {editingPlayer?.firstName}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <Label className="font-black text-[10px] uppercase text-slate-400">Datos Personales</Label>
+                <Input value={editingPlayer?.firstName || ""} onChange={e => setEditingPlayer({...editingPlayer, firstName: e.target.value})} placeholder="Nombre" className="h-12 border-2" />
+                <Input value={editingPlayer?.lastName || ""} onChange={e => setEditingPlayer({...editingPlayer, lastName: e.target.value})} placeholder="Apellido" className="h-12 border-2" />
+                <Input value={editingPlayer?.dni || ""} onChange={e => setEditingPlayer({...editingPlayer, dni: e.target.value})} placeholder="DNI" className="h-12 border-2" />
+                <Input type="date" value={editingPlayer?.birthDate || ""} onChange={e => setEditingPlayer({...editingPlayer, birthDate: e.target.value})} className="h-12 border-2" />
+              </div>
+              <div className="space-y-4">
+                <Label className="font-black text-[10px] uppercase text-slate-400">Ficha Técnica</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input type="number" value={editingPlayer?.jerseyNumber || ""} onChange={e => setEditingPlayer({...editingPlayer, jerseyNumber: e.target.value})} placeholder="Dorsal" className="h-12 border-2" />
+                  <Input value={editingPlayer?.bloodType || ""} onChange={e => setEditingPlayer({...editingPlayer, bloodType: e.target.value})} placeholder="Sangre" className="h-12 border-2" />
+                </div>
+                <Input value={editingPlayer?.position || ""} onChange={e => setEditingPlayer({...editingPlayer, position: e.target.value})} placeholder="Posición" className="h-12 border-2" />
+                <Input value={editingPlayer?.phone || ""} onChange={e => setEditingPlayer({...editingPlayer, phone: e.target.value})} placeholder="Teléfono" className="h-12 border-2" />
+              </div>
             </div>
-            <div className="space-y-4">
-              <Input value={editingPlayer?.dni || ""} onChange={e => setEditingPlayer({...editingPlayer, dni: e.target.value})} placeholder="DNI" className="h-12 border-2 font-bold" />
-              <Input value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} placeholder="Email" className="h-12 border-2" />
-            </div>
-          </div>
-          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t">
-            <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="font-bold">Cancelar</Button>
-            <Button onClick={handleUpdatePlayer} className="font-black uppercase text-xs tracking-widest h-12 px-8">Guardar Cambios</Button>
+          </ScrollArea>
+          <DialogFooter className="bg-slate-50 p-8 border-t">
+            <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
+            <Button onClick={handleUpdatePlayer} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-lg">Actualizar Ficha</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
