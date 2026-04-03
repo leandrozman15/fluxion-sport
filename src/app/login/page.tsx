@@ -11,7 +11,8 @@ import {
   Mail,
   Lock,
   User,
-  ArrowRight
+  ArrowRight,
+  Database
 } from "lucide-react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
@@ -36,13 +37,12 @@ export default function LoginPage() {
 
   const [isRegOpen, setIsRegOpen] = useState(false);
   const [regForm, setRegForm] = useState({
-    name: "Director de Plataforma",
+    name: "",
     email: "",
     password: ""
   });
 
   useEffect(() => {
-    // Si ya hay una sesión, dejar que el motor de redirección del dashboard decida el destino
     if (user && !isUserLoading) {
       router.replace('/dashboard');
     }
@@ -54,49 +54,54 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
-      toast({ title: "Acceso Concedido", description: "Iniciando sesión en Fluxion Sport..." });
-      // El useEffect anterior manejará la redirección al detectar el cambio de estado de 'user'
+      toast({ title: "Acceso Concedido", description: "Sincronizando perfil oficial..." });
     } catch (err: any) {
       console.error("Login error:", err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError("Email o contraseña incorrectos.");
-      } else {
-        setError("Error al conectar con el servidor.");
-      }
+      setError("Email o contraseña incorrectos.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleRegisterSuperAdmin = async () => {
-    if (!regForm.email || !regForm.password || regForm.password.length < 6) {
-      toast({ variant: "destructive", title: "Datos inválidos", description: "Email y contraseña (mín. 6 car.) requeridos." });
+    if (!regForm.email || !regForm.password || regForm.password.length < 6 || !regForm.name) {
+      toast({ 
+        variant: "destructive", 
+        title: "Datos incompletos", 
+        description: "Nombre, Email y Clave (mín. 6 car.) son obligatorios." 
+      });
       return;
     }
 
     setLoading(true);
     try {
+      // 1. Crear usuario en Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, regForm.email.toLowerCase().trim(), regForm.password);
       const newUser = cred.user;
       
-      // Registrar el perfil jerárquico en la base de datos oficial
+      // 2. Registrar perfil jerárquico en la base de datos específica ai-studio...
       await setDoc(doc(firestore, "users", newUser.uid), {
         id: newUser.uid,
         email: regForm.email.toLowerCase().trim(),
         name: regForm.name,
-        role: "admin",
-        createdAt: new Date().toISOString()
+        role: "admin", // ROL MAESTRO
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
 
-      toast({ title: "Super Administrador Creado", description: "Perfil de infraestructura activado." });
+      toast({ 
+        title: "Super Administrador Creado", 
+        description: "Acceso maestro activado en la infraestructura global." 
+      });
+      
       setIsRegOpen(false);
-      router.replace('/dashboard');
+      router.replace('/dashboard/superadmin');
     } catch (err: any) {
       console.error("Registration error:", err);
       toast({ 
         variant: "destructive", 
-        title: "Error al registrar", 
-        description: err.code === 'auth/email-already-in-use' ? "El email ya está registrado." : "No se pudo crear la cuenta." 
+        title: "Error de Registro", 
+        description: err.code === 'auth/email-already-in-use' ? "Este email ya tiene una cuenta activa." : "No se pudo crear el perfil maestro." 
       });
     } finally {
       setLoading(false);
@@ -111,10 +116,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
-      {/* Elementos de fondo decorativos */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/10 opacity-50" />
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[120px]" />
       
       <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in duration-700 relative z-10">
         <div className="text-center space-y-4">
@@ -123,20 +125,20 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1">
             <h1 className="text-5xl font-black text-white tracking-tighter drop-shadow-2xl">Fluxion Sport</h1>
-            <p className="text-primary-foreground font-black uppercase tracking-[0.4em] text-[10px] opacity-70">SISTEMA NACIONAL DE GESTIÓN</p>
+            <p className="text-primary-foreground font-black uppercase tracking-[0.4em] text-[10px] opacity-70">SISTEMA DE GESTIÓN DE CLUBES</p>
           </div>
         </div>
 
         <Card className="shadow-[0_30px_100px_rgba(0,0,0,0.5)] border-none bg-white/95 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
           <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-8 pt-8 px-8">
-            <CardTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Acceso Institucional</CardTitle>
-            <CardDescription className="font-bold text-slate-500">Ingresa con tus credenciales registradas.</CardDescription>
+            <CardTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Ingreso al Sistema</CardTitle>
+            <CardDescription className="font-bold text-slate-500">Accede a tu consola institucional o técnica.</CardDescription>
           </CardHeader>
           
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-5 pt-8 px-8">
               {error && (
-                <Alert variant="destructive" className="bg-red-50 text-red-900 border-red-200 rounded-2xl animate-in shake-1 duration-300">
+                <Alert variant="destructive" className="bg-red-50 text-red-900 border-red-200 rounded-2xl">
                   <AlertDescription className="font-bold text-xs uppercase tracking-tight flex items-center gap-2">
                     <ShieldAlert className="h-4 w-4" /> {error}
                   </AlertDescription>
@@ -153,7 +155,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)} 
                     required 
                     className="h-14 border-2 rounded-2xl font-bold text-lg focus-visible:ring-primary pl-12" 
-                    placeholder="ej. roberto@club.com" 
+                    placeholder="usuario@club.com" 
                   />
                 </div>
               </div>
@@ -179,7 +181,7 @@ export default function LoginPage() {
                 {loading ? <Loader2 className="animate-spin" /> : (
                   <>
                     <ShieldCheck className="h-6 w-6 mr-2" /> 
-                    <span>Entrar al Sistema</span>
+                    <span>Iniciar Sesión</span>
                     <ArrowRight className="h-5 w-5 ml-2 opacity-0 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
                   </>
                 )}
@@ -188,7 +190,7 @@ export default function LoginPage() {
               <div className="relative py-4 w-full">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100" /></div>
                 <div className="relative flex justify-center text-[10px] uppercase tracking-[0.3em] font-black">
-                  <span className="bg-white px-4 text-slate-300">Infraestructura</span>
+                  <span className="bg-white px-4 text-slate-300">Configuración</span>
                 </div>
               </div>
 
@@ -196,35 +198,35 @@ export default function LoginPage() {
                 <DialogTrigger asChild>
                   <Button 
                     type="button" 
-                    variant="ghost" 
-                    className="w-full h-10 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-primary transition-all" 
+                    variant="outline" 
+                    className="w-full h-12 text-[10px] font-black uppercase tracking-[0.2em] text-red-600 border-red-100 hover:bg-red-50 transition-all rounded-xl" 
                     disabled={loading}
                   >
-                    ¿Necesitas registrar un nuevo Super Admin?
+                    <Database className="h-4 w-4 mr-2" /> Registrar Super Administrador
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-white border-none shadow-2xl rounded-[2.5rem]">
                   <DialogHeader>
-                    <DialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Acceso Maestro</DialogTitle>
-                    <DialogDescription className="font-bold text-slate-500">Crea una cuenta para el Administrador de Infraestructura Global.</DialogDescription>
+                    <DialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Nuevo Perfil Maestro</DialogTitle>
+                    <DialogDescription className="font-bold text-slate-500">Crea una cuenta con acceso total a la infraestructura de Fluxion.</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-5 py-6">
                     <div className="space-y-2">
-                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Nombre del Director</Label>
+                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Nombre Completo</Label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input value={regForm.name} onChange={e => setRegForm({...regForm, name: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="Nombre completo" />
+                        <Input value={regForm.name} onChange={e => setRegForm({...regForm, name: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="Ej. Admin Global" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Email Principal</Label>
+                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Email de Acceso</Label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input type="email" value={regForm.email} onChange={e => setRegForm({...regForm, email: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="admin@fluxionsport.com" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Contraseña Maestro</Label>
+                      <Label className="text-slate-400 font-black uppercase text-[9px] tracking-widest ml-1">Contraseña de Seguridad</Label>
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input type="password" value={regForm.password} onChange={e => setRegForm({...regForm, password: e.target.value})} className="pl-12 h-14 border-2 font-bold" placeholder="Mínimo 6 caracteres" />
@@ -232,9 +234,10 @@ export default function LoginPage() {
                     </div>
                   </div>
                   <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2.5rem]">
-                    <Button variant="ghost" onClick={() => setIsRegOpen(false)} className="font-bold">Cerrar</Button>
-                    <Button onClick={handleRegisterSuperAdmin} disabled={loading} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-xl shadow-primary/20 gap-2">
-                      {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <><ShieldCheck className="h-5 w-5" /> Activar Perfil Maestro</>}
+                    <Button variant="ghost" onClick={() => setIsRegOpen(false)} className="font-bold">Cancelar</Button>
+                    <Button onClick={handleRegisterSuperAdmin} disabled={loading} className="font-black uppercase text-xs tracking-widest h-14 px-10 shadow-xl shadow-red-500/20 bg-red-600 text-white hover:bg-red-700 gap-2">
+                      {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <ShieldCheck className="h-5 w-5" />}
+                      Activar Super Admin
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -243,7 +246,7 @@ export default function LoginPage() {
           </form>
         </Card>
         
-        <p className="text-center text-[9px] font-black text-white/30 uppercase tracking-[0.5em]">Fluxion Sport © 2025 • Cloud Infrastructure</p>
+        <p className="text-center text-[9px] font-black text-white/30 uppercase tracking-[0.5em]">Fluxion Sport © 2025 • Infraestructura Global</p>
       </div>
     </div>
   );
