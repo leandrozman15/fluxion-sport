@@ -90,7 +90,6 @@ export default function ClubCoachesPage() {
       const normalizedEmail = newCoach.email.toLowerCase().trim();
       initiateEmailSignUp(auth, normalizedEmail, newCoach.password);
       
-      // Usar Email como ID para consistencia si el UID aún no está disponible en el flujo síncrono
       const userDoc = doc(db, "users", normalizedEmail);
       
       await setDoc(userDoc, {
@@ -123,9 +122,11 @@ export default function ClubCoachesPage() {
   };
 
   const handleDeleteCoach = (id: string) => {
-    if(confirm("¿Eliminar este miembro del staff? Perderá acceso al panel.")) {
-      deleteDocumentNonBlocking(doc(db, "users", id));
-      toast({ variant: "destructive", title: "Miembro Eliminado" });
+    if (!id) return;
+    if(confirm("¿Seguro que deseas eliminar este miembro del staff? Se borrará su legajo y acceso al panel.")) {
+      const coachDocRef = doc(db, "users", id);
+      deleteDocumentNonBlocking(coachDocRef);
+      toast({ variant: "destructive", title: "Miembro Eliminado", description: "El registro ha sido removido con éxito." });
     }
   };
 
@@ -267,18 +268,23 @@ export default function ClubCoachesPage() {
                       </div>
                     </div>
 
-                    <div className="flex-1 p-6 space-y-2.5">
-                      <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
-                        <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
+                    <div className="flex-1 p-6 space-y-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                          <IdCard className="h-4 w-4 text-primary" /> DNI: {coach.dni || 'Sin registrar'}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                          <Mail className="h-4 w-4 text-primary" /> {coach.email}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
-                        <Mail className="h-4 w-4 text-primary" /> {coach.email}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-                        <Phone className="h-4 w-4 text-primary" /> {coach.phone || 'Sin teléfono'}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600 truncate">
-                        <MapPin className="h-4 w-4 text-primary" /> {coach.address || 'Sin dirección'}
+                      
+                      <div className="pt-2 border-t border-slate-50 space-y-1.5">
+                        <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+                          <Phone className="h-4 w-4 text-primary" /> {coach.phone || 'Sin teléfono'}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs font-bold text-slate-600 truncate">
+                          <MapPin className="h-4 w-4 text-primary" /> {coach.address || 'Sin dirección'}
+                        </div>
                       </div>
                     </div>
 
@@ -286,7 +292,13 @@ export default function ClubCoachesPage() {
                       <Button variant="ghost" size="sm" className="h-11 w-11 p-0 hover:bg-primary/5 rounded-xl border border-transparent hover:border-primary/10" onClick={() => { setEditingCoach(coach); setIsEditOpen(true); }}>
                         <Pencil className="h-5 w-5 text-slate-400 hover:text-primary" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-destructive hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100" onClick={() => handleDeleteCoach(coach.id)}>
+                      <Button 
+                        type="button"
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-11 w-11 p-0 text-destructive hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100" 
+                        onClick={() => handleDeleteCoach(coach.id)}
+                      >
                         <Trash2 className="h-5 w-5" />
                       </Button>
                     </div>
