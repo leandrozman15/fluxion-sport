@@ -9,7 +9,8 @@ import {
   Download,
   Share2,
   Building2,
-  ArrowLeft
+  ArrowLeft,
+  Car
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFirebase } from "@/firebase";
@@ -189,6 +190,36 @@ export default function GenericIdCardPage() {
                 </div>
                 <p className="text-[9px] text-slate-400 font-black font-mono uppercase tracking-widest">REG: {profile?.id?.substring(0, 14) || "SISTEMA-OK"}</p>
               </div>
+
+              {/* Parking status */}
+              <div className={cn(
+                "w-full flex items-center justify-between px-4 py-3 rounded-2xl border",
+                profile?.parkingIncluded
+                  ? "bg-green-50 border-green-100"
+                  : "bg-red-50 border-red-100"
+              )}>
+                <div className="flex items-center gap-2">
+                  <Car className={cn("h-4 w-4", profile?.parkingIncluded ? "text-green-600" : "text-red-400")} />
+                  <span className={cn("text-[10px] font-black uppercase tracking-widest", profile?.parkingIncluded ? "text-green-700" : "text-red-500")}>
+                    Estacionamiento
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("text-[9px] font-black uppercase", profile?.parkingIncluded ? "text-green-600" : "text-red-400")}>
+                    {profile?.parkingIncluded ? "Incluido" : "No incluido"}
+                  </span>
+                  <span className="relative flex h-3 w-3">
+                    <span className={cn(
+                      "animate-ping absolute inline-flex h-full w-full rounded-full opacity-60",
+                      profile?.parkingIncluded ? "bg-green-400" : "bg-red-400"
+                    )} />
+                    <span className={cn(
+                      "relative inline-flex rounded-full h-3 w-3",
+                      profile?.parkingIncluded ? "bg-green-500" : "bg-red-500"
+                    )} />
+                  </span>
+                </div>
+              </div>
             </div>
             
             <div className="px-8 py-5 bg-primary/10 backdrop-blur-md flex justify-between items-center border-t border-white/5">
@@ -196,7 +227,13 @@ export default function GenericIdCardPage() {
                  <ShieldCheck className="h-5 w-5 text-accent" />
                  <span className="text-xs font-black tracking-widest uppercase text-white">Estado: Activo</span>
                </div>
-               <p className="text-[9px] font-black opacity-40 uppercase tracking-widest">SISTEMA NACIONAL • 2026</p>
+               <div className="flex items-center gap-2">
+                 <span className="relative flex h-2.5 w-2.5">
+                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" />
+                 </span>
+                 <p className="text-[9px] font-black opacity-60 uppercase tracking-widest">SISTEMA NACIONAL • 2026</p>
+               </div>
             </div>
           </CardContent>
         </Card>
