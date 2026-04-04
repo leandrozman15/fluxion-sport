@@ -104,6 +104,9 @@ export default function ClubShopPublicPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      <Link href="/dashboard/player" className="ambient-link group w-fit">
+        <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver al dashboard
+      </Link>
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-primary text-primary-foreground p-8 rounded-2xl shadow-xl overflow-hidden relative">
         <div className="relative z-10">
           <Badge className="bg-white/20 text-white mb-2 border-none">Tienda Oficial</Badge>
