@@ -19,7 +19,7 @@ import {
   MapPinned
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, query, orderBy, getDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -38,6 +38,7 @@ export default function GlobalFixtureManagerPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [allTeams, setAllTeams] = useState<any[]>([]);
+  const [clubData, setClubData] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const [newMatch, setNewMatch] = useState({ 
@@ -48,6 +49,7 @@ export default function GlobalFixtureManagerPage() {
     type: "match",
     title: "",
     departureTime: "",
+    isHome: true,
   });
 
   const opponentsQuery = useMemoFirebase(() => 
@@ -60,6 +62,9 @@ export default function GlobalFixtureManagerPage() {
     async function fetchAllTeams() {
       if (!db) return;
       try {
+        const clubDoc = await getDoc(doc(db, "clubs", clubId));
+        if (clubDoc.exists()) setClubData({ ...clubDoc.data(), id: clubDoc.id });
+
         const divsSnap = await getDocs(collection(db, "clubs", clubId, "divisions"));
         const teams: any[] = [];
         for (const divDoc of divsSnap.docs) {
@@ -85,7 +90,9 @@ export default function GlobalFixtureManagerPage() {
     }
 
     const selectedTeam = allTeams.find(t => t.id === newMatch.teamId);
-    const selectedOpp = opponents?.find(o => o.id === newMatch.opponentId);
+    // opponentId "__own_club__" means the own club is the rival (used for isHome logic)
+    const isOwnClubAsRival = newMatch.opponentId === "__own_club__";
+    const selectedOpp = isOwnClubAsRival ? clubData : opponents?.find(o => o.id === newMatch.opponentId);
     if (!selectedTeam || !selectedOpp) return;
 
     try {
@@ -96,11 +103,12 @@ export default function GlobalFixtureManagerPage() {
         ...newMatch,
         id: matchId,
         opponent: selectedOpp.name,
-        opponentId: selectedOpp.id,
+        opponentId: isOwnClubAsRival ? clubId : selectedOpp.id,
         opponentLogo: selectedOpp.logoUrl || "",
-        location: selectedOpp.city || "Sede Rival",
-        address: selectedOpp.address || "",
-        title: newMatch.title || `Fecha vs ${selectedOpp.name}`,
+        isHome: newMatch.isHome,
+        location: newMatch.isHome ? (clubData?.address || "Sede Propia") : (selectedOpp.city || selectedOpp.address || "Sede Rival"),
+        address: newMatch.isHome ? (clubData?.address || "") : (selectedOpp.address || ""),
+        title: newMatch.title || `vs ${selectedOpp.name}`,
         departureTime: newMatch.departureTime || "",
         status: "scheduled",
         createdAt: new Date().toISOString()
@@ -108,7 +116,7 @@ export default function GlobalFixtureManagerPage() {
 
       toast({ title: "Partido Programado", description: `Se agendó el encuentro para ${selectedTeam.name} vs ${selectedOpp.name}.` });
       setIsDialogOpen(false);
-      setNewMatch({ teamId: "", opponentId: "", date: "", location: "", type: "match", title: "", departureTime: "" });
+      setNewMatch({ teamId: "", opponentId: "", date: "", location: "", type: "match", title: "", departureTime: "", isHome: true });
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Error al guardar" });
@@ -144,6 +152,27 @@ export default function GlobalFixtureManagerPage() {
                   <DialogDescription className="font-bold text-slate-500">Selecciona un rival de la base para cargar sus datos automáticamente.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-6">
+                  {/* Local / Visitante */}
+                  <div className="space-y-2">
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Condición</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewMatch({...newMatch, isHome: true})}
+                        className={`h-12 rounded-xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${newMatch.isHome ? 'bg-primary text-white border-primary shadow-lg' : 'border-slate-200 text-slate-400 hover:border-primary/40'}`}
+                      >
+                        🏠 Local
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewMatch({...newMatch, isHome: false})}
+                        className={`h-12 rounded-xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${!newMatch.isHome ? 'bg-slate-800 text-white border-slate-800 shadow-lg' : 'border-slate-200 text-slate-400 hover:border-slate-400'}`}
+                      >
+                        ✈️ Visitante
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Equipo del Club</Label>
                     <Select value={newMatch.teamId} onValueChange={v => setNewMatch({...newMatch, teamId: v})}>
@@ -160,6 +189,15 @@ export default function GlobalFixtureManagerPage() {
                     <Select value={newMatch.opponentId} onValueChange={v => setNewMatch({...newMatch, opponentId: v})}>
                       <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir rival..." /></SelectTrigger>
                       <SelectContent>
+                        {/* Propio club como opción (útil para torneos internos) */}
+                        {clubData && (
+                          <SelectItem value="__own_club__" className="font-bold">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={clubData.logoUrl} className="object-contain" /><AvatarFallback className="text-[8px]">🏠</AvatarFallback></Avatar>
+                              {clubData.name} <span className="text-[9px] text-slate-400 ml-1">(nuestro club)</span>
+                            </div>
+                          </SelectItem>
+                        )}
                         {opponents?.map(o => (
                           <SelectItem key={o.id} value={o.id} className="font-bold">
                             <div className="flex items-center gap-2">
