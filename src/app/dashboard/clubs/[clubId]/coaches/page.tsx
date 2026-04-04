@@ -212,8 +212,8 @@ export default function ClubCoachesPage() {
                 <Plus className="h-5 w-5" /> Registrar Nuevo Miembro
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
-              <DialogHeader className="bg-primary p-8 text-primary-foreground">
+            <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden max-h-[92dvh] flex flex-col">
+              <DialogHeader className="bg-primary p-8 text-primary-foreground shrink-0">
                 <DialogTitle className="text-2xl font-black flex items-center gap-2">
                   <UserPlus className="h-7 w-7" /> Nueva Ficha de Personal
                 </DialogTitle>
@@ -221,8 +221,7 @@ export default function ClubCoachesPage() {
                   Completa el legajo oficial del staff técnico o administrativo.
                 </DialogDescription>
               </DialogHeader>
-              <ScrollArea className="max-h-[70vh]">
-                <div className="p-8 space-y-10">
+              <ScrollArea className="flex-1 min-h-0">
 
                   {/* 1. Identidad Personal */}
                   <div className="space-y-6">
@@ -366,7 +365,7 @@ export default function ClubCoachesPage() {
 
                 </div>
               </ScrollArea>
-              <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4">
+              <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4 shrink-0">
                 <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
                 <Button onClick={handleCreateCoach} disabled={loading || !newCoach.firstName || !newCoach.lastName || !newCoach.email || newCoach.password.length < 6 || !newCoach.dni} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20 gap-2">
                   {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <><ShieldCheck className="h-5 w-5" /> Dar de Alta al Staff</>}
@@ -465,8 +464,8 @@ export default function ClubCoachesPage() {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
-          <DialogHeader className="bg-slate-50 p-8 border-b flex flex-row items-center justify-between">
+        <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden max-h-[92dvh] flex flex-col">
+          <DialogHeader className="bg-slate-50 p-8 border-b flex flex-row items-center justify-between shrink-0">
             <div>
               <DialogTitle className="text-2xl font-black text-slate-900">
                 Editar Perfil: {editingCoach?.firstName || editingCoach?.name} {editingCoach?.lastName || ""}
@@ -478,7 +477,7 @@ export default function ClubCoachesPage() {
               <AvatarFallback className="bg-primary/5 text-primary font-black"><UserRound /></AvatarFallback>
             </Avatar>
           </DialogHeader>
-          <ScrollArea className="max-h-[70vh]">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-8 space-y-10">
 
               <div className="space-y-6">
@@ -598,7 +597,7 @@ export default function ClubCoachesPage() {
 
             </div>
           </ScrollArea>
-          <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4">
+          <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4 shrink-0">
             <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="font-bold text-slate-500 h-14 px-8">Cancelar</Button>
             <Button onClick={handleUpdateCoach} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20">
               Guardar Cambios

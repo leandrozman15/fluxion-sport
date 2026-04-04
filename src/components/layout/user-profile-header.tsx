@@ -87,7 +87,7 @@ export function UserProfileHeader() {
   const displayName = profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (profile?.name || user.email);
 
   return (
-    <div className="w-full px-4 md:px-8 pt-6 flex justify-end items-center gap-4 z-[60]">
+    <div className="w-full px-4 md:px-8 header-notch-safe flex justify-end items-center gap-4 z-[60]">
       <div className="flex items-center gap-4 bg-white/95 backdrop-blur-md p-2 pl-2 pr-5 rounded-full border border-slate-200 shadow-lg group">
         <Avatar className="h-10 w-10 border-2 border-slate-100 shadow-sm transition-transform group-hover:scale-105">
           <AvatarImage src={profile?.photoUrl} className="object-cover" />

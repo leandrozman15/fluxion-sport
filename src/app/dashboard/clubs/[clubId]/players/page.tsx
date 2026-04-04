@@ -256,8 +256,8 @@ export default function PlayersPage() {
                   <UserPlus className="h-5 w-5" /> Alta de Jugador
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
-                <DialogHeader className="bg-primary p-8 text-primary-foreground">
+              <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden max-h-[92dvh] flex flex-col">
+                <DialogHeader className="bg-primary p-8 text-primary-foreground shrink-0">
                   <DialogTitle className="text-2xl font-black flex items-center gap-2">
                     <ShieldCheck className="h-7 w-7" /> Nueva Ficha Deportiva Oficial
                   </DialogTitle>
@@ -265,7 +265,7 @@ export default function PlayersPage() {
                     Completa el legajo federativo del deportista.
                   </DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="max-h-[70vh]">
+                <ScrollArea className="flex-1 min-h-0">
                   <div className="p-8 space-y-10">
                     <div className="space-y-6">
                       <div className="flex items-center gap-3 border-b pb-2">
@@ -448,7 +448,7 @@ export default function PlayersPage() {
                     </div>
                   </div>
                 </ScrollArea>
-                <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4">
+                <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4 shrink-0">
                   <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
                   <Button onClick={handleCreatePlayer} disabled={loading} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20 gap-2">
                     {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <><ShieldCheck className="h-5 w-5" /> Confirmar Alta Federativa</>}
@@ -577,8 +577,8 @@ export default function PlayersPage() {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
-          <DialogHeader className="bg-slate-50 p-8 border-b flex flex-row items-center justify-between">
+        <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden max-h-[92dvh] flex flex-col">
+          <DialogHeader className="bg-slate-50 p-8 border-b flex flex-row items-center justify-between shrink-0">
             <div>
               <DialogTitle className="text-2xl font-black text-slate-900">Editar Legajo: {editingPlayer?.firstName} {editingPlayer?.lastName}</DialogTitle>
               <DialogDescription className="font-bold text-slate-500">Actualiza la información federativa del deportista.</DialogDescription>
@@ -588,7 +588,7 @@ export default function PlayersPage() {
               <AvatarFallback className="bg-primary/5 text-primary font-black">P</AvatarFallback>
             </Avatar>
           </DialogHeader>
-          <ScrollArea className="max-h-[70vh]">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-8 space-y-10">
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b pb-2">
@@ -747,7 +747,7 @@ export default function PlayersPage() {
               </div>
             </div>
           </ScrollArea>
-          <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row justify-between gap-4">
+          <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row justify-between gap-4 shrink-0">
             <Button variant="ghost" onClick={() => { if(confirm(`¿Eliminar legajo de ${editingPlayer.firstName}?`)) handleDeleteConfirmed(editingPlayer.id, editingPlayer.firstName); setIsEditOpen(false); }} className="font-black uppercase text-[10px] tracking-widest text-destructive hover:bg-red-50 hover:text-destructive h-14 border-2 border-transparent hover:border-red-100 gap-2">
               <Trash2 className="h-4 w-4" /> Eliminar Legajo
             </Button>

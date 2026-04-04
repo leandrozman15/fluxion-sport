@@ -96,7 +96,8 @@ export default function GenericIdCardPage() {
       {/* X button — floating on mobile, inline above card on desktop */}
       <button
         onClick={() => router.push(backHref)}
-        className="fixed md:hidden top-4 right-4 z-50 bg-black/40 backdrop-blur-md text-white rounded-full h-10 w-10 flex items-center justify-center shadow-xl border border-white/20 hover:bg-black/60 transition-colors"
+        className="fixed md:hidden z-50 bg-black/40 backdrop-blur-md text-white rounded-full h-10 w-10 flex items-center justify-center shadow-xl border border-white/20 hover:bg-black/60 transition-colors"
+        style={{ top: 'max(1rem, env(safe-area-inset-top, 1rem))', right: '1rem' }}
         aria-label="Volver"
       >
         <span className="font-black text-lg leading-none">×</span>
@@ -116,6 +117,8 @@ export default function GenericIdCardPage() {
         "w-full text-white overflow-hidden shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] border-none transition-all relative",
         "md:max-w-md md:rounded-[2.5rem]",
         "rounded-none min-h-[100dvh] md:min-h-0",
+        "[padding-top:max(2rem,env(safe-area-inset-top,2rem))] md:pt-0",
+        "[padding-bottom:max(2rem,env(safe-area-inset-bottom,2rem))] md:pb-0",
         roleInfo.role.includes('admin') ? "bg-gradient-to-br from-slate-700 to-slate-800" :
         isStaff ? "bg-gradient-to-br from-blue-600 to-blue-800" :
         "bg-gradient-to-br from-primary to-primary/80"

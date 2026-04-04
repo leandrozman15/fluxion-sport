@@ -41,7 +41,7 @@ export default function DashboardLayout({
           {/* Encabezado con Perfil y Salir visible para todos en la pantalla */}
           <UserProfileHeader />
           
-          <main className="p-4 md:p-8 flex-1 pb-24 md:pb-8">
+          <main className="p-4 md:p-8 flex-1 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-8">
             {children}
           </main>
         </div>
