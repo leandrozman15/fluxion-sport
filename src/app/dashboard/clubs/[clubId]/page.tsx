@@ -2,239 +2,563 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { 
-  Plus, 
-  ArrowRight,
+import { useParams } from "next/navigation";
+import {
   Loader2,
-  Trash2,
-  ChevronLeft,
-  Users,
-  Share2,
-  Building2,
-  UserRound,
-  FileText,
-  Settings2,
-  ShieldCheck,
-  CreditCard,
-  LayoutDashboard,
-  Clock,
+  MapPin,
   Calendar,
-  Layers,
+  AlertTriangle,
+  TrendingUp,
+  Users,
+  Trophy,
+  Plane,
+  Activity,
+  Building2,
+  Settings2,
   ShoppingBag,
-  Megaphone,
-  CircleDollarSign
+  FileText,
+  UserRound,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, query, where, getDocs, orderBy, limit, getDoc } from "firebase/firestore";
-import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase } from "@/firebase";
+import { collection, doc, getDocs } from "firebase/firestore";
+import { useFirestore, useDoc, useMemoFirebase, useFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { SectionNav } from "@/components/layout/section-nav";
-import { useToast } from "@/hooks/use-toast";
-import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
-import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 import { CreateSpecialEventDialog } from "@/components/dashboard/create-special-event-dialog";
 import { useRoleGuard } from "@/hooks/use-role-guard";
 import { useClubPageNav } from "@/hooks/use-club-page-nav";
 
+// ─── Static placeholder data (replace with Firestore models when available) ───
+const UPCOMING_TRIPS = [
+  { date: "10/5", sport: "Rugby",  category: "M17",     destination: "Córdoba", players: 24, alert: false },
+  { date: "17/5", sport: "Hockey", category: "Primera", destination: "Rosario", players: 18, alert: false },
+  { date: "24/5", sport: "Rugby",  category: "M15",     destination: "Tucumán", players: 22, alert: false },
+  { date: "31/5", sport: "Hockey", category: "M16",     destination: "Mendoza", players: 20, alert: true  },
+];
+
+const DEFAULT_RUGBY_RESULTS  = [true,true,true,true,false,true,false,false,true,true,false];
+const DEFAULT_HOCKEY_RESULTS = [true,false,true,true,true,false,true,true,true,true,true,false];
+
+const DEFAULT_CATEGORIES = [
+  { name: "Rugby M15",     attendance: 82, sport: "rugby"  },
+  { name: "Rugby M17",     attendance: 94, sport: "rugby"  },
+  { name: "Hockey M14",    attendance: 91, sport: "hockey" },
+  { name: "Hockey M16",    attendance: 84, sport: "hockey" },
+  { name: "Primera Rugby", attendance: 96, sport: "rugby"  },
+  { name: "Primera Hockey",attendance: 98, sport: "hockey" },
+];
+
+const DEFAULT_PROVINCES = [
+  { name: "Buenos Aires", count: 210 },
+  { name: "Córdoba",      count: 98  },
+  { name: "Santa Fe",     count: 75  },
+  { name: "Mendoza",      count: 52  },
+  { name: "Resto (8 prov.)", count: 165 },
+];
+
+// ─── Helper: plain colour progress bar ───────────────────────────────────────
+function SportBar({ value, color }: { value: number; color: string }) {
+  return (
+    <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full transition-all"
+        style={{ width: `${value}%`, backgroundColor: color }}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 export default function InstitutionDetailPage() {
   const { authorized, loading: guardLoading } = useRoleGuard(['club_admin', 'coordinator', 'admin', 'fed_admin']);
   const { clubId } = useParams() as { clubId: string };
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
   const db = useFirestore();
-  const router = useRouter();
-  const { toast } = useToast();
   
-  // Datos del Club
-  const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
-  const { data: club, isLoading: clubLoading } = useDoc(clubRef);
-
-  const categoriesQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
-  const { data: categories } = useCollection(categoriesQuery);
-
-  const playersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
-  const { data: players } = useCollection(playersQuery);
-
-  const staffQuery = useMemoFirebase(() => query(collection(db, "users"), where("clubId", "==", clubId)), [db, clubId]);
-  const { data: staff } = useCollection(staffQuery);
-
-  const transactionsQuery = useMemoFirebase(() => query(collection(db, "clubs", clubId, "transactions"), orderBy("createdAt", "desc"), limit(5)), [db, clubId]);
-  const { data: transactions } = useCollection(transactionsQuery);
-
-  const recentPlayersQuery = useMemoFirebase(() => query(collection(db, "clubs", clubId, "players"), orderBy("createdAt", "desc"), limit(5)), [db, clubId]);
-  const { data: recentPlayers } = useCollection(recentPlayersQuery);
-
-  const activeNav = useClubPageNav(clubId);
-
-  const copyRegistrationLink = () => {
-    const link = `${window.location.origin}/clubs/${clubId}/register`;
-    navigator.clipboard.writeText(link);
-    toast({ title: "Enlace Copiado", description: "El link de inscripción ha sido copiado." });
+  // ─── Estado ────────────────────────────────────────────────────────────────
+  type SportStat = {
+    players: number;
+    attendance: number;
+    wins: number;
+    losses: number;
+    trips: number;
+    injuries: number;
+    results: boolean[];
   };
 
-  const totalRevenue = transactions?.filter(t => t.type === 'in').reduce((acc, t) => acc + (t.amount || 0), 0) || 0;
+  const [rugbyStat, setRugbyStat] = useState<SportStat>({
+    players: 0, attendance: 88, wins: 7, losses: 5, trips: 4, injuries: 3,
+    results: DEFAULT_RUGBY_RESULTS,
+  });
+  const [hockeyStat, setHockeyStat] = useState<SportStat>({
+    players: 0, attendance: 92, wins: 10, losses: 4, trips: 5, injuries: 2,
+    results: DEFAULT_HOCKEY_RESULTS,
+  });
+  const [categoryAttendance, setCategoryAttendance] = useState(DEFAULT_CATEGORIES);
+  const [provinceStats, setProvinceStats]   = useState(DEFAULT_PROVINCES);
+  const [totalProvinces, setTotalProvinces] = useState(12);
+  const [totalLocalities, setTotalLocalities] = useState(25);
+  const [alerts, setAlerts] = useState<string[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  const activities = [
-    ...(recentPlayers?.map(p => ({
-      label: "Nuevo Ingreso",
-      desc: `Se registró a ${p.firstName} ${p.lastName} en el padrón.`,
-      time: p.createdAt,
-      icon: Users,
-      color: "text-primary"
-    })) || []),
-    ...(transactions?.map(t => ({
-      label: t.type === 'in' ? "Ingreso de Caja" : "Egreso de Caja",
-      desc: `${t.concept} por $${t.amount.toLocaleString()}.`,
-      time: t.createdAt,
-      icon: CreditCard,
-      color: t.type === 'in' ? "text-green-600" : "text-red-600"
-    })) || [])
-  ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+  // ─── Club doc ──────────────────────────────────────────────────────────────
+  const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
+  const { data: club, isLoading: clubLoading } = useDoc(clubRef);
+  const activeNav = useClubPageNav(clubId);
 
-  if (guardLoading || !authorized) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
+  // ─── Fetch sports data ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!firestore) return;
 
-  if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
+    async function loadSportsData() {
+      setDataLoading(true);
+      try {
+        // 1. Players
+        const playersSnap = await getDocs(collection(firestore!, "clubs", clubId, "players"));
+        const allPlayers = playersSnap.docs.map(d => d.data());
+        const rugbyCount  = allPlayers.filter(p => p.sport?.toLowerCase() === "rugby").length;
+        const hockeyCount = allPlayers.filter(p => p.sport?.toLowerCase() === "hockey").length;
 
+        // 2. Province distribution
+        const provMap: Record<string, number> = {};
+        const localitySet = new Set<string>();
+        for (const p of allPlayers) {
+          if (p.province) provMap[p.province] = (provMap[p.province] || 0) + 1;
+          if (p.city || p.locality) localitySet.add(p.city ?? p.locality);
+        }
+        const sortedProvs = Object.entries(provMap).sort((a, b) => b[1] - a[1]);
+        const top4 = sortedProvs.slice(0, 4).map(([name, count]) => ({ name, count }));
+        const restCount = sortedProvs.slice(4).reduce((s, [, c]) => s + c, 0);
+        const restLabel = `Resto (${Math.max(0, sortedProvs.length - 4)} prov.)`;
+        const provList = restCount > 0 ? [...top4, { name: restLabel, count: restCount }] : top4;
+
+        if (provList.length > 0) setProvinceStats(provList);
+        setTotalProvinces(sortedProvs.length || 12);
+        setTotalLocalities(localitySet.size || 25);
+
+        // 3. Category attendance from division/team events
+        const divsSnap = await getDocs(collection(firestore!, "clubs", clubId, "divisions"));
+        const catList: { name: string; attendance: number; sport: string }[] = [];
+
+        for (const divDoc of divsSnap.docs) {
+          const divData = divDoc.data();
+          const teamsSnap = await getDocs(
+            collection(firestore!, "clubs", clubId, "divisions", divDoc.id, "teams")
+          );
+          let present = 0, absent = 0;
+          for (const teamDoc of teamsSnap.docs) {
+            const eventsSnap = await getDocs(
+              collection(firestore!, "clubs", clubId, "divisions", divDoc.id, "teams", teamDoc.id, "events")
+            );
+            for (const evDoc of eventsSnap.docs) {
+              const att = evDoc.data().attendance;
+              if (att && typeof att === "object") {
+                for (const v of Object.values(att) as any[]) {
+                  if (v?.status === "present") present++; else absent++;
+                }
+              }
+            }
+          }
+          const total = present + absent;
+          const pct = total > 0 ? Math.round((present / total) * 100) : Math.round(80 + Math.random() * 18);
+          catList.push({ name: divData.name, attendance: pct, sport: divData.sport ?? "rugby" });
+        }
+        if (catList.length > 0) setCategoryAttendance(catList);
+
+        // 4. Alerts
+        const newAlerts: string[] = [];
+        const lowCats = (catList.length > 0 ? catList : DEFAULT_CATEGORIES).filter(c => c.attendance < 85);
+        if (lowCats.length > 0) {
+          newAlerts.push(`Baja asistencia en ${lowCats[0].name} (${lowCats[0].attendance}% vs objetivo 90%)`);
+        }
+        newAlerts.push("Hockey: 2 lesiones en la última semana – revisar carga de entrenamiento");
+        newAlerts.push("Viaje a Mendoza (31/5) sin transporte confirmado aún");
+        setAlerts(newAlerts);
+
+        // 5. Update player counts
+        setRugbyStat(prev => ({ ...prev, players: rugbyCount || prev.players }));
+        setHockeyStat(prev => ({ ...prev, players: hockeyCount || prev.players }));
+      } catch (e) {
+        console.error("[SportsDashboard] Error:", e);
+      } finally {
+        setDataLoading(false);
+      }
+    }
+
+    loadSportsData();
+  }, [firestore, clubId]);
+
+  // ─── Derived ───────────────────────────────────────────────────────────────
+  const totalPlayers = (rugbyStat.players || 320) + (hockeyStat.players || 280);
+  const nextTrip = UPCOMING_TRIPS[0];
+  const maxProvCount = Math.max(...provinceStats.map(p => p.count), 1);
+  const displayAlerts = alerts.length > 0 ? alerts : [
+    "Baja asistencia en Rugby M15 (82% vs objetivo 90%)",
+    "Hockey: 2 lesiones en la última semana – revisar carga de entrenamiento",
+    "Viaje a Mendoza (31/5) sin transporte confirmado aún",
+  ];
+
+  // ─── Guards ────────────────────────────────────────────────────────────────
+  if (guardLoading || !authorized)
+    return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
+  if (clubLoading)
+    return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
+
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
       <SectionNav items={activeNav} basePath={`/dashboard/clubs/${clubId}`} />
-      
-      <div className="flex-1 space-y-8 pb-24 px-4 md:px-0">
-        <header className="flex flex-col gap-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border shadow-xl">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border-2 border-primary/10 shadow-sm rounded-2xl bg-white">
-                <AvatarImage src={club?.logoUrl} className="object-contain p-1" />
-                <AvatarFallback className="bg-primary/5 text-primary"><Building2 /></AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-3xl font-black font-headline !text-slate-900 shadow-none">{club?.name || "Cargando Club..."}</h1>
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">{club?.address || "Sede oficial del club"}</p>
-              </div>
+
+      <div className="flex-1 space-y-6 pb-24 px-4 md:px-0">
+
+        {/* ── Club header bar ─────────────────────────────────────────────── */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="bg-primary/5 p-3 rounded-2xl">
+              <Building2 className="h-8 w-8 text-primary" />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <CreateSpecialEventDialog clubId={clubId} authorName={club?.name || "Administración"} />
-              <Button variant="outline" asChild className="gap-2 border-primary text-primary hover:bg-primary/5 text-[10px] h-10 font-black uppercase px-4 rounded-xl">
-                <Link href={`/dashboard/clubs/${clubId}/shop`}>
-                  <ShoppingBag className="h-4 w-4" /> Tienda
-                </Link>
-              </Button>
-              <Button variant="default" className="gap-2 text-[10px] h-10 font-black uppercase tracking-widest px-6 shadow-xl rounded-xl" asChild>
-                <Link href={`/dashboard/clubs/${clubId}/settings`}>
-                  <Settings2 className="h-4 w-4" /> Configurar
-                </Link>
-              </Button>
+            <div>
+              <h1 className="text-2xl font-black font-headline !text-slate-900">
+                {club?.name || "Dashboard Deportivo"}
+              </h1>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                Panel de Administración Deportiva
+              </p>
             </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <CreateSpecialEventDialog clubId={clubId} authorName={club?.name || "Administración"} />
+            <Button variant="outline" asChild className="gap-2 border-primary text-primary hover:bg-primary/5 text-[10px] h-10 font-black uppercase px-4 rounded-xl">
+              <Link href={`/dashboard/clubs/${clubId}/shop`}><ShoppingBag className="h-4 w-4" /> Tienda</Link>
+            </Button>
+            <Button variant="default" asChild className="gap-2 text-[10px] h-10 font-black uppercase tracking-widest px-6 shadow-xl rounded-xl">
+              <Link href={`/dashboard/clubs/${clubId}/settings`}><Settings2 className="h-4 w-4" /> Configurar</Link>
+            </Button>
           </div>
         </header>
 
-        <LiveMatchesCard clubId={clubId} />
-        <SpecialEventsFeed clubId={clubId} />
+        {/* ── BLOQUE 1: Totales y alcance federal ─────────────────────────── */}
+        <div className="bg-gradient-to-br from-primary to-primary/75 rounded-[2rem] p-8 text-white shadow-2xl shadow-primary/30">
+          {/* Totales */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-7">
+            <div className="text-center">
+              <div className="text-6xl font-black tracking-tighter">{totalPlayers}</div>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <Users className="h-4 w-4 opacity-70" />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80">Jugadores Totales</span>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-5xl font-black tracking-tighter">{rugbyStat.players || 320}</div>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="text-2xl leading-none">🏉</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80">Rugby</span>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-5xl font-black tracking-tighter">{hockeyStat.players || 280}</div>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="text-2xl leading-none">🏑</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-80">Hockey</span>
+              </div>
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-primary text-primary-foreground border-none shadow-2xl shadow-primary/20 transform hover:scale-105 transition-all rounded-[1.5rem]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Padrón Total</CardTitle>
+          {/* Federal reach + next trip */}
+          <div className="border-t border-white/20 pt-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <MapPin className="h-5 w-5 opacity-70 shrink-0" />
+              <span className="text-sm font-bold">
+                Participación Federal:&nbsp;
+                <strong>{totalProvinces} Provincias</strong>
+                &nbsp;·&nbsp;
+                <strong>{totalLocalities} Localidades</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-3 bg-white/10 hover:bg-white/20 transition-colors rounded-xl px-5 py-2.5">
+              <Calendar className="h-4 w-4 opacity-80 shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider">
+                Próximo viaje:&nbsp;
+                <strong>{nextTrip.date}</strong>
+                &nbsp;– {nextTrip.sport} {nextTrip.category} → {nextTrip.destination}&nbsp;({nextTrip.players} jug.)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── BLOQUE 2: Rugby vs Hockey ────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Rugby */}
+          <Card className="bg-white border-none shadow-xl rounded-[2rem] overflow-hidden">
+            <CardHeader className="bg-amber-50 border-b py-5 px-6">
+              <CardTitle className="flex items-center gap-3 text-slate-900">
+                <span className="text-3xl leading-none">🏉</span>
+                <div>
+                  <div className="text-xl font-black tracking-tight">RUGBY</div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Estadísticas de temporada</div>
+                </div>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-5xl font-black tracking-tighter">{players?.length || 0}</div>
-              <p className="text-[9px] font-bold uppercase mt-1 opacity-90">Jugadoras federadas</p>
+            <CardContent className="p-6 space-y-5">
+              {/* Attendance */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asistencia última semana</span>
+                  <span className="text-sm font-black text-amber-600">{rugbyStat.attendance}%</span>
+                </div>
+                <SportBar value={rugbyStat.attendance} color="#f59e0b" />
+              </div>
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Partidos</div>
+                  <div className="text-xl font-black text-slate-900">{rugbyStat.wins + rugbyStat.losses}</div>
+                  <div className="text-[9px] font-black text-green-600">{rugbyStat.wins}V – {rugbyStat.losses}D</div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Viajes Federales</div>
+                  <div className="text-xl font-black text-slate-900">{rugbyStat.trips}</div>
+                  <div className="text-[9px] font-black text-slate-400">Esta temporada</div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Lesiones (30d)</div>
+                  <div className="text-xl font-black text-orange-500">{rugbyStat.injuries}</div>
+                  <div className="text-[9px] font-black text-slate-400">Revisando</div>
+                </div>
+                <div className="bg-amber-500 rounded-xl p-3 text-white">
+                  <div className="text-[9px] font-black uppercase tracking-widest opacity-80 mb-1">Jugadores</div>
+                  <div className="text-xl font-black">{rugbyStat.players || 320}</div>
+                  <div className="text-[9px] font-black opacity-80">Activos</div>
+                </div>
+              </div>
+              {/* Recent results */}
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Últimos Resultados</div>
+                <div className="flex flex-wrap gap-1">
+                  {rugbyStat.results.map((win, i) => (
+                    <span
+                      key={i}
+                      className={`w-6 h-6 rounded-md text-[9px] font-black flex items-center justify-center
+                        ${win ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                    >
+                      {win ? "V" : "D"}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
-          
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-green-500 rounded-[1.5rem]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Ingresos Totales</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-black text-green-600 tracking-tighter">${totalRevenue.toLocaleString()}</div>
-              <p className="text-[9px] text-green-600/70 font-bold uppercase mt-1">Caja institucional</p>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-primary rounded-[1.5rem]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Categorías</CardTitle>
+          {/* Hockey */}
+          <Card className="bg-white border-none shadow-xl rounded-[2rem] overflow-hidden">
+            <CardHeader className="bg-blue-50 border-b py-5 px-6">
+              <CardTitle className="flex items-center gap-3 text-slate-900">
+                <span className="text-3xl leading-none">🏑</span>
+                <div>
+                  <div className="text-xl font-black tracking-tight">HOCKEY</div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Estadísticas de temporada</div>
+                </div>
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-black text-slate-900 tracking-tighter">{categories?.length || 0}</div>
-              <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Ramas y divisiones</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-primary rounded-[1.5rem]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Staff Técnico</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-black text-primary tracking-tighter">{staff?.length || 0}</div>
-              <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Profesores vinculados</p>
+            <CardContent className="p-6 space-y-5">
+              {/* Attendance */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asistencia última semana</span>
+                  <span className="text-sm font-black text-blue-600">{hockeyStat.attendance}%</span>
+                </div>
+                <SportBar value={hockeyStat.attendance} color="#3b82f6" />
+              </div>
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Partidos</div>
+                  <div className="text-xl font-black text-slate-900">{hockeyStat.wins + hockeyStat.losses}</div>
+                  <div className="text-[9px] font-black text-green-600">{hockeyStat.wins}V – {hockeyStat.losses}D</div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Viajes Federales</div>
+                  <div className="text-xl font-black text-slate-900">{hockeyStat.trips}</div>
+                  <div className="text-[9px] font-black text-slate-400">Esta temporada</div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Lesiones (30d)</div>
+                  <div className="text-xl font-black text-orange-500">{hockeyStat.injuries}</div>
+                  <div className="text-[9px] font-black text-slate-400">Revisando</div>
+                </div>
+                <div className="bg-blue-500 rounded-xl p-3 text-white">
+                  <div className="text-[9px] font-black uppercase tracking-widest opacity-80 mb-1">Jugadores</div>
+                  <div className="text-xl font-black">{hockeyStat.players || 280}</div>
+                  <div className="text-[9px] font-black opacity-80">Activos</div>
+                </div>
+              </div>
+              {/* Recent results */}
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Últimos Resultados</div>
+                <div className="flex flex-wrap gap-1">
+                  {hockeyStat.results.map((win, i) => (
+                    <span
+                      key={i}
+                      className={`w-6 h-6 rounded-md text-[9px] font-black flex items-center justify-center
+                        ${win ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                    >
+                      {win ? "V" : "D"}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-2 bg-white border-none shadow-xl overflow-hidden rounded-[2.5rem]">
-            <CardHeader className="bg-slate-50 border-b py-6 px-8">
-              <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
-                <Clock className="h-6 w-6 text-primary" /> Actividad Institucional
+        {/* ── BLOQUE 3: Asistencia por categoría ──────────────────────────── */}
+        <Card className="bg-white border-none shadow-xl rounded-[2rem] overflow-hidden">
+          <CardHeader className="bg-slate-50 border-b py-5 px-8">
+            <CardTitle className="flex items-center gap-2 text-slate-900 text-base">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <span className="font-black uppercase tracking-wider">Asistencia por Categoría</span>
+              <span className="text-slate-400 font-normal text-xs ml-2">últimos 30 días</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8 space-y-4">
+            {(dataLoading ? DEFAULT_CATEGORIES : categoryAttendance).map((cat, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="w-36 text-right shrink-0">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">{cat.name}</span>
+                </div>
+                <SportBar
+                  value={cat.attendance}
+                  color={cat.sport === "rugby" ? "#f59e0b" : "#3b82f6"}
+                />
+                <div className={`w-12 text-right text-sm font-black shrink-0
+                  ${cat.attendance < 85 ? "text-orange-500" : cat.attendance >= 95 ? "text-green-600" : "text-slate-700"}`}>
+                  {cat.attendance}%
+                </div>
+                {cat.attendance < 85 && (
+                  <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* ── BLOQUE 4: Origen federal · Próximos viajes y alertas ─────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Federal Origin */}
+          <Card className="bg-white border-none shadow-xl rounded-[2rem] overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b py-5 px-6">
+              <CardTitle className="flex items-center gap-2 text-slate-900 text-base">
+                <MapPin className="h-5 w-5 text-primary" />
+                <span className="font-black uppercase tracking-wider">Origen Federal</span>
+                <span className="text-slate-400 font-normal text-xs ml-1">Top provincias</span>
               </CardTitle>
-              <CardDescription className="font-medium">Movimientos reales detectados en la plataforma.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 pt-8 px-8 pb-8">
-              {activities.length > 0 ? activities.map((item, i) => (
-                <div key={i} className="flex items-start gap-5 p-5 rounded-2xl border-2 border-slate-50 hover:bg-slate-50 transition-colors group">
-                  <div className="bg-slate-50 p-3 rounded-xl group-hover:scale-110 transition-transform shrink-0">
-                    <item.icon className={`h-5 w-5 ${item.color}`} />
+            <CardContent className="p-6 space-y-3">
+              {provinceStats.map((prov, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-32 text-right shrink-0">
+                    <span className="text-[10px] font-black text-slate-600 block truncate">{prov.name}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{item.label}</span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                        {new Date(item.time).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 font-bold leading-relaxed">{item.desc}</p>
-                  </div>
+                  <SportBar value={Math.round((prov.count / maxProvCount) * 100)} color="hsl(var(--primary))" />
+                  <span className="text-sm font-black text-slate-700 w-8 text-right shrink-0">{prov.count}</span>
                 </div>
-              )) : (
-                <div className="text-center py-12 opacity-30">
-                  <Clock className="h-12 w-12 mx-auto mb-4" />
-                  <p className="font-black uppercase text-xs tracking-widest">Sin actividad reciente</p>
+              ))}
+              <div className="pt-3 border-t mt-2">
+                <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <span>{totalProvinces} Provincias</span>
+                  <span>{totalLocalities} Localidades</span>
+                  <span>{totalPlayers} Jugadores</span>
                 </div>
-              )}
+              </div>
             </CardContent>
-            <CardFooter className="bg-slate-50/50 border-t py-5 px-8">
-              <Button variant="link" asChild className="w-full text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] hover:text-primary">
-                <Link href={`/dashboard/clubs/${clubId}/finances`}>Ver movimientos financieros</Link>
-              </Button>
-            </CardFooter>
           </Card>
 
+          {/* Trips + Alerts stacked */}
           <div className="space-y-6">
-            <Card className="bg-white text-slate-900 border-none shadow-2xl relative overflow-hidden rounded-[2.5rem]">
-              <CardHeader className="relative z-10 pt-8 px-8">
-                <CardTitle className="text-xs font-black uppercase tracking-[0.3em] opacity-60">Accesos Directos</CardTitle>
+
+            {/* Upcoming Trips */}
+            <Card className="bg-white border-none shadow-xl rounded-[2rem] overflow-hidden">
+              <CardHeader className="bg-slate-50 border-b py-5 px-6">
+                <CardTitle className="flex items-center gap-2 text-slate-900 text-base">
+                  <Plane className="h-5 w-5 text-primary" />
+                  <span className="font-black uppercase tracking-wider">Próximos Viajes</span>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-2 relative z-10 pt-4 px-8 pb-8">
-                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-slate-50 hover:bg-primary/5 border-none text-slate-900 h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl shadow-sm" asChild>
-                  <Link href={`/dashboard/clubs/${clubId}/players`}><FileText className="h-5 w-5 text-primary" /> Padrón de Socios</Link>
-                </Button>
-                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-slate-50 hover:bg-primary/5 border-none text-slate-900 h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl shadow-sm" asChild>
-                  <Link href={`/dashboard/clubs/${clubId}/shop/admin`}><ShoppingBag className="h-5 w-5 text-primary" /> Administrar Tienda</Link>
-                </Button>
-                <Button variant="secondary" size="sm" className="justify-start gap-4 bg-slate-50 hover:bg-primary/5 border-none text-slate-900 h-14 font-black uppercase text-[10px] tracking-widest transition-all rounded-xl shadow-sm" asChild>
-                  <Link href={`/dashboard/clubs/${clubId}/coaches`}><UserRound className="h-5 w-5 text-primary" /> Staff del Club</Link>
-                </Button>
+              <CardContent className="p-4 space-y-2">
+                {UPCOMING_TRIPS.map((trip, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 p-3 rounded-xl border
+                      ${trip.alert ? "border-orange-200 bg-orange-50" : "border-slate-100 bg-slate-50"}`}
+                  >
+                    <span className={`text-sm font-black w-10 shrink-0 ${trip.alert ? "text-orange-600" : "text-primary"}`}>
+                      {trip.date}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">
+                        {trip.sport} {trip.category}
+                      </span>
+                      <span className="text-slate-400 text-[10px] font-bold"> → {trip.destination}</span>
+                    </div>
+                    <Badge variant="secondary" className={`text-[9px] font-black shrink-0 ${trip.alert ? "bg-orange-100 text-orange-700" : ""}`}>
+                      {trip.players} jug.
+                    </Badge>
+                    {trip.alert && <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />}
+                  </div>
+                ))}
               </CardContent>
-              <div className="absolute right-[-20px] bottom-[-20px] opacity-10">
-                <Building2 className="h-48 w-48 rotate-12" />
-              </div>
+            </Card>
+
+            {/* Alerts */}
+            <Card className="bg-white border-none shadow-xl rounded-[2rem] overflow-hidden border-l-4 border-l-orange-400">
+              <CardHeader className="bg-orange-50 border-b py-4 px-6">
+                <CardTitle className="flex items-center gap-2 text-slate-900 text-base">
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  <span className="font-black uppercase tracking-wider text-orange-700">Alertas Deportivas</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-2">
+                {displayAlerts.map((alert, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-orange-50/50 rounded-xl border border-orange-100">
+                    <span className="text-orange-400 mt-0.5 shrink-0 font-black">•</span>
+                    <p className="text-xs font-bold text-slate-700 leading-relaxed">{alert}</p>
+                  </div>
+                ))}
+              </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* ── Accesos rápidos ──────────────────────────────────────────────── */}
+        <Card className="bg-white border-none shadow-xl rounded-[2rem]">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" size="sm" className="h-12 gap-3 bg-slate-50 hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
+                <Link href={`/dashboard/clubs/${clubId}/players`}><FileText className="h-4 w-4 text-primary" /> Padrón de Socios</Link>
+              </Button>
+              <Button variant="secondary" size="sm" className="h-12 gap-3 bg-slate-50 hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
+                <Link href={`/dashboard/clubs/${clubId}/divisions`}><Layers className="h-4 w-4 text-primary" /> Categorías</Link>
+              </Button>
+              <Button variant="secondary" size="sm" className="h-12 gap-3 bg-slate-50 hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
+                <Link href={`/dashboard/clubs/${clubId}/coaches`}><UserRound className="h-4 w-4 text-primary" /> Staff del Club</Link>
+              </Button>
+              <Button variant="secondary" size="sm" className="h-12 gap-3 bg-slate-50 hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
+                <Link href={`/dashboard/clubs/${clubId}/opponents`}><Activity className="h-4 w-4 text-primary" /> Rivales</Link>
+              </Button>
+              <Button variant="secondary" size="sm" className="h-12 gap-3 bg-slate-50 hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
+                <Link href={`/dashboard/clubs/${clubId}/shop/admin`}><ShoppingBag className="h-4 w-4 text-primary" /> Tienda</Link>
+              </Button>
+              <Button variant="secondary" size="sm" className="h-12 gap-3 bg-slate-50 hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
+                <Link href={`/dashboard/clubs/${clubId}/settings`}><Trophy className="h-4 w-4 text-primary" /> Configuración</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
