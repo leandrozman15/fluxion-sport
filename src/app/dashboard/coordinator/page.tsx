@@ -32,6 +32,8 @@ import { SectionNav } from "@/components/layout/section-nav";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 import { useRoleGuard } from "@/hooks/use-role-guard";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 export default function CoordinatorDashboard() {
   const { authorized, loading: guardLoading } = useRoleGuard(['coordinator']);
@@ -40,6 +42,7 @@ export default function CoordinatorDashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [recentResults, setRecentResults] = useState<any[]>([]);
+  const [playersByDiv, setPlayersByDiv] = useState<{name: string; jugadores: number}[]>([]);
 
   useEffect(() => {
     async function fetchCoordinatorContext() {
@@ -70,10 +73,14 @@ export default function CoordinatorDashboard() {
               // 2. Obtener resultados recientes del club
               const divsSnap = await getDocs(collection(firestore, "clubs", cData.id, "divisions"));
               const results: any[] = [];
+              const divPlayerCounts: {name: string; jugadores: number}[] = [];
               
               for (const divDoc of divsSnap.docs) {
                 const teamsSnap = await getDocs(collection(firestore, "clubs", cData.id, "divisions", divDoc.id, "teams"));
+                let divPlayerCount = 0;
                 for (const teamDoc of teamsSnap.docs) {
+                  const assignmentsSnap = await getDocs(collection(firestore, "clubs", cData.id, "divisions", divDoc.id, "teams", teamDoc.id, "assignments"));
+                  divPlayerCount += assignmentsSnap.size;
                   const eventsSnap = await getDocs(query(
                     collection(firestore, "clubs", cData.id, "divisions", divDoc.id, "teams", teamDoc.id, "events"),
                     where("type", "==", "match"),
@@ -85,7 +92,9 @@ export default function CoordinatorDashboard() {
                     divName: divDoc.data().name 
                   }));
                 }
+                divPlayerCounts.push({ name: divDoc.data().name, jugadores: divPlayerCount });
               }
+              setPlayersByDiv(divPlayerCounts);
               setRecentResults(results.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 3));
             }
           }
@@ -295,6 +304,38 @@ export default function CoordinatorDashboard() {
                 </Button>
               </div>
             </Card>
+
+            {playersByDiv.length > 0 && (
+              <Card className="bg-white border-none shadow-2xl rounded-[2rem] overflow-hidden">
+                <CardHeader className="pb-2 pt-5 px-6">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
+                    <Users className="h-3.5 w-3.5 text-primary" /> Jugadores por Categoría
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-2 pb-4">
+                  <ChartContainer
+                    config={{
+                      jugadores: { label: "Jugadores", color: "hsl(var(--primary))" },
+                    } satisfies ChartConfig}
+                    className="h-[180px] w-full"
+                  >
+                    <BarChart data={playersByDiv} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+                      <XAxis type="number" hide />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        tickLine={false}
+                        axisLine={false}
+                        width={90}
+                        tick={{ fontSize: 10, fontWeight: 800, fill: "#64748b" }}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="jugadores" fill="var(--color-jugadores)" radius={[0, 8, 8, 0]} barSize={20} />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
