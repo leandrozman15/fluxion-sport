@@ -151,10 +151,16 @@ export default function GenericIdCardPage() {
                   <p className="text-xl font-black font-headline truncate max-w-[200px] leading-none drop-shadow-sm">{clubInfo?.name || "Fluxion Sport"}</p>
                 </div>
               </div>
-              <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md font-black text-xs px-4 py-1.5 rounded-full">2025</Badge>
+              <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md font-black text-xs px-4 py-1.5 rounded-full">2026</Badge>
             </div>
 
             <div className="bg-white text-slate-900 mx-5 mb-5 rounded-[2rem] p-8 flex flex-col items-center space-y-6 shadow-inner relative overflow-hidden">
+              {/* Club logo watermark */}
+              {clubInfo?.logoUrl && (
+                <div className="absolute inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none">
+                  <img src={clubInfo.logoUrl} alt="" className="w-64 h-64 object-contain" />
+                </div>
+              )}
               <Avatar className="h-44 w-44 border-[6px] border-slate-50 shadow-2xl rounded-3xl relative z-10">
                 <AvatarImage src={profile?.photoUrl} className="object-cover" />
                 <AvatarFallback className="text-6xl font-black text-slate-200 bg-slate-50">{profile?.firstName?.[0] || profile?.name?.[0]}</AvatarFallback>
@@ -182,7 +188,7 @@ export default function GenericIdCardPage() {
                  <ShieldCheck className="h-5 w-5 text-accent" />
                  <span className="text-xs font-black tracking-widest uppercase text-white">Estado: Activo</span>
                </div>
-               <p className="text-[9px] font-black opacity-40 uppercase tracking-widest">SISTEMA NACIONAL • 2025</p>
+               <p className="text-[9px] font-black opacity-40 uppercase tracking-widest">SISTEMA NACIONAL • 2026</p>
             </div>
           </CardContent>
         </Card>

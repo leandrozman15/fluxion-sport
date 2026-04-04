@@ -43,13 +43,29 @@ service cloud.firestore {
     match /all_players_index/{playerId} {
       allow read: if isAuthenticated();
       allow write: if isStaffMember();
+      allow create: if true;
+    }
+
+    // --- Partidos en vivo (índice global) ---
+    match /live_matches_index/{matchId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaffMember();
+    }
+
+    // --- Convocatorias de partido ---
+    match /match_callups/{callupId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaffMember();
+    }
+
+    // --- Eventos especiales ---
+    match /special_events/{eventId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaffMember();
     }
 
     // --- Registro público de jugadores (sin autenticación) ---
     match /clubs/{clubId}/players/{playerId} {
-      allow create: if true;
-    }
-    match /all_players_index/{playerId} {
       allow create: if true;
     }
   }
