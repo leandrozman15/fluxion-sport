@@ -115,6 +115,9 @@ export default function MatchLiveTrackerPage() {
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club } = useDoc(clubRef);
 
+  const divisionRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId), [db, clubId, divisionId]);
+  const { data: division } = useDoc(divisionRef);
+
   const rosterQuery = useMemoFirebase(() => 
     collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "assignments"), 
     [db, clubId, divisionId, teamId]
@@ -129,6 +132,10 @@ export default function MatchLiveTrackerPage() {
     const liveRef = doc(db, "live_matches_index", liveDocId);
 
     const updateLiveIndex = () => {
+      const goalEvents = matchEvents
+        .filter(e => e.type === 'goal' || e.type === 'try')
+        .map(e => ({ playerName: e.playerName, minute: e.minute, type: e.type }))
+        .slice(0, 20);
       setDoc(liveRef, {
         id: liveDocId,
         clubId,
@@ -137,10 +144,12 @@ export default function MatchLiveTrackerPage() {
         teamId,
         teamName: team.name,
         divisionId,
+        divisionName: division?.name || "",
         sport: team.tacticalSport || team.sport || "hockey",
         homeScore,
         awayScore,
         opponentName,
+        goalEvents,
         timeDisplay: formatTime(seconds),
         status: "live",
         updatedAt: new Date().toISOString()
@@ -150,7 +159,7 @@ export default function MatchLiveTrackerPage() {
     if (isActive || seconds > 0) {
       updateLiveIndex();
     }
-  }, [isActive, seconds, homeScore, awayScore, opponentName, team, club, db, clubId, divisionId, teamId]);
+  }, [isActive, seconds, homeScore, awayScore, opponentName, matchEvents, team, club, division, db, clubId, divisionId, teamId]);
 
   useEffect(() => {
     if (roster && Object.keys(playerStats).length === 0) {

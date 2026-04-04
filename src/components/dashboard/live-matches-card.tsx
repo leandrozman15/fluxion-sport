@@ -7,6 +7,7 @@ import {
   Trophy, 
   Timer, 
   ChevronRight, 
+  ChevronDown,
   Circle,
   Loader2,
   Building2
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export function LiveMatchesCard({ clubId }: { clubId?: string }) {
   const { firestore } = useFirebase();
@@ -73,6 +75,14 @@ export function LiveMatchesCard({ clubId }: { clubId?: string }) {
                   <Activity className="h-3 w-3 animate-bounce" /> {match.sport?.toUpperCase() || 'COMPETENCIA'} • VIVO
                 </span>
               </div>
+
+              {match.divisionName && (
+                <div className="bg-slate-50 px-4 py-1.5 border-b border-slate-100 flex items-center justify-center gap-2">
+                  <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest border-primary/30 text-primary h-5 px-2">
+                    {match.divisionName}
+                  </Badge>
+                </div>
+              )}
               
               <div className="p-5 flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-2">
@@ -103,6 +113,28 @@ export function LiveMatchesCard({ clubId }: { clubId?: string }) {
                     <span className="text-[10px] font-black text-slate-900 truncate max-w-[80px] uppercase leading-tight">{match.opponentName}</span>
                   </div>
                 </div>
+
+                {match.goalEvents && match.goalEvents.length > 0 && (
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full h-8 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-primary hover:bg-primary/5 rounded-xl gap-1.5">
+                        <Trophy className="h-3 w-3" /> Goles ({match.goalEvents.length}) <ChevronDown className="h-3 w-3 transition-transform [[data-state=open]_&]:rotate-180" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="bg-slate-50 rounded-xl p-3 mt-1 space-y-1.5 border border-slate-100">
+                        {match.goalEvents.map((g: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between text-[10px]">
+                            <span className="font-black text-slate-700 flex items-center gap-1.5">
+                              {g.type === 'try' ? '🏉' : '⚽'} {g.playerName}
+                            </span>
+                            <Badge variant="outline" className="h-4 text-[8px] font-black px-1.5 border-slate-200 text-slate-400">{g.minute}&apos;</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
 
                 <Button asChild variant="outline" className="w-full h-10 border-slate-100 hover:bg-slate-50 text-slate-600 font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl">
                   <Link href={`/dashboard/clubs/${match.clubId}/divisions/${match.divisionId}/teams/${match.teamId}/match-live`}>
