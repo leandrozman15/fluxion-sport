@@ -32,7 +32,10 @@ import {
   Trophy,
   FileText,
   Shield,
-  CalendarDays
+  CalendarDays,
+  Activity,
+  TrendingUp,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
@@ -62,6 +65,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+function formatTimeInClub(dateStr?: string): string {
+  if (!dateStr) return "–";
+  const joined = new Date(dateStr);
+  if (isNaN(joined.getTime())) return "–";
+  const now = new Date();
+  const months = (now.getFullYear() - joined.getFullYear()) * 12 + (now.getMonth() - joined.getMonth());
+  if (months < 1) return "Reciente";
+  if (months < 12) return `${months} mes${months > 1 ? 'es' : ''}`;
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (rem === 0) return `${years} año${years > 1 ? 's' : ''}`;
+  return `${years}a ${rem}m`;
+}
 
 export default function PlayersPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -93,7 +110,11 @@ export default function PlayersPage() {
     divisionId: "",
     enableLogin: false,
     password: "",
-    sport: "hockey"
+    sport: "hockey",
+    joinedDate: "",
+    matchesPlayed: "",
+    attendanceAvg: "",
+    notes: "",
   };
 
   const [newPlayer, setNewPlayer] = useState(initialForm);
@@ -369,6 +390,31 @@ export default function PlayersPage() {
                       </div>
                     </div>
 
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 border-b pb-2">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">5. Historial Deportivo</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Clock className="h-3 w-3" /> Fecha de ingreso al club</Label>
+                          <Input type="date" value={newPlayer.joinedDate} onChange={e => setNewPlayer({...newPlayer, joinedDate: e.target.value})} className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Trophy className="h-3 w-3" /> Partidos jugados</Label>
+                          <Input type="number" min="0" value={newPlayer.matchesPlayed} onChange={e => setNewPlayer({...newPlayer, matchesPlayed: e.target.value})} placeholder="0" className="h-12 border-2" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Activity className="h-3 w-3" /> % Asistencia promedio</Label>
+                          <Input type="number" min="0" max="100" value={newPlayer.attendanceAvg} onChange={e => setNewPlayer({...newPlayer, attendanceAvg: e.target.value})} placeholder="0 – 100" className="h-12 border-2" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700 flex items-center gap-1"><FileText className="h-3 w-3" /> Notas internas</Label>
+                        <Input value={newPlayer.notes} onChange={e => setNewPlayer({...newPlayer, notes: e.target.value})} placeholder="Observaciones del cuerpo técnico..." className="h-12 border-2" />
+                      </div>
+                    </div>
+
                     <div className="space-y-6 bg-slate-50 -mx-8 p-8 border-y">
                       <div className="flex items-center justify-between">
                         <div>
@@ -429,7 +475,7 @@ export default function PlayersPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="font-black text-xl text-slate-900 leading-none truncate">{player.firstName} {player.lastName}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <Badge variant="outline" className="text-[8px] font-black uppercase border-primary text-primary px-2 h-4">
                           {player.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}
                         </Badge>
@@ -437,6 +483,31 @@ export default function PlayersPage() {
                           {playerDiv?.name || "Sin Categoría"}
                         </Badge>
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">DNI: {player.dni}</span>
+                      </div>
+                      {/* Stats chips */}
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                        <span className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          <Clock className="h-3 w-3 text-primary" />
+                          {formatTimeInClub(player.joinedDate || player.createdAt)} en el club
+                        </span>
+                        {player.matchesPlayed ? (
+                          <span className="flex items-center gap-1 text-[9px] font-black text-amber-500 uppercase tracking-widest">
+                            <Trophy className="h-3 w-3" />
+                            {player.matchesPlayed} partidos
+                          </span>
+                        ) : null}
+                        {player.attendanceAvg ? (
+                          <span className="flex items-center gap-1 text-[9px] font-black text-green-500 uppercase tracking-widest">
+                            <Activity className="h-3 w-3" />
+                            {player.attendanceAvg}% asistencia
+                          </span>
+                        ) : null}
+                        {player.notes ? (
+                          <span className="flex items-center gap-1 text-[9px] font-black text-slate-300 uppercase tracking-widest max-w-[160px] truncate">
+                            <FileText className="h-3 w-3 shrink-0" />
+                            {player.notes}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -632,6 +703,31 @@ export default function PlayersPage() {
                     <Label className="font-bold text-slate-700">URL Foto</Label>
                     <Input value={editingPlayer?.photoUrl || ""} onChange={e => setEditingPlayer({...editingPlayer, photoUrl: e.target.value})} className="h-12 border-2" />
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b pb-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">5. Historial Deportivo</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700 flex items-center gap-1"><Clock className="h-3 w-3" /> Ingreso al club</Label>
+                    <Input type="date" value={editingPlayer?.joinedDate || ""} onChange={e => setEditingPlayer({...editingPlayer, joinedDate: e.target.value})} className="h-12 border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700 flex items-center gap-1"><Trophy className="h-3 w-3" /> Partidos jugados</Label>
+                    <Input type="number" min="0" value={editingPlayer?.matchesPlayed || ""} onChange={e => setEditingPlayer({...editingPlayer, matchesPlayed: e.target.value})} placeholder="0" className="h-12 border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700 flex items-center gap-1"><Activity className="h-3 w-3" /> % Asistencia promedio</Label>
+                    <Input type="number" min="0" max="100" value={editingPlayer?.attendanceAvg || ""} onChange={e => setEditingPlayer({...editingPlayer, attendanceAvg: e.target.value})} placeholder="0 – 100" className="h-12 border-2" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-slate-700 flex items-center gap-1"><FileText className="h-3 w-3" /> Notas internas</Label>
+                  <Input value={editingPlayer?.notes || ""} onChange={e => setEditingPlayer({...editingPlayer, notes: e.target.value})} placeholder="Observaciones del cuerpo técnico..." className="h-12 border-2" />
                 </div>
               </div>
             </div>
