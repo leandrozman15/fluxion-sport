@@ -3,9 +3,9 @@
 
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Megaphone, Calendar, Loader2, Image as ImageIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Megaphone, Calendar, Loader2, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
@@ -16,7 +16,7 @@ export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
     return query(
       collection(db, "clubs", clubId, "special_events"),
       orderBy("createdAt", "desc"),
-      limit(5)
+      limit(6)
     );
   }, [db, clubId]);
 
@@ -35,11 +35,33 @@ export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {events.map((event: any) => (
           <Card key={event.id} className="border-none shadow-2xl bg-white overflow-hidden rounded-[2rem] group transition-all hover:-translate-y-1">
-            {event.imageUrl && (
+
+            {/* ── Video ── */}
+            {event.mediaType === "video" && event.videoUrl && (
+              <div className="aspect-video w-full overflow-hidden relative bg-black">
+                <video
+                  src={event.videoUrl}
+                  className="w-full h-full object-cover"
+                  controls
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 pointer-events-none">
+                  <span className="bg-black/60 backdrop-blur-sm text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-lg flex items-center gap-1">
+                    <Play className="h-2.5 w-2.5" /> Video
+                    {event.videoDuration > 0 && <span className="ml-1 opacity-70">· {event.videoDuration}s</span>}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* ── Image ── */}
+            {event.mediaType !== "video" && event.imageUrl && (
               <div className="aspect-video w-full overflow-hidden relative">
-                <img 
-                  src={event.imageUrl} 
-                  alt={event.title} 
+                <img
+                  src={event.imageUrl}
+                  alt={event.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -48,6 +70,7 @@ export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
                 </div>
               </div>
             )}
+
             <CardHeader className="pt-6 px-8 pb-4">
               <div className="flex justify-between items-start gap-4">
                 <CardTitle className="text-xl font-black text-slate-900 leading-tight">{event.title}</CardTitle>
@@ -64,7 +87,9 @@ export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
                 <Avatar className="h-6 w-6 border-2 border-primary/10">
                   <AvatarFallback className="bg-primary/5 text-primary text-[8px] font-black">A</AvatarFallback>
                 </Avatar>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Publicado por: {event.authorName || "Administración"}</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Publicado por: {event.authorName || "Administración"}
+                </span>
               </div>
             </CardContent>
           </Card>
