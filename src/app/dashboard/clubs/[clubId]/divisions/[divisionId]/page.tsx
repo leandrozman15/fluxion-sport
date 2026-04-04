@@ -44,6 +44,7 @@ export default function CategoryAdminPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>("");
   
   const [newTeam, setNewTeam] = useState({ 
     name: "", 
@@ -61,6 +62,7 @@ export default function CategoryAdminPage() {
         const userDoc = await getDoc(doc(firestore, "users", user.uid));
         if (userDoc.exists()) {
           const role = userDoc.data().role;
+          setUserRole(role);
           // Bloquear si es Coach Nivel 2 (sujeto a lógica de negocio)
           if (role === 'coach_lvl2') {
             toast({ variant: "destructive", title: "Acceso Denegado", description: "Tu nivel de usuario no permite administrar categorías." });
@@ -146,11 +148,15 @@ export default function CategoryAdminPage() {
     p.dni?.includes(searchTerm)
   );
 
+  const isCoach = userRole === 'coach' || userRole === 'coach_lvl1' || userRole === 'coach_lvl2';
+  const backHref = isCoach ? '/dashboard/coach' : `/dashboard/clubs/${clubId}/divisions`;
+  const backLabel = isCoach ? 'Volver al panel' : 'Volver a categorías';
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24">
       <header className="flex flex-col gap-4">
-        <Link href={`/dashboard/clubs/${clubId}/divisions`} className="ambient-link group w-fit">
-          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver a categorías
+        <Link href={backHref} className="ambient-link group w-fit">
+          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> {backLabel}
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>

@@ -28,8 +28,18 @@ export function useClubPageNav(clubId: string) {
   const { data: profile } = useDoc(userRef);
 
   const isCoordinator = profile?.role === "coordinator";
+  const isCoach = profile?.role === "coach" || profile?.role === "coach_lvl1" || profile?.role === "coach_lvl2";
 
   const nav = useMemo(() => {
+    if (isCoach) {
+      return [
+        { title: "Mi Panel", href: "/dashboard/coach", icon: Trophy },
+        { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
+        { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
+        { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop`, icon: ShoppingBag },
+      ];
+    }
+
     if (isCoordinator) {
       return [
         { title: "Dashboard", href: "/dashboard/coordinator", icon: Trophy },
@@ -51,7 +61,7 @@ export function useClubPageNav(clubId: string) {
       { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
       { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
     ];
-  }, [isCoordinator, clubId]);
+  }, [isCoach, isCoordinator, clubId]);
 
   return nav;
 }
