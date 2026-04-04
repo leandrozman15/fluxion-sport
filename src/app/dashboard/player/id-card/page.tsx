@@ -54,6 +54,16 @@ export default function GenericIdCardPage() {
             const playerByEmailId = await getDoc(doc(firestore, "all_players_index", email));
             if (playerByEmailId.exists()) userData = playerByEmailId.data();
           }
+
+          // Enriquecer con datos completos del legajo (photoUrl, dni, jerseyNumber, parkingIncluded, etc.)
+          if (userData?.clubId && userData?.id) {
+            try {
+              const fullPlayerDoc = await getDoc(doc(firestore, "clubs", userData.clubId, "players", userData.id));
+              if (fullPlayerDoc.exists()) {
+                userData = { ...userData, ...fullPlayerDoc.data() };
+              }
+            } catch (_) {}
+          }
         }
 
         if (userData) {
@@ -68,7 +78,14 @@ export default function GenericIdCardPage() {
           
           if (userData.clubId) {
             const clubDoc = await getDoc(doc(firestore, "clubs", userData.clubId));
-            if (clubDoc.exists()) setClubInfo({ ...clubDoc.data(), id: clubDoc.id });
+            if (clubDoc.exists()) {
+              setClubInfo({ ...clubDoc.data(), id: clubDoc.id });
+            } else {
+              // fallback: usar clubName del index si el doc del club no existe o no tiene acceso
+              setClubInfo({ name: userData.clubName || "Club", logoUrl: null });
+            }
+          } else if (userData.clubName) {
+            setClubInfo({ name: userData.clubName, logoUrl: null });
           }
         }
       } catch (e) { 
