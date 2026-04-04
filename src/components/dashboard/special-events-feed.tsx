@@ -5,8 +5,17 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Megaphone, Calendar, Loader2, Play } from "lucide-react";
+import { Megaphone, Calendar, Loader2, Play, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+
+function formatTimeLeft(expiresAt: string): string {
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (ms <= 0) return "";
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 24) return `Vence en ${h}h`;
+  const d = Math.floor(h / 24);
+  return `Vence en ${d}d`;
+}
 
 export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
   const db = useFirestore();
@@ -16,14 +25,19 @@ export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
     return query(
       collection(db, "clubs", clubId, "special_events"),
       orderBy("createdAt", "desc"),
-      limit(6)
+      limit(12) // fetch more, we'll filter expired client-side
     );
   }, [db, clubId]);
 
-  const { data: events, isLoading } = useCollection(eventsQuery);
+  const { data: rawEvents, isLoading } = useCollection(eventsQuery);
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
-  if (!events || events.length === 0) return null;
+  if (!rawEvents || rawEvents.length === 0) return null;
+
+  const now = Date.now();
+  const events = rawEvents.filter((e: any) => !e.expiresAt || new Date(e.expiresAt).getTime() > now);
+
+  if (events.length === 0) return null;
 
   return (
     <div className="space-y-6">
@@ -74,9 +88,16 @@ export function SpecialEventsFeed({ clubId }: { clubId?: string }) {
             <CardHeader className="pt-6 px-8 pb-4">
               <div className="flex justify-between items-start gap-4">
                 <CardTitle className="text-xl font-black text-slate-900 leading-tight">{event.title}</CardTitle>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                  <Calendar className="h-3 w-3" /> {new Date(event.createdAt).toLocaleDateString()}
-                </span>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3" /> {new Date(event.createdAt).toLocaleDateString()}
+                  </span>
+                  {event.expiresAt && (
+                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> {formatTimeLeft(event.expiresAt)}
+                    </span>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="px-8 pb-8">

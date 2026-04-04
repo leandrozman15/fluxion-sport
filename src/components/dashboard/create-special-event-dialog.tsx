@@ -29,6 +29,15 @@ type MediaType = "image" | "video";
 const MAX_VIDEO_DURATION = 20; // seconds
 const MAX_VIDEO_MB = 80;
 
+const DURATION_OPTIONS = [
+  { label: "6 horas",      hours: 6 },
+  { label: "24 horas",     hours: 24 },
+  { label: "3 días",       hours: 72 },
+  { label: "7 días",       hours: 168 },
+  { label: "30 días",      hours: 720 },
+  { label: "Sin vencimiento", hours: 0 },
+];
+
 function validateVideoDuration(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -50,6 +59,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [mediaType, setMediaType] = useState<MediaType>("image");
+  const [expiryHours, setExpiryHours] = useState(168); // default 7 días
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +151,9 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
         videoUrl: mediaType === "video" ? videoUrl : "",
         videoDuration: mediaType === "video" ? form.videoDuration : 0,
         createdAt: new Date().toISOString(),
+        expiresAt: expiryHours > 0
+          ? new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString()
+          : null,
       });
 
       toast({ title: "Novedad Publicada", description: "El contenido ya es visible para los socios." });
@@ -148,6 +161,7 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
       if (form.videoPreview) URL.revokeObjectURL(form.videoPreview);
       setForm({ title: "", comment: "", imageUrl: "", videoUrl: "", videoPreview: "", videoDuration: 0 });
       setMediaType("image");
+      setExpiryHours(168);
       setIsOpen(false);
     } catch (e) {
       console.error(e);
@@ -278,6 +292,26 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
               />
             </div>
           )}
+
+          {/* Expiry */}
+          <div className="space-y-2">
+            <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Disponible durante</Label>
+            <div className="flex flex-wrap gap-2">
+              {DURATION_OPTIONS.map(opt => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() => setExpiryHours(opt.hours)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all
+                    ${expiryHours === opt.hours
+                      ? "bg-primary text-white border-primary"
+                      : "bg-white text-slate-500 border-slate-200 hover:border-primary/50"}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Comment */}
           <div className="space-y-2">
