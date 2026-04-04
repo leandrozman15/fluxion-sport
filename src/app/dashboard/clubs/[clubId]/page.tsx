@@ -128,9 +128,6 @@ export default function InstitutionDetailPage() {
                   <ShoppingBag className="h-4 w-4" /> Tienda
                 </Link>
               </Button>
-              <Button variant="outline" onClick={copyRegistrationLink} className="gap-2 border-accent text-accent hover:bg-accent/5 text-[10px] h-10 font-black uppercase px-4 rounded-xl">
-                <Share2 className="h-4 w-4" /> Link Registro
-              </Button>
               <Button variant="default" className="gap-2 text-[10px] h-10 font-black uppercase tracking-widest px-6 shadow-xl rounded-xl" asChild>
                 <Link href={`/dashboard/clubs/${clubId}/settings`}>
                   <Settings2 className="h-4 w-4" /> Configurar
