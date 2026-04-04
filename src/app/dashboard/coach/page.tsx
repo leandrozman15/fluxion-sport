@@ -19,7 +19,8 @@ import {
   ShoppingBag,
   Trophy,
   ArrowRight,
-  ShieldAlert
+  ShieldAlert,
+  BarChart3
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,8 +36,11 @@ import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-boar
 import { cn } from "@/lib/utils";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
+import { RecentResultsStrip } from "@/components/dashboard/recent-results-strip";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleGuard } from "@/hooks/use-role-guard";
 
@@ -52,6 +56,8 @@ export default function CoachDashboard() {
   const [staffProfile, setStaffProfile] = useState<any>(null);
   const [club, setClub] = useState<any>(null);
   const [rank, setRank] = useState<number | null>(null);
+  const [playerAggStats, setPlayerAggStats] = useState<any[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
     async function fetchAllMyTeams() {
@@ -287,6 +293,13 @@ export default function CoachDashboard() {
         </header>
 
         <LiveMatchesCard clubId={selectedTeam.clubId} />
+        <RecentResultsStrip 
+          clubId={selectedTeam.clubId} 
+          divisionId={selectedTeam.divisionId} 
+          teamId={selectedTeam.id}
+          clubLogo={club?.logoUrl}
+          teamName={selectedTeam.name}
+        />
         {selectedTeam && <SpecialEventsFeed clubId={selectedTeam.clubId} />}
 
         {todayEvent && (

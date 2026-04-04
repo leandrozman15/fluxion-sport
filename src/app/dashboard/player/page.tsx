@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
+import { RecentResultsStrip } from "@/components/dashboard/recent-results-strip";
 
 export default function PlayerDashboardHub() {
   const { firestore, user } = useFirebase();
@@ -148,6 +149,13 @@ export default function PlayerDashboardHub() {
         </header>
 
         <LiveMatchesCard clubId={playerInfo.clubId} />
+        <RecentResultsStrip 
+          clubId={playerInfo.clubId}
+          divisionId={playerInfo.divisionId}
+          teamId={playerInfo.teamId}
+          clubLogo={playerInfo.clubLogo}
+          teamName={playerInfo.teamName}
+        />
         <SpecialEventsFeed clubId={playerInfo.clubId} />
 
         <section className="space-y-4">
