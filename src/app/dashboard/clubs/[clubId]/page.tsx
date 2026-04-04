@@ -529,18 +529,6 @@ const DEFAULT_PROVINCES = [
   { name: "Resto (8 prov.)", count: 165 },
 ];
 
-// ─── Helper: plain colour progress bar ───────────────────────────────────────
-function SportBar({ value, color }: { value: number; color: string }) {
-  return (
-    <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
-      <div
-        className="h-full rounded-full transition-all"
-        style={{ width: `${value}%`, backgroundColor: color }}
-      />
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 export default function InstitutionDetailPage() {
   const { authorized, loading: guardLoading } = useRoleGuard(['club_admin', 'coordinator', 'admin', 'fed_admin']);

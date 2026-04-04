@@ -204,7 +204,7 @@ export default function CoordinatorDashboard() {
             statMap[ps.id].assists += ps.assists  || 0;
           }
         }
-        const top3 = Object.values(statMap)
+        const topStars = Object.values(statMap)
           .sort((a, b) => (b.goals + b.assists) - (a.goals + a.assists))
           .slice(0, 3)
           .map(p => ({
@@ -212,7 +212,7 @@ export default function CoordinatorDashboard() {
             team: p.team,
             stat: `${p.goals} goles · ${p.assists} asist.`,
           }));
-        setStarPlayers(top3);
+        setStarPlayers(topStars);
 
         // 8. Auto-alerts (100% from real data)
         const newAlerts: string[] = [];
