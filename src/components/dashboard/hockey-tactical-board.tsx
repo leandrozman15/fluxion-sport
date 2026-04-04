@@ -21,7 +21,9 @@ import {
   Palette,
   Plus,
   UserX,
-  Shield
+  Shield,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -82,6 +84,7 @@ export function HockeyTacticalBoard({
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [tacticName, setSaveTacticName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const tacticsQuery = useMemoFirebase(() => {
     if (!db || !clubId || !divisionId || !teamId) return null;
@@ -313,82 +316,117 @@ export function HockeyTacticalBoard({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-none" onMouseUp={handleMouseUp} onMouseMove={handleMouseMove}>
-      <div className="lg:col-span-8 space-y-4">
-        <div className="flex flex-wrap items-center justify-between bg-white p-3 rounded-2xl border shadow-xl gap-3">
-          <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border">
-            <Button 
-              variant={drawMode === 'pen' ? 'default' : 'ghost'} 
-              size="sm" 
-              onClick={() => setDrawMode(drawMode === 'pen' ? null : 'pen')}
-              className="h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg"
-            >
-              <Pencil className="h-3.5 w-3.5" /> Dibujar
-            </Button>
-            <Button 
-              variant={drawMode === 'eraser' ? 'default' : 'ghost'} 
-              size="sm" 
-              onClick={() => setDrawMode(drawMode === 'eraser' ? null : 'eraser')}
-              className="h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg"
-            >
-              <Eraser className="h-3.5 w-3.5" /> Borrar
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={clearCanvas}
-              className="h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg text-destructive hover:bg-red-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Limpiar
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 bg-slate-100/50 px-2 py-1 rounded-full">
-              {['#3b82f6', '#f97316', '#ef4444', '#000000'].map(color => (
-                <button 
-                  key={color} 
-                  className={cn(
-                    "h-6 w-6 rounded-full border-2 transition-all",
-                    penColor === color && drawMode === 'pen' ? "scale-125 border-white shadow-md ring-2 ring-primary/20" : "border-transparent opacity-60 hover:opacity-100"
-                  )}
-                  style={{ backgroundColor: color }}
-                  onClick={() => { setPenColor(color); setDrawMode('pen'); }}
-                />
-              ))}
-            </div>
-            
-            <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="h-9 px-4 font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg bg-primary text-white">
-                  <Save className="h-3.5 w-3.5" /> Guardar
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-white">
-                <DialogHeader>
-                  <DialogTitle className="font-black">Guardar en Biblioteca</DialogTitle>
-                  <DialogDescription className="font-bold">Asigna un nombre a esta configuración táctica.</DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <Input 
-                    value={tacticName} 
-                    onChange={e => setSaveTacticName(e.target.value)} 
-                    placeholder="Ej. Salida de Fondo Variante A" 
-                    className="h-12 border-2 font-bold"
-                  />
-                </div>
-                <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t mt-4">
-                  <Button variant="ghost" onClick={() => setIsSaveDialogOpen(false)} className="font-bold">Cerrar</Button>
-                  <Button onClick={handleSaveTactic} disabled={saving || !tacticName} className="font-black uppercase text-xs tracking-widest h-12 px-8">Confirmar</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+    <div
+      className={cn(
+        isFullscreen
+          ? "fixed inset-0 z-[9999] bg-[#0e2409] flex flex-col overflow-hidden"
+          : "grid grid-cols-1 lg:grid-cols-12 gap-6 select-none"
+      )}
+      onMouseUp={handleMouseUp}
+      onMouseMove={handleMouseMove}
+    >
+      {/* ── Toolbar ─────────────────────────────────────────────── */}
+      <div className={cn(
+        "flex flex-wrap items-center justify-between gap-3",
+        isFullscreen
+          ? "shrink-0 bg-black/60 backdrop-blur-md px-4 py-2 border-b border-white/10"
+          : "lg:col-span-8 bg-white p-3 rounded-2xl border shadow-xl"
+      )}>
+        <div className="flex items-center gap-1.5 bg-slate-50/10 p-1 rounded-xl border border-white/10">
+          <Button 
+            variant={drawMode === 'pen' ? 'default' : 'ghost'} 
+            size="sm" 
+            onClick={() => setDrawMode(drawMode === 'pen' ? null : 'pen')}
+            className={cn("h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg", isFullscreen && "text-white")}
+          >
+            <Pencil className="h-3.5 w-3.5" /> Dibujar
+          </Button>
+          <Button 
+            variant={drawMode === 'eraser' ? 'default' : 'ghost'} 
+            size="sm" 
+            onClick={() => setDrawMode(drawMode === 'eraser' ? null : 'eraser')}
+            className={cn("h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg", isFullscreen && "text-white")}
+          >
+            <Eraser className="h-3.5 w-3.5" /> Borrar
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={clearCanvas}
+            className={cn("h-9 px-3 font-black uppercase text-[9px] tracking-widest gap-1.5 rounded-lg text-destructive hover:bg-red-50", isFullscreen && "hover:bg-red-900/30")}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Limpiar
+          </Button>
         </div>
 
-        <div 
-          ref={fieldRef}
-          className="relative w-full aspect-[2/3] max-w-md mx-auto bg-[#1a3a0f] rounded-[2.5rem] border-[10px] border-white shadow-2xl overflow-hidden"
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-slate-100/20 px-2 py-1 rounded-full">
+            {['#3b82f6', '#f97316', '#ef4444', '#000000'].map(color => (
+              <button 
+                key={color} 
+                className={cn(
+                  "h-6 w-6 rounded-full border-2 transition-all",
+                  penColor === color && drawMode === 'pen' ? "scale-125 border-white shadow-md ring-2 ring-primary/20" : "border-transparent opacity-60 hover:opacity-100"
+                )}
+                style={{ backgroundColor: color }}
+                onClick={() => { setPenColor(color); setDrawMode('pen'); }}
+              />
+            ))}
+          </div>
+          
+          <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-9 px-4 font-black uppercase text-[9px] tracking-widest gap-2 rounded-xl shadow-lg bg-primary text-white">
+                <Save className="h-3.5 w-3.5" /> Guardar
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-white">
+              <DialogHeader>
+                <DialogTitle className="font-black">Guardar en Biblioteca</DialogTitle>
+                <DialogDescription className="font-bold">Asigna un nombre a esta configuración táctica.</DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Input 
+                  value={tacticName} 
+                  onChange={e => setSaveTacticName(e.target.value)} 
+                  placeholder="Ej. Salida de Fondo Variante A" 
+                  className="h-12 border-2 font-bold"
+                />
+              </div>
+              <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t mt-4">
+                <Button variant="ghost" onClick={() => setIsSaveDialogOpen(false)} className="font-bold">Cerrar</Button>
+                <Button onClick={handleSaveTactic} disabled={saving || !tacticName} className="font-black uppercase text-xs tracking-widest h-12 px-8">Confirmar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Fullscreen toggle */}
+          <Button
+            variant={isFullscreen ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsFullscreen(f => !f)}
+            title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+            className={cn(
+              "h-9 w-9 p-0 rounded-xl border-2 transition-all",
+              isFullscreen
+                ? "bg-white text-primary border-white shadow-lg"
+                : "border-primary/30 text-primary hover:bg-primary/5"
+            )}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Field ──────────────────────────────────────────────── */}
+      <div 
+        ref={fieldRef}
+        className={cn(
+          "relative bg-[#1a3a0f] border-[10px] border-white shadow-2xl overflow-hidden",
+          isFullscreen
+            ? "flex-1 w-full rounded-none border-x-0 border-b-0"
+            : "lg:col-span-8 aspect-[2/3] max-w-md mx-auto rounded-[2.5rem]"
+        )}
           onMouseDown={drawMode ? startDrawing : undefined}
           onMouseMove={drawMode ? draw : handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -484,9 +522,10 @@ export function HockeyTacticalBoard({
             </div>
           ))}
         </div>
-      </div>
 
-      <div className="lg:col-span-4 space-y-6">
+      {/* ── Sidebar (hidden in fullscreen) ───────────────────────── */}
+      {!isFullscreen && (
+        <div className="lg:col-span-4 space-y-6">
         <Card className="border-none bg-white shadow-2xl overflow-hidden rounded-[2rem]">
           <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
             <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
@@ -586,6 +625,7 @@ export function HockeyTacticalBoard({
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
   );
 }

@@ -91,8 +91,18 @@ export default function GenericIdCardPage() {
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[100dvh] md:min-h-0 px-0 md:px-4 py-4 md:py-8 animate-in fade-in duration-500">
-      <div className="w-full max-w-md mx-auto space-y-4">
+    <div className="relative flex flex-col items-center justify-center min-h-[100dvh] bg-transparent animate-in fade-in duration-500 px-0 md:px-4 py-0 md:py-8">
+
+      {/* X button — floating on mobile, inline above card on desktop */}
+      <button
+        onClick={() => router.push(backHref)}
+        className="fixed md:hidden top-4 right-4 z-50 bg-black/40 backdrop-blur-md text-white rounded-full h-10 w-10 flex items-center justify-center shadow-xl border border-white/20 hover:bg-black/60 transition-colors"
+        aria-label="Volver"
+      >
+        <span className="font-black text-lg leading-none">×</span>
+      </button>
+
+      <div className="hidden md:flex w-full max-w-md mx-auto mb-4">
         <Button
           variant="ghost"
           onClick={() => router.push(backHref)}
@@ -100,13 +110,16 @@ export default function GenericIdCardPage() {
         >
           <ArrowLeft className="h-4 w-4" /> Volver al Panel
         </Button>
+      </div>
 
-        <Card className={cn(
-          "w-full text-white overflow-hidden shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] rounded-[2.5rem] border-none transition-all relative",
-          roleInfo.role.includes('admin') ? "bg-gradient-to-br from-slate-700 to-slate-800" :
-          isStaff ? "bg-gradient-to-br from-blue-600 to-blue-800" :
-          "bg-gradient-to-br from-primary to-primary/80"
-        )}>
+      <Card className={cn(
+        "w-full text-white overflow-hidden shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] border-none transition-all relative",
+        "md:max-w-md md:rounded-[2.5rem]",
+        "rounded-none min-h-[100dvh] md:min-h-0",
+        roleInfo.role.includes('admin') ? "bg-gradient-to-br from-slate-700 to-slate-800" :
+        isStaff ? "bg-gradient-to-br from-blue-600 to-blue-800" :
+        "bg-gradient-to-br from-primary to-primary/80"
+      )}>
           <CardContent className="p-0">
             <div className="p-8 flex justify-between items-start">
               <div className="flex items-center gap-4">
@@ -124,32 +137,54 @@ export default function GenericIdCardPage() {
               <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md font-black text-xs px-4 py-1.5 rounded-full">2026</Badge>
             </div>
 
-            <div className="bg-white text-slate-900 mx-5 mb-5 rounded-[2rem] p-8 flex flex-col items-center space-y-6 shadow-inner relative overflow-hidden">
+            <div className="bg-white text-slate-900 mx-5 mb-5 rounded-[2rem] p-6 flex flex-col items-center space-y-4 shadow-inner relative overflow-hidden">
               {/* Club logo watermark */}
               {clubInfo?.logoUrl && (
                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.04] pointer-events-none">
                   <img src={clubInfo.logoUrl} alt="" className="w-64 h-64 object-contain" />
                 </div>
               )}
-              <Avatar className="h-44 w-44 border-[6px] border-slate-50 shadow-2xl rounded-3xl relative z-10">
+              <Avatar className="h-32 w-32 border-[6px] border-slate-50 shadow-2xl rounded-3xl relative z-10">
                 <AvatarImage src={profile?.photoUrl} className="object-cover" />
-                <AvatarFallback className="text-6xl font-black text-slate-200 bg-slate-50">{profile?.firstName?.[0] || profile?.name?.[0]}</AvatarFallback>
+                <AvatarFallback className="text-5xl font-black text-slate-200 bg-slate-50">{profile?.firstName?.[0] || profile?.name?.[0]}</AvatarFallback>
               </Avatar>
               
               <div className="text-center space-y-1">
-                <h2 className="text-3xl font-black font-headline uppercase tracking-tighter leading-none text-slate-900">
+                <h2 className="text-2xl font-black font-headline uppercase tracking-tighter leading-none text-slate-900">
                   {profile?.firstName ? `${profile.firstName} ${profile.lastName}` : profile?.name || "Usuario"}
                 </h2>
                 <p className="text-primary font-black text-xs uppercase tracking-[0.2em]">{roleInfo.label}</p>
               </div>
 
               <div className="w-full h-px bg-slate-100" />
-              
-              <div className="flex flex-col items-center gap-4">
-                <div className="bg-slate-50 p-3 rounded-2xl flex items-center justify-center w-36 h-36 border-2 border-dashed border-slate-200">
-                  <QrCode className="h-32 w-32 text-slate-300" />
+
+              {/* Extra info row */}
+              <div className="w-full grid grid-cols-3 gap-2 text-center">
+                {profile?.dni && (
+                  <div className="bg-slate-50 rounded-xl py-2 px-1">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">DNI</p>
+                    <p className="text-[11px] font-black text-slate-800 mt-0.5 font-mono">{profile.dni}</p>
+                  </div>
+                )}
+                {profile?.jerseyNumber && (
+                  <div className="bg-primary/5 rounded-xl py-2 px-1">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Camiseta</p>
+                    <p className="text-sm font-black text-primary mt-0.5">#{profile.jerseyNumber}</p>
+                  </div>
+                )}
+                {profile?.sport && (
+                  <div className="bg-slate-50 rounded-xl py-2 px-1">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Deporte</p>
+                    <p className="text-[11px] font-black text-slate-800 mt-0.5">{profile.sport === 'rugby' ? '🏉' : '🏑'} {profile.sport}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col items-center gap-3 w-full">
+                <div className="bg-slate-50 p-2 rounded-2xl flex items-center justify-center w-28 h-28 border-2 border-dashed border-slate-200">
+                  <QrCode className="h-24 w-24 text-slate-300" />
                 </div>
-                <p className="text-[10px] text-slate-400 font-black font-mono uppercase tracking-widest">REG: {profile?.id?.substring(0, 14) || "SISTEMA-OK"}</p>
+                <p className="text-[9px] text-slate-400 font-black font-mono uppercase tracking-widest">REG: {profile?.id?.substring(0, 14) || "SISTEMA-OK"}</p>
               </div>
             </div>
             
@@ -162,7 +197,6 @@ export default function GenericIdCardPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }

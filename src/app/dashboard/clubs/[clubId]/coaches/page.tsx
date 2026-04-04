@@ -84,7 +84,8 @@ export default function ClubCoachesPage() {
     bloodType: "",
     emergencyContact: "",
     emergencyPhone: "",
-    sport: "hockey"
+    sport: "hockey",
+    parkingIncluded: false,
   };
   const [newCoach, setNewCoach] = useState(initialCoachForm);
 
@@ -355,6 +356,13 @@ export default function ClubCoachesPage() {
                       </div>
                     </div>
                   </div>
+                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <div>
+                      <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
+                      <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
+                    </div>
+                    <Switch checked={newCoach.parkingIncluded} onCheckedChange={v => setNewCoach({...newCoach, parkingIncluded: v})} />
+                  </div>
 
                 </div>
               </ScrollArea>
@@ -579,6 +587,13 @@ export default function ClubCoachesPage() {
                     <Input value={editingCoach?.emergencyPhone || ""} onChange={e => setEditingCoach({...editingCoach, emergencyPhone: e.target.value})} className="bg-white border-2" />
                   </div>
                 </div>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100 mx-6 mb-4">
+                <div>
+                  <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
+                  <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
+                </div>
+                <Switch checked={editingCoach?.parkingIncluded ?? false} onCheckedChange={v => setEditingCoach({...editingCoach, parkingIncluded: v})} />
               </div>
 
             </div>

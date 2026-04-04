@@ -115,6 +115,7 @@ export default function PlayersPage() {
     matchesPlayed: "",
     attendanceAvg: "",
     notes: "",
+    parkingIncluded: false,
   };
 
   const [newPlayer, setNewPlayer] = useState(initialForm);
@@ -412,6 +413,13 @@ export default function PlayersPage() {
                       <div className="space-y-2">
                         <Label className="font-bold text-slate-700 flex items-center gap-1"><FileText className="h-3 w-3" /> Notas internas</Label>
                         <Input value={newPlayer.notes} onChange={e => setNewPlayer({...newPlayer, notes: e.target.value})} placeholder="Observaciones del cuerpo técnico..." className="h-12 border-2" />
+                      </div>
+                      <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
+                        <div>
+                          <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
+                          <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
+                        </div>
+                        <Switch checked={newPlayer.parkingIncluded} onCheckedChange={v => setNewPlayer({...newPlayer, parkingIncluded: v})} />
                       </div>
                     </div>
 
@@ -728,6 +736,13 @@ export default function PlayersPage() {
                 <div className="space-y-2">
                   <Label className="font-bold text-slate-700 flex items-center gap-1"><FileText className="h-3 w-3" /> Notas internas</Label>
                   <Input value={editingPlayer?.notes || ""} onChange={e => setEditingPlayer({...editingPlayer, notes: e.target.value})} placeholder="Observaciones del cuerpo técnico..." className="h-12 border-2" />
+                </div>
+                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <div>
+                    <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
+                    <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
+                  </div>
+                  <Switch checked={editingPlayer?.parkingIncluded ?? false} onCheckedChange={v => setEditingPlayer({...editingPlayer, parkingIncluded: v})} />
                 </div>
               </div>
             </div>
