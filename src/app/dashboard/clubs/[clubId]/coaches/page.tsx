@@ -362,7 +362,6 @@ export default function ClubCoachesPage() {
                     </div>
                     <Switch checked={newCoach.parkingIncluded} onCheckedChange={v => setNewCoach({...newCoach, parkingIncluded: v})} />
                   </div>
-                </div>
               </ScrollArea>
               <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4 shrink-0">
                 <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
