@@ -6,11 +6,13 @@ import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 
 /**
- * Fondo Dinámico que detecta el deporte del usuario cruzando UID y Email.
+ * Fondo Dinámico que detecta el deporte del usuario cruzando UID y Email,
+ * y muestra el escudo del club como marca de agua central.
  */
 export function DynamicBackground() {
   const { user, firestore } = useFirebase();
   const [sport, setSport] = useState<'hockey' | 'rugby' | 'none'>('hockey');
+  const [clubLogoUrl, setClubLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !firestore) {
@@ -47,6 +49,18 @@ export function DynamicBackground() {
         else if (profileData?.sport === 'hockey') setSport('hockey');
         else setSport('none');
 
+        // 3. Cargar logo del club
+        if (profileData?.clubId) {
+          try {
+            const clubDoc = await getDoc(doc(firestore, "clubs", profileData.clubId));
+            if (clubDoc.exists() && clubDoc.data()?.logoUrl) {
+              setClubLogoUrl(clubDoc.data()!.logoUrl);
+            }
+          } catch {
+            // silencioso
+          }
+        }
+
       } catch (err) {
         console.warn("Sport detection suppressed");
       }
@@ -71,6 +85,22 @@ export function DynamicBackground() {
         />
       )}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
+
+      {/* Escudo del club — marca de agua central */}
+      {clubLogoUrl && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <img
+            src={clubLogoUrl}
+            alt="Escudo del club"
+            className="w-[55vw] max-w-[520px] h-auto object-contain select-none"
+            style={{
+              opacity: 0.5,
+              filter: 'drop-shadow(0 0 40px rgba(255,255,255,0.35)) drop-shadow(0 0 80px rgba(255,255,255,0.15))',
+            }}
+            draggable={false}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -209,9 +209,17 @@ export default function InstitutionDetailPage() {
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border shadow-xl">
           <div className="flex items-center gap-4">
-            <div className="bg-primary/5 p-3 rounded-2xl">
-              <Building2 className="h-8 w-8 text-primary" />
-            </div>
+            {club?.logoUrl ? (
+              <img
+                src={club.logoUrl}
+                alt={club.name}
+                className="h-16 w-16 object-contain rounded-2xl border border-slate-100 bg-slate-50 p-1 shadow-sm shrink-0"
+              />
+            ) : (
+              <div className="bg-primary/5 p-3 rounded-2xl shrink-0">
+                <Building2 className="h-8 w-8 text-primary" />
+              </div>
+            )}
             <div>
               <h1 className="text-2xl font-black font-headline !text-slate-900">{club?.name || "Dashboard Deportivo"}</h1>
               <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Panel de Administración Deportiva</p>
