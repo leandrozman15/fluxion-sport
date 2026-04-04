@@ -70,9 +70,17 @@ export function LiveMatchesCard({ clubId }: { clubId?: string }) {
         {liveMatches.map((match) => (
           <Card key={match.id} className="border-none shadow-xl bg-white overflow-hidden group hover:scale-[1.02] transition-all">
             <CardContent className="p-0">
-              <div className="bg-red-500 p-1.5 flex justify-center items-center gap-2">
+              <div className={cn("p-1.5 flex justify-center items-center gap-2",
+                match.matchPhase === 'entretiempo' ? 'bg-yellow-500' :
+                match.matchPhase === 'finalizado' ? 'bg-slate-600' :
+                'bg-red-500'
+              )}>
                 <span className="text-[9px] font-black text-white tracking-widest uppercase flex items-center gap-1.5">
-                  <Activity className="h-3 w-3 animate-bounce" /> {match.sport?.toUpperCase() || 'COMPETENCIA'} • VIVO
+                  <Activity className={cn("h-3 w-3", match.matchPhase !== 'finalizado' && 'animate-bounce')} />
+                  {match.sport?.toUpperCase() || 'COMPETENCIA'} •{' '}
+                  {match.matchPhase === 'entretiempo' ? 'ENTRETIEMPO' :
+                   match.matchPhase === 'finalizado' ? 'FINALIZADO' :
+                   'EN CURSO'}
                 </span>
               </div>
 
@@ -100,8 +108,15 @@ export function LiveMatchesCard({ clubId }: { clubId?: string }) {
                       <span className="text-xs font-black opacity-20 text-slate-400">-</span>
                       <span className="text-3xl font-black text-slate-900 tabular-nums">{match.awayScore}</span>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] font-black text-red-600 uppercase tracking-tighter">
-                      <Timer className="h-3 w-3" /> {match.timeDisplay || '00:00'}
+                    <div className={cn("flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter",
+                      match.matchPhase === 'entretiempo' ? 'text-yellow-600' :
+                      match.matchPhase === 'finalizado' ? 'text-slate-500' :
+                      'text-red-600'
+                    )}>
+                      <Timer className="h-3 w-3" />
+                      {match.matchPhase === 'entretiempo' ? 'ENTRETIEMPO' :
+                       match.matchPhase === 'finalizado' ? 'FINALIZADO' :
+                       match.timeDisplay || '00:00'}
                     </div>
                   </div>
 

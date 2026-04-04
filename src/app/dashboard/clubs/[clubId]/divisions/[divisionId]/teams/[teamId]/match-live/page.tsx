@@ -91,6 +91,7 @@ export default function MatchLiveTrackerPage() {
   const [awayScore, setAwayScore] = useState(0);
   const [opponentName, setOpponentName] = useState("Rival");
   const [sport, setSport] = useState<'hockey' | 'rugby'>('hockey');
+  const [matchPhase, setMatchPhase] = useState<'en_curso' | 'entretiempo' | 'finalizado'>('en_curso');
   
   // Tactical States
   const [playerCount, setPlayerCount] = useState(11);
@@ -151,6 +152,7 @@ export default function MatchLiveTrackerPage() {
         opponentName,
         goalEvents,
         timeDisplay: formatTime(seconds),
+        matchPhase,
         status: "live",
         updatedAt: new Date().toISOString()
       }, { merge: true });
@@ -159,7 +161,7 @@ export default function MatchLiveTrackerPage() {
     if (isActive || seconds > 0) {
       updateLiveIndex();
     }
-  }, [isActive, seconds, homeScore, awayScore, opponentName, matchEvents, team, club, division, db, clubId, divisionId, teamId]);
+  }, [isActive, seconds, homeScore, awayScore, opponentName, matchEvents, matchPhase, team, club, division, db, clubId, divisionId, teamId]);
 
   useEffect(() => {
     if (roster && Object.keys(playerStats).length === 0) {
@@ -471,6 +473,32 @@ export default function MatchLiveTrackerPage() {
             <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-[2rem] border-2 border-slate-100 shadow-inner">
               <div className="text-5xl font-black font-mono tracking-tighter tabular-nums text-primary">
                 {formatTime(seconds)}
+              </div>
+              <div className="mt-3 flex gap-1.5">
+                <Button
+                  size="sm"
+                  variant={matchPhase === 'en_curso' ? 'default' : 'outline'}
+                  className={cn("text-[9px] font-black uppercase tracking-widest rounded-full px-3 h-7", matchPhase === 'en_curso' && "bg-green-500 hover:bg-green-600")}
+                  onClick={() => setMatchPhase('en_curso')}
+                >
+                  En Curso
+                </Button>
+                <Button
+                  size="sm"
+                  variant={matchPhase === 'entretiempo' ? 'default' : 'outline'}
+                  className={cn("text-[9px] font-black uppercase tracking-widest rounded-full px-3 h-7", matchPhase === 'entretiempo' && "bg-yellow-500 hover:bg-yellow-600")}
+                  onClick={() => { setMatchPhase('entretiempo'); setIsActive(false); }}
+                >
+                  Entretiempo
+                </Button>
+                <Button
+                  size="sm"
+                  variant={matchPhase === 'finalizado' ? 'default' : 'outline'}
+                  className={cn("text-[9px] font-black uppercase tracking-widest rounded-full px-3 h-7", matchPhase === 'finalizado' && "bg-red-500 hover:bg-red-600")}
+                  onClick={() => { setMatchPhase('finalizado'); setIsActive(false); }}
+                >
+                  Finalizado
+                </Button>
               </div>
               <div className="mt-6 flex gap-4">
                 <Button 
