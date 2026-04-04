@@ -23,11 +23,13 @@ import {
   Timer,
   ExternalLink,
   UserPlus,
-  Search
+  Search,
+  Bus,
+  Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, setDoc, query, where, deleteDoc } from "firebase/firestore";
+import { doc, collection, setDoc, query, where, deleteDoc, updateDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +37,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -46,6 +49,8 @@ export default function EventAttendancePage() {
   const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState("");
+  const [editDepartureOpen, setEditDepartureOpen] = useState(false);
+  const [departureInput, setDepartureInput] = useState("");
 
   const eventRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId), [db, clubId, divisionId, teamId, eventId]);
   const { data: event, isLoading: eventLoading } = useDoc(eventRef);
@@ -128,6 +133,13 @@ export default function EventAttendancePage() {
     toast({ title: "Planilla Presentada", description: "El equipo ha sido enviado al árbitro oficial." });
   };
 
+  const handleSaveDeparture = async () => {
+    if (!eventRef) return;
+    await updateDoc(eventRef, { departureTime: departureInput });
+    toast({ title: "Horario de salida guardado", description: departureInput ? `Salida del micro: ${departureInput} hs` : "Horario de salida eliminado." });
+    setEditDepartureOpen(false);
+  };
+
   if (eventLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   const isMatch = event?.type === 'match';
@@ -172,6 +184,39 @@ export default function EventAttendancePage() {
                   </a>
                 )}
               </span>
+              {/* Departure time */}
+              <Dialog open={editDepartureOpen} onOpenChange={open => { setEditDepartureOpen(open); if (open) setDepartureInput(event?.departureTime || ""); }}>
+                <DialogTrigger asChild>
+                  <button className="flex items-center gap-1.5 text-sm font-bold drop-shadow-md hover:text-accent transition-colors">
+                    <Bus className="h-4 w-4 text-accent" />
+                    {event?.departureTime
+                      ? <span>Salida micro: <strong>{event.departureTime} hs</strong></span>
+                      : <span className="text-white/50">Agregar salida del micro</span>}
+                    <Pencil className="h-3 w-3 opacity-50" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-xs bg-white border-none shadow-2xl rounded-[2rem]">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-2">
+                      <Bus className="h-5 w-5 text-primary" /> Salida del Micro
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="py-4 space-y-2">
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Horario de salida desde el club</Label>
+                    <Input
+                      type="time"
+                      value={departureInput}
+                      onChange={e => setDepartureInput(e.target.value)}
+                      className="h-12 border-2 font-bold text-lg"
+                    />
+                    <p className="text-[10px] text-slate-400 font-bold">Dejar en blanco para quitar el horario.</p>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="ghost" onClick={() => setEditDepartureOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
+                    <Button onClick={handleSaveDeparture} className="font-black uppercase text-[10px] tracking-widest h-12 px-8">Guardar</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
           <div className="flex gap-2">

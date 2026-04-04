@@ -46,7 +46,8 @@ export default function GlobalFixtureManagerPage() {
     date: "", 
     location: "", 
     type: "match",
-    title: ""
+    title: "",
+    departureTime: "",
   });
 
   const opponentsQuery = useMemoFirebase(() => 
@@ -100,13 +101,14 @@ export default function GlobalFixtureManagerPage() {
         location: selectedOpp.city || "Sede Rival",
         address: selectedOpp.address || "",
         title: newMatch.title || `Fecha vs ${selectedOpp.name}`,
+        departureTime: newMatch.departureTime || "",
         status: "scheduled",
         createdAt: new Date().toISOString()
       });
 
       toast({ title: "Partido Programado", description: `Se agendó el encuentro para ${selectedTeam.name} vs ${selectedOpp.name}.` });
       setIsDialogOpen(false);
-      setNewMatch({ teamId: "", opponentId: "", date: "", location: "", type: "match", title: "" });
+      setNewMatch({ teamId: "", opponentId: "", date: "", location: "", type: "match", title: "", departureTime: "" });
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Error al guardar" });
@@ -176,6 +178,19 @@ export default function GlobalFixtureManagerPage() {
                     <div className="space-y-2">
                       <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Fecha y Hora</Label>
                       <Input type="datetime-local" value={newMatch.date} onChange={e => setNewMatch({...newMatch, date: e.target.value})} className="h-12 border-2 font-bold" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5" /> Salida del Micro desde el Club
+                        <span className="text-[9px] text-slate-300 font-bold normal-case tracking-normal">(opcional – editable luego)</span>
+                      </Label>
+                      <Input
+                        type="time"
+                        value={newMatch.departureTime}
+                        onChange={e => setNewMatch({...newMatch, departureTime: e.target.value})}
+                        className="h-12 border-2 font-bold"
+                        placeholder="--:--"
+                      />
                     </div>
                   </div>
                 </div>
