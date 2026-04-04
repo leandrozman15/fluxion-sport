@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { SectionNav } from "@/components/layout/section-nav";
+import { useClubPageNav } from "@/hooks/use-club-page-nav";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -103,28 +104,7 @@ export default function ClubCoachesPage() {
   );
   const { data: coaches, isLoading: coachesLoading } = useCollection(coachesQuery);
 
-  const clubNav = [
-    { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
-    { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
-    { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
-    { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
-    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-  ];
-
-  const coordNav = [
-    { title: "Dashboard", href: "/dashboard/coordinator", icon: Trophy },
-    { title: "Padrón Socios", href: `/dashboard/clubs/${clubId}/players`, icon: FileText },
-    { title: "Rivales", href: `/dashboard/clubs/${clubId}/opponents`, icon: Shield },
-    { title: "Gestor Fixture", href: `/dashboard/clubs/${clubId}/fixture`, icon: CalendarDays },
-    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
-    { title: "Tesorería", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
-    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-  ];
-
-  const activeNav = currentUserProfile?.role === 'coordinator' ? coordNav : clubNav;
+  const activeNav = useClubPageNav(clubId);
 
   const handleCreateCoach = async () => {
     if (!newCoach.email || !newCoach.password || !newCoach.firstName || !newCoach.lastName || !newCoach.dni) {

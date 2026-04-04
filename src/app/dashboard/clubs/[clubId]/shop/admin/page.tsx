@@ -34,6 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { SectionNav } from "@/components/layout/section-nav";
+import { useClubPageNav } from "@/hooks/use-club-page-nav";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -75,14 +76,7 @@ export default function ShopAdminPage() {
   const ordersQuery = useMemoFirebase(() => collection(firestore, "clubs", clubId, "shop_orders"), [firestore, clubId]);
   const { data: orders } = useCollection(ordersQuery);
 
-  const clubNav = [
-    { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
-    { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
-    { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
-    { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
-  ];
+  const activeNav = useClubPageNav(clubId);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const files = e.target.files;
@@ -155,7 +149,7 @@ export default function ShopAdminPage() {
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
-      <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
+      <SectionNav items={activeNav} basePath={`/dashboard/clubs/${clubId}`} />
       
       <div className="flex-1 space-y-8 pb-24 px-4 md:px-0">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">

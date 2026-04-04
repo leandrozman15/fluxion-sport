@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { SectionNav } from "@/components/layout/section-nav";
+import { useClubPageNav } from "@/hooks/use-club-page-nav";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
@@ -51,14 +52,7 @@ export default function ShopOrdersAdminPage() {
   const ordersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "shop_orders"), [db, clubId]);
   const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
 
-  const clubNav = [
-    { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
-    { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
-    { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
-    { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
-  ];
+  const activeNav = useClubPageNav(clubId);
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -85,7 +79,7 @@ export default function ShopOrdersAdminPage() {
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
-      <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
+      <SectionNav items={activeNav} basePath={`/dashboard/clubs/${clubId}`} />
       
       <div className="flex-1 space-y-8 pb-24 px-4 md:px-0">
         <header className="flex flex-col gap-4">

@@ -25,6 +25,7 @@ import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase
 import { doc, collection, setDoc, query, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { SectionNav } from "@/components/layout/section-nav";
+import { useClubPageNav } from "@/hooks/use-club-page-nav";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -76,14 +77,7 @@ export default function ClubFinancesPage() {
   const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
   const { data: divisions } = useCollection(divisionsQuery);
 
-  const clubNav = [
-    { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
-    { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
-    { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
-    { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
-  ];
+  const activeNav = useClubPageNav(clubId);
 
   const handleRegisterPayment = async () => {
     if (!newPayment.playerId || !newPayment.amount || newPayment.amount <= 0) {
@@ -140,7 +134,7 @@ export default function ClubFinancesPage() {
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
-      <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
+      <SectionNav items={activeNav} basePath={`/dashboard/clubs/${clubId}`} />
       
       <div className="flex-1 space-y-8 pb-20">
         <header className="flex flex-col gap-4">

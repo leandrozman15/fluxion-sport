@@ -37,6 +37,7 @@ import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 import { CreateSpecialEventDialog } from "@/components/dashboard/create-special-event-dialog";
 import { useRoleGuard } from "@/hooks/use-role-guard";
+import { useClubPageNav } from "@/hooks/use-club-page-nav";
 
 export default function InstitutionDetailPage() {
   const { authorized, loading: guardLoading } = useRoleGuard(['club_admin', 'coordinator', 'admin', 'fed_admin']);
@@ -65,15 +66,7 @@ export default function InstitutionDetailPage() {
   const recentPlayersQuery = useMemoFirebase(() => query(collection(db, "clubs", clubId, "players"), orderBy("createdAt", "desc"), limit(5)), [db, clubId]);
   const { data: recentPlayers } = useCollection(recentPlayersQuery);
 
-  const clubNav = [
-    { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
-    { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
-    { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
-    { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
-    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-  ];
+  const activeNav = useClubPageNav(clubId);
 
   const copyRegistrationLink = () => {
     const link = `${window.location.origin}/clubs/${clubId}/register`;
@@ -106,7 +99,7 @@ export default function InstitutionDetailPage() {
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
-      <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
+      <SectionNav items={activeNav} basePath={`/dashboard/clubs/${clubId}`} />
       
       <div className="flex-1 space-y-8 pb-24 px-4 md:px-0">
         <header className="flex flex-col gap-4">

@@ -47,6 +47,7 @@ import { deleteDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlo
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { SectionNav } from "@/components/layout/section-nav";
+import { useClubPageNav } from "@/hooks/use-club-page-nav";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -109,28 +110,7 @@ export default function PlayersPage() {
   const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
   const { data: divisions } = useCollection(divisionsQuery);
 
-  const clubNav = [
-    { title: "Panel General", href: `/dashboard/clubs/${clubId}`, icon: LayoutDashboard },
-    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
-    { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
-    { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
-    { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
-    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-  ];
-
-  const coordNav = [
-    { title: "Dashboard", href: "/dashboard/coordinator", icon: Trophy },
-    { title: "Padrón Socios", href: `/dashboard/clubs/${clubId}/players`, icon: FileText },
-    { title: "Rivales", href: `/dashboard/clubs/${clubId}/opponents`, icon: Shield },
-    { title: "Gestor Fixture", href: `/dashboard/clubs/${clubId}/fixture`, icon: CalendarDays },
-    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
-    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
-    { title: "Tesorería", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
-    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-  ];
-
-  const activeNav = currentUserProfile?.role === 'coordinator' ? coordNav : clubNav;
+  const activeNav = useClubPageNav(clubId);
 
   const handleCreatePlayer = async () => {
     if (!newPlayer.firstName || !newPlayer.lastName || !newPlayer.dni) {
