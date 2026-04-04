@@ -28,11 +28,15 @@ import {
   ChevronRight,
   Trash2,
   ChevronDown,
-  X
+  X,
+  Trophy,
+  FileText,
+  Shield,
+  CalendarDays
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc } from "firebase/firestore";
-import { useFirestore, useCollection, useDoc, useMemoFirebase, createUserWithSecondaryApp } from "@/firebase";
+import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase, createUserWithSecondaryApp } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,6 +65,7 @@ import {
 export default function PlayersPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
+  const { user: currentUser } = useFirebase();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -95,6 +100,9 @@ export default function PlayersPage() {
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club } = useDoc(clubRef);
 
+  const currentUserRef = useMemoFirebase(() => currentUser ? doc(db, "users", currentUser.uid) : null, [db, currentUser]);
+  const { data: currentUserProfile } = useDoc(currentUserRef);
+
   const playersQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "players"), [db, clubId]);
   const { data: players, isLoading } = useCollection(playersQuery);
 
@@ -110,6 +118,19 @@ export default function PlayersPage() {
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
   ];
+
+  const coordNav = [
+    { title: "Dashboard", href: "/dashboard/coordinator", icon: Trophy },
+    { title: "Padrón Socios", href: `/dashboard/clubs/${clubId}/players`, icon: FileText },
+    { title: "Rivales", href: `/dashboard/clubs/${clubId}/opponents`, icon: Shield },
+    { title: "Gestor Fixture", href: `/dashboard/clubs/${clubId}/fixture`, icon: CalendarDays },
+    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
+    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
+    { title: "Tesorería", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
+    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
+  ];
+
+  const activeNav = currentUserProfile?.role === 'coordinator' ? coordNav : clubNav;
 
   const handleCreatePlayer = async () => {
     if (!newPlayer.firstName || !newPlayer.lastName || !newPlayer.dni) {
@@ -216,7 +237,7 @@ export default function PlayersPage() {
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
-      <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
+      <SectionNav items={activeNav} basePath={`/dashboard/clubs/${clubId}`} />
       
       <div className="flex-1 space-y-8 pb-20 px-4 md:px-0">
         <header className="flex flex-col gap-6">

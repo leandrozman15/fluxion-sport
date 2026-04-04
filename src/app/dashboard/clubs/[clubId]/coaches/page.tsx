@@ -24,7 +24,11 @@ import {
   ShieldCheck,
   Stethoscope,
   Calendar,
-  UserPlus
+  UserPlus,
+  Trophy,
+  FileText,
+  Shield,
+  CalendarDays
 } from "lucide-react";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase, createUserWithSecondaryApp } from "@/firebase";
@@ -86,6 +90,9 @@ export default function ClubCoachesPage() {
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
 
+  const currentUserRef = useMemoFirebase(() => currentUser ? doc(db, "users", currentUser.uid) : null, [db, currentUser]);
+  const { data: currentUserProfile } = useDoc(currentUserRef);
+
   const coachesQuery = useMemoFirebase(() => 
     query(
       collection(db, "users"), 
@@ -105,6 +112,19 @@ export default function ClubCoachesPage() {
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
   ];
+
+  const coordNav = [
+    { title: "Dashboard", href: "/dashboard/coordinator", icon: Trophy },
+    { title: "Padrón Socios", href: `/dashboard/clubs/${clubId}/players`, icon: FileText },
+    { title: "Rivales", href: `/dashboard/clubs/${clubId}/opponents`, icon: Shield },
+    { title: "Gestor Fixture", href: `/dashboard/clubs/${clubId}/fixture`, icon: CalendarDays },
+    { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
+    { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
+    { title: "Tesorería", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
+    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
+  ];
+
+  const activeNav = currentUserProfile?.role === 'coordinator' ? coordNav : clubNav;
 
   const handleCreateCoach = async () => {
     if (!newCoach.email || !newCoach.password || !newCoach.firstName || !newCoach.lastName || !newCoach.dni) {
@@ -195,7 +215,7 @@ export default function ClubCoachesPage() {
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
-      <SectionNav items={clubNav} basePath={`/dashboard/clubs/${clubId}`} />
+      <SectionNav items={activeNav} basePath={`/dashboard/clubs/${clubId}`} />
       
       <div className="flex-1 space-y-8 pb-20 px-4 md:px-0">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
