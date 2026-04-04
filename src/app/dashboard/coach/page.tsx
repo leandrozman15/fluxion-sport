@@ -20,7 +20,9 @@ import {
   Trophy,
   ArrowRight,
   ShieldAlert,
-  BarChart3
+  BarChart3,
+  Crown,
+  Stethoscope,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,6 +31,10 @@ import { collection, query, where, getDocs, doc, setDoc, getDoc } from "firebase
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
@@ -58,6 +64,7 @@ export default function CoachDashboard() {
   const [rank, setRank] = useState<number | null>(null);
   const [playerAggStats, setPlayerAggStats] = useState<any[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [injuryDialog, setInjuryDialog] = useState<{ open: boolean; member: any | null; description: string; inactivityDays: string }>({ open: false, member: null, description: "", inactivityDays: "" });
 
   useEffect(() => {
     async function fetchAllMyTeams() {
@@ -184,6 +191,24 @@ export default function CoachDashboard() {
     const nextStatus = currentStatus === 'going' ? 'not_going' : currentStatus === 'not_going' ? 'unknown' : 'going';
     const attDoc = doc(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id, "events", todayEvent.id, "attendance", playerId);
     await setDoc(attDoc, { playerId, playerName, status: nextStatus, updatedAt: new Date().toISOString() }, { merge: true });
+  };
+
+  const handleToggleCaptain = (member: any) => {
+    if (!selectedTeam || !firestore) return;
+    const assignmentRef = doc(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id, "assignments", member.id);
+    updateDocumentNonBlocking(assignmentRef, { isCaptain: !member.isCaptain });
+    toast({ title: member.isCaptain ? "Capitanía removida" : "Capitana asignada", description: member.playerName });
+  };
+
+  const handleSaveInjury = () => {
+    if (!injuryDialog.member || !selectedTeam || !firestore) return;
+    const assignmentRef = doc(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id, "assignments", injuryDialog.member.id);
+    const injuryData = injuryDialog.description.trim()
+      ? { injury: { description: injuryDialog.description.trim(), inactivityDays: injuryDialog.inactivityDays.trim(), reportedAt: new Date().toISOString() } }
+      : { injury: null };
+    updateDocumentNonBlocking(assignmentRef, injuryData);
+    toast({ title: injuryDialog.description.trim() ? "Lesión registrada" : "Lesión eliminada", description: injuryDialog.member.playerName });
+    setInjuryDialog({ open: false, member: null, description: "", inactivityDays: "" });
   };
 
   const coachNav = [
@@ -355,30 +380,82 @@ export default function CoachDashboard() {
                                   <AvatarImage src={member.playerPhoto} className="object-cover" />
                                   <AvatarFallback className="font-black text-slate-300 bg-slate-50">{member.playerName[0]}</AvatarFallback>
                                 </Avatar>
+                                {member.isCaptain && (
+                                  <div className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-1 shadow-lg border-2 border-white">
+                                    <Crown className="h-2.5 w-2.5 text-yellow-900" />
+                                  </div>
+                                )}
+                                {member.injury?.description && (
+                                  <div className="absolute -bottom-2 -right-2 bg-red-500 rounded-full p-1 shadow-lg border-2 border-white">
+                                    <Stethoscope className="h-2.5 w-2.5 text-white" />
+                                  </div>
+                                )}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-black text-base md:text-xl text-slate-900 leading-none">{member.playerName}</span>
-                                <p className="text-[8px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Federado Activo</p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-black text-base md:text-xl text-slate-900 leading-none">{member.playerName}</span>
+                                  {member.isCaptain && <Badge className="bg-yellow-100 text-yellow-700 border border-yellow-200 text-[8px] font-black uppercase tracking-widest px-1.5 h-4 hidden md:inline-flex">Capitana</Badge>}
+                                  {member.injury?.description && <Badge className="bg-red-100 text-red-600 border border-red-200 text-[8px] font-black uppercase tracking-widest px-1.5 h-4 hidden md:inline-flex">Lesión</Badge>}
+                                </div>
+                                <p className="text-[8px] md:text-[10px] font-black uppercase tracking-widest mt-1">
+                                  {member.injury?.description
+                                    ? <span className="text-red-400">{member.injury.inactivityDays ? `Baja: ${member.injury.inactivityDays}` : "Con Lesión"}</span>
+                                    : <span className="text-slate-400">Federado Activo</span>}
+                                </p>
                               </div>
                             </div>
-                            
-                            {todayEvent && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => handleToggleAttendance(member.playerId, member.playerName, status)}
+
+                            <div className="flex items-center gap-1.5 md:gap-2">
+                              {/* Captain toggle */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleToggleCaptain(member)}
+                                title={member.isCaptain ? "Quitar capitana" : "Asignar capitana"}
                                 className={cn(
-                                  "h-12 w-12 md:h-14 md:w-14 p-0 rounded-xl md:rounded-2xl border-2 transition-all shadow-md",
-                                  status === 'going' ? "bg-green-500 text-white border-green-600 scale-110 shadow-green-500/20" :
-                                  status === 'not_going' ? "bg-red-500 text-white border-red-600 shadow-red-500/20" :
-                                  "bg-white text-slate-300 border-slate-100 hover:border-primary hover:text-primary"
+                                  "h-10 w-10 md:h-12 md:w-12 p-0 rounded-xl border-2 transition-all",
+                                  member.isCaptain
+                                    ? "bg-yellow-400 text-yellow-900 border-yellow-500 shadow-md shadow-yellow-200"
+                                    : "bg-white text-slate-200 border-slate-100 hover:border-yellow-400 hover:text-yellow-500"
                                 )}
                               >
-                                {status === 'going' ? <CheckCircle2 className="h-6 w-6 md:h-7 w-7" /> : 
-                                 status === 'not_going' ? <XCircle className="h-6 w-6 md:h-7 w-7" /> : 
-                                 <HelpCircle className="h-6 w-6 md:h-7 w-7" />}
+                                <Crown className="h-4 w-4 md:h-5 md:w-5" />
                               </Button>
-                            )}
+
+                              {/* Injury toggle */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setInjuryDialog({ open: true, member, description: member.injury?.description || "", inactivityDays: member.injury?.inactivityDays || "" })}
+                                title={member.injury?.description ? "Ver/editar lesión" : "Registrar lesión"}
+                                className={cn(
+                                  "h-10 w-10 md:h-12 md:w-12 p-0 rounded-xl border-2 transition-all",
+                                  member.injury?.description
+                                    ? "bg-red-100 text-red-500 border-red-200 shadow-md shadow-red-100"
+                                    : "bg-white text-slate-200 border-slate-100 hover:border-red-400 hover:text-red-400"
+                                )}
+                              >
+                                <Stethoscope className="h-4 w-4 md:h-5 md:w-5" />
+                              </Button>
+
+                              {todayEvent && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleToggleAttendance(member.playerId, member.playerName, status)}
+                                  className={cn(
+                                    "h-10 w-10 md:h-12 md:w-12 p-0 rounded-xl border-2 transition-all shadow-md",
+                                    status === 'going' ? "bg-green-500 text-white border-green-600 scale-110 shadow-green-500/20" :
+                                    status === 'not_going' ? "bg-red-500 text-white border-red-600 shadow-red-500/20" :
+                                    "bg-white text-slate-300 border-slate-100 hover:border-primary hover:text-primary"
+                                  )}
+                                >
+                                  {status === 'going' ? <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6" /> :
+                                   status === 'not_going' ? <XCircle className="h-5 w-5 md:h-6 md:w-6" /> :
+                                   <HelpCircle className="h-5 w-5 md:h-6 md:w-6" />}
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -420,6 +497,59 @@ export default function CoachDashboard() {
             />
           </TabsContent>
         </Tabs>
+
+        {/* Injury Dialog */}
+        <Dialog open={injuryDialog.open} onOpenChange={open => { if (!open) setInjuryDialog(s => ({ ...s, open: false })); }}>
+          <DialogContent className="max-w-sm bg-white border-none shadow-2xl rounded-[2rem]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-2">
+                <Stethoscope className="h-5 w-5 text-red-500" />
+                {injuryDialog.member?.playerName}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400">Tipo / Descripción de la Lesión</Label>
+                <Textarea
+                  value={injuryDialog.description}
+                  onChange={e => setInjuryDialog(s => ({ ...s, description: e.target.value }))}
+                  placeholder="Ej: Esguince tobillo derecho, desgarro, luxación..."
+                  className="border-2 font-bold resize-none"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-[10px] uppercase tracking-widest text-slate-400">Tiempo de Inactividad</Label>
+                <Input
+                  value={injuryDialog.inactivityDays}
+                  onChange={e => setInjuryDialog(s => ({ ...s, inactivityDays: e.target.value }))}
+                  placeholder="Ej: 2 semanas, 10 días, hasta el 15/05..."
+                  className="h-12 border-2 font-bold"
+                />
+              </div>
+              {injuryDialog.member?.injury?.description && (
+                <p className="text-[10px] text-slate-400 font-bold">Dejar la descripción vacía para quitar la lesión registrada.</p>
+              )}
+            </div>
+            <DialogFooter className="gap-2 flex-col sm:flex-row">
+              <Button variant="ghost" onClick={() => setInjuryDialog(s => ({ ...s, open: false }))} className="font-bold text-slate-500">
+                Cancelar
+              </Button>
+              {injuryDialog.member?.injury?.description && (
+                <Button
+                  variant="outline"
+                  onClick={() => setInjuryDialog(s => ({ ...s, description: "", inactivityDays: "" }))}
+                  className="font-black text-[10px] uppercase tracking-widest border-red-200 text-red-500 hover:bg-red-50"
+                >
+                  Quitar Lesión
+                </Button>
+              )}
+              <Button onClick={handleSaveInjury} className="font-black uppercase text-[10px] tracking-widest h-12 px-8 flex-1">
+                Guardar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
