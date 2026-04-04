@@ -20,7 +20,11 @@ import {
   MapPin,
   AlertTriangle,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  Stethoscope,
+  Calendar,
+  UserPlus
 } from "lucide-react";
 import { collection, doc, setDoc, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase, useFirebase, createUserWithSecondaryApp } from "@/firebase";
@@ -59,19 +63,25 @@ export default function ClubCoachesPage() {
   const [loading, setLoading] = useState(false);
   const [editingCoach, setEditingCoach] = useState<any>(null);
   
-  const [newCoach, setNewCoach] = useState({ 
-    name: "", 
-    email: "", 
-    phone: "", 
+  const initialCoachForm = {
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
     dni: "",
+    birthDate: "",
     address: "",
     password: "",
     role: "coach_lvl2",
     specialty: "",
     license: "",
     photoUrl: "",
+    bloodType: "",
+    emergencyContact: "",
+    emergencyPhone: "",
     sport: "hockey"
-  });
+  };
+  const [newCoach, setNewCoach] = useState(initialCoachForm);
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
@@ -93,11 +103,12 @@ export default function ClubCoachesPage() {
     { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop/admin`, icon: ShoppingBag },
     { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
     { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
+    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
   ];
 
   const handleCreateCoach = async () => {
-    if (!newCoach.email || !newCoach.password || !newCoach.name || !newCoach.dni) {
-      toast({ variant: "destructive", title: "Datos faltantes", description: "Nombre, Email, Clave y DNI son obligatorios." });
+    if (!newCoach.email || !newCoach.password || !newCoach.firstName || !newCoach.lastName || !newCoach.dni) {
+      toast({ variant: "destructive", title: "Datos faltantes", description: "Nombre, Apellido, Email, Clave y DNI son obligatorios." });
       return;
     }
 
@@ -109,8 +120,10 @@ export default function ClubCoachesPage() {
       const newUid = await createUserWithSecondaryApp(normalizedEmail, newCoach.password);
 
       // 2. Guardar perfil en Firestore con UID como ID de documento
+      const fullName = `${newCoach.firstName} ${newCoach.lastName}`.trim();
       await setDoc(doc(db, "users", newUid), {
         ...newCoach,
+        name: fullName,
         email: normalizedEmail,
         id: newUid,
         uid: newUid,
@@ -121,10 +134,10 @@ export default function ClubCoachesPage() {
       
       toast({ 
         title: "Miembro Registrado", 
-        description: `Cuenta creada para ${newCoach.name}. Ya puede ingresar a la plataforma.` 
+        description: `Cuenta creada para ${newCoach.firstName} ${newCoach.lastName}. Ya puede ingresar a la plataforma.` 
       });
       
-      setNewCoach({ name: "", email: "", phone: "", dni: "", address: "", password: "", role: "coach_lvl2", specialty: "", license: "", photoUrl: "", sport: "hockey" });
+      setNewCoach(initialCoachForm);
       setIsCreateOpen(false);
     } catch (error: any) {
       console.error(error);
@@ -141,9 +154,11 @@ export default function ClubCoachesPage() {
   const handleUpdateCoach = () => {
     if (!editingCoach) return;
     const coachDoc = doc(db, "users", editingCoach.id);
+    const updatedName = `${editingCoach.firstName || ''} ${editingCoach.lastName || ''}`.trim() || editingCoach.name || '';
     updateDocumentNonBlocking(coachDoc, { 
-      ...editingCoach, 
-      clubId: clubId, // Mantenemos asociación
+      ...editingCoach,
+      name: updatedName,
+      clubId: clubId,
       email: editingCoach.email.toLowerCase().trim() 
     });
     setIsEditOpen(false);
@@ -194,88 +209,157 @@ export default function ClubCoachesPage() {
                 <Plus className="h-5 w-5" /> Registrar Nuevo Miembro
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-white border-none shadow-2xl rounded-[2rem]">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-slate-900">Nueva Ficha de Personal</DialogTitle>
-                <DialogDescription className="font-bold text-slate-500">Completa el legajo oficial del staff técnico o administrativo.</DialogDescription>
+            <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
+              <DialogHeader className="bg-primary p-8 text-primary-foreground">
+                <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                  <UserPlus className="h-7 w-7" /> Nueva Ficha de Personal
+                </DialogTitle>
+                <DialogDescription className="text-primary-foreground/80 font-bold">
+                  Completa el legajo oficial del staff técnico o administrativo.
+                </DialogDescription>
               </DialogHeader>
-              <ScrollArea className="max-h-[70vh] pr-4">
-                <div className="space-y-6 py-4">
-                  <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-bold text-slate-700">Disciplina Asignada</Label>
-                      <p className="text-[10px] text-primary font-black uppercase tracking-widest">
-                        {newCoach.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
-                      </p>
-                    </div>
-                    <Switch 
-                      checked={newCoach.sport === 'rugby'} 
-                      onCheckedChange={(v) => setNewCoach({...newCoach, sport: v ? 'rugby' : 'hockey'})} 
-                    />
-                  </div>
+              <ScrollArea className="max-h-[70vh]">
+                <div className="p-8 space-y-10">
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Completo</Label>
-                      <Input value={newCoach.name} onChange={e => setNewCoach({...newCoach, name: e.target.value})} placeholder="Ej. Camila Staff" className="h-12 border-2 font-bold" />
+                  {/* 1. Identidad Personal */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b pb-2">
+                      <UserRound className="h-5 w-5 text-primary" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">1. Identidad Personal</h3>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">DNI / Documento</Label>
-                      <Input value={newCoach.dni} onChange={e => setNewCoach({...newCoach, dni: e.target.value})} placeholder="Sin puntos" className="h-12 border-2 font-bold" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Rol Institucional</Label>
-                    <Select value={newCoach.role} onValueChange={v => setNewCoach({...newCoach, role: v})}>
-                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Admin Categoria)</SelectItem>
-                        <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
-                        <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
-                        <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Email (Usuario)</Label>
-                      <Input type="email" value={newCoach.email} onChange={e => setNewCoach({...newCoach, email: e.target.value})} placeholder="usuario@club.com" className="h-12 border-2" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Clave Temporal</Label>
-                      <Input type="password" value={newCoach.password} onChange={e => setNewCoach({...newCoach, password: e.target.value})} placeholder="Min. 6 car." className="h-12 border-2" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Teléfono Personal</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input value={newCoach.phone} onChange={e => setNewCoach({...newCoach, phone: e.target.value})} placeholder="+54..." className="h-12 border-2 pl-10 font-bold" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Nombre</Label>
+                        <Input value={newCoach.firstName} onChange={e => setNewCoach({...newCoach, firstName: e.target.value})} placeholder="Ej. Camila" className="h-12 border-2" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Apellido</Label>
+                        <Input value={newCoach.lastName} onChange={e => setNewCoach({...newCoach, lastName: e.target.value})} placeholder="Ej. Rodríguez" className="h-12 border-2" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">DNI / Documento</Label>
+                        <Input value={newCoach.dni} onChange={e => setNewCoach({...newCoach, dni: e.target.value})} placeholder="Sin puntos" className="h-12 border-2 font-bold" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Fecha de Nacimiento</Label>
+                        <Input type="date" value={newCoach.birthDate} onChange={e => setNewCoach({...newCoach, birthDate: e.target.value})} className="h-12 border-2" />
+                      </div>
+                      <div className="col-span-full space-y-2">
+                        <Label className="font-bold text-slate-700">URL Foto de Perfil (Opcional)</Label>
+                        <Input value={newCoach.photoUrl} onChange={e => setNewCoach({...newCoach, photoUrl: e.target.value})} placeholder="https://..." className="h-12 border-2" />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Especialidad / Cargo</Label>
-                      <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. Preparador Físico" className="h-12 border-2 font-bold" />
+                  </div>
+
+                  {/* 2. Rol Institucional */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b pb-2">
+                      <Layers className="h-5 w-5 text-primary" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Rol Institucional</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
+                        <div className="space-y-0.5">
+                          <Label className="text-sm font-bold text-slate-700">Disciplina</Label>
+                          <p className="text-[10px] text-primary font-black uppercase tracking-widest">{newCoach.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}</p>
+                        </div>
+                        <Switch checked={newCoach.sport === 'rugby'} onCheckedChange={(v) => setNewCoach({...newCoach, sport: v ? 'rugby' : 'hockey'})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Rol en el Club</Label>
+                        <Select value={newCoach.role} onValueChange={v => setNewCoach({...newCoach, role: v})}>
+                          <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Jefe de Rama)</SelectItem>
+                            <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
+                            <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
+                            <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Especialidad / Cargo</Label>
+                        <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. Preparador Físico, DT…" className="h-12 border-2 font-bold" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">N° Licencia / Matrícula</Label>
+                        <Input value={newCoach.license} onChange={e => setNewCoach({...newCoach, license: e.target.value})} placeholder="Ej. FHR-00412" className="h-12 border-2" />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Dirección Particular</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input value={newCoach.address} onChange={e => setNewCoach({...newCoach, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2 pl-10" />
+                  {/* 3. Acceso App */}
+                  <div className="space-y-6 bg-slate-50 -mx-8 p-8 border-y">
+                    <div className="flex items-center gap-3 border-b pb-2">
+                      <ShieldCheck className="h-5 w-5 text-primary" />
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-primary">3. Acceso App Fluxion</h3>
+                        <p className="text-[10px] text-slate-500 font-bold mt-0.5">Credenciales para ingresar a la plataforma.</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Email (Usuario de Acceso)</Label>
+                        <Input type="email" value={newCoach.email} onChange={e => setNewCoach({...newCoach, email: e.target.value})} placeholder="usuario@club.com" className="h-12 border-2 bg-white" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Clave Temporal</Label>
+                        <Input type="password" value={newCoach.password} onChange={e => setNewCoach({...newCoach, password: e.target.value})} placeholder="Mínimo 6 caracteres" className="h-12 border-2 bg-white" />
+                      </div>
                     </div>
                   </div>
+
+                  {/* 4. Contacto */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b pb-2">
+                      <Phone className="h-5 w-5 text-primary" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Datos de Contacto</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Teléfono Personal</Label>
+                        <Input value={newCoach.phone} onChange={e => setNewCoach({...newCoach, phone: e.target.value})} placeholder="+54 9 11..." className="h-12 border-2" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold text-slate-700">Dirección Particular</Label>
+                        <Input value={newCoach.address} onChange={e => setNewCoach({...newCoach, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. Salud */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b pb-2">
+                      <Stethoscope className="h-5 w-5 text-primary" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">5. Datos de Salud</h3>
+                    </div>
+                    <div className="space-y-2 mb-6">
+                      <Label className="font-bold text-slate-700">Grupo Sanguíneo</Label>
+                      <Select value={newCoach.bloodType} onValueChange={v => setNewCoach({...newCoach, bloodType: v})}>
+                        <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Elegir tipo..." /></SelectTrigger>
+                        <SelectContent>
+                          {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t} className="font-bold">{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-orange-50 p-6 rounded-2xl border border-orange-100">
+                      <div className="space-y-2">
+                        <Label className="font-black text-orange-800 uppercase text-[10px]">Contacto de Emergencia</Label>
+                        <Input value={newCoach.emergencyContact} onChange={e => setNewCoach({...newCoach, emergencyContact: e.target.value})} placeholder="Nombre del familiar" className="bg-white border-2" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-black text-orange-800 uppercase text-[10px]">Teléfono Emergencia</Label>
+                        <Input value={newCoach.emergencyPhone} onChange={e => setNewCoach({...newCoach, emergencyPhone: e.target.value})} placeholder="Número 24hs" className="bg-white border-2" />
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               </ScrollArea>
-              <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2rem]">
-                <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
-                <Button onClick={handleCreateCoach} disabled={loading || !newCoach.name || !newCoach.email || newCoach.password.length < 6 || !newCoach.dni} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
-                  {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Registrar Staff"}
+              <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4">
+                <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
+                <Button onClick={handleCreateCoach} disabled={loading || !newCoach.firstName || !newCoach.lastName || !newCoach.email || newCoach.password.length < 6 || !newCoach.dni} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20 gap-2">
+                  {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <><ShieldCheck className="h-5 w-5" /> Dar de Alta al Staff</>}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -296,7 +380,9 @@ export default function ClubCoachesPage() {
                         <AvatarFallback className="bg-primary/5 text-primary font-black"><UserRound /></AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-black text-xl text-slate-900 truncate leading-none">{coach.name}</p>
+                        <p className="font-black text-xl text-slate-900 truncate leading-none">
+                          {coach.firstName ? `${coach.firstName} ${coach.lastName || ''}`.trim() : coach.name}
+                        </p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="secondary" className="text-[9px] uppercase font-black px-2 h-5 tracking-tighter">
                             {getRoleLabel(coach.role)}
@@ -326,7 +412,7 @@ export default function ClubCoachesPage() {
                     </div>
 
                     <div className="p-6 md:border-l flex items-center justify-end gap-3 bg-slate-50/50">
-                      <Button variant="ghost" size="sm" className="h-11 w-11 p-0 hover:bg-primary/5 rounded-xl border border-transparent hover:border-primary/10" onClick={() => { setEditingCoach(coach); setIsEditOpen(true); }}>
+                      <Button variant="ghost" size="sm" className="h-11 w-11 p-0 hover:bg-primary/5 rounded-xl border border-transparent hover:border-primary/10" onClick={() => { const c = { ...coach }; if (!c.firstName && c.name) { const parts = c.name.trim().split(' '); c.firstName = parts[0] || ''; c.lastName = parts.slice(1).join(' ') || ''; } setEditingCoach(c); setIsEditOpen(true); }}>
                         <Pencil className="h-5 w-5 text-slate-400 hover:text-primary" />
                       </Button>
                       
@@ -369,55 +455,137 @@ export default function ClubCoachesPage() {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
-          <DialogHeader><DialogTitle className="text-2xl font-black text-slate-900">Editar Perfil Staff</DialogTitle></DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-bold text-slate-700">Disciplina Principal</Label>
-                <p className="text-[10px] text-slate-500 font-black uppercase">
-                  {editingCoach?.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}
-                </p>
+        <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden">
+          <DialogHeader className="bg-slate-50 p-8 border-b flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle className="text-2xl font-black text-slate-900">
+                Editar Perfil: {editingCoach?.firstName || editingCoach?.name} {editingCoach?.lastName || ""}
+              </DialogTitle>
+              <p className="text-sm font-bold text-slate-500 mt-1">{getRoleLabel(editingCoach?.role)}</p>
+            </div>
+            <Avatar className="h-16 w-16 border-4 border-white shadow-xl rounded-2xl hidden md:flex">
+              <AvatarImage src={editingCoach?.photoUrl} className="object-cover" />
+              <AvatarFallback className="bg-primary/5 text-primary font-black"><UserRound /></AvatarFallback>
+            </Avatar>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8 space-y-10">
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b pb-2">
+                  <UserRound className="h-5 w-5 text-primary" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">1. Identidad Personal</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Nombre</Label>
+                    <Input value={editingCoach?.firstName || ""} onChange={e => setEditingCoach({...editingCoach, firstName: e.target.value})} className="h-12 border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Apellido</Label>
+                    <Input value={editingCoach?.lastName || ""} onChange={e => setEditingCoach({...editingCoach, lastName: e.target.value})} className="h-12 border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">DNI / Documento</Label>
+                    <Input value={editingCoach?.dni || ""} onChange={e => setEditingCoach({...editingCoach, dni: e.target.value})} className="h-12 border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Fecha de Nacimiento</Label>
+                    <Input type="date" value={editingCoach?.birthDate || ""} onChange={e => setEditingCoach({...editingCoach, birthDate: e.target.value})} className="h-12 border-2" />
+                  </div>
+                  <div className="col-span-full space-y-2">
+                    <Label className="font-bold text-slate-700">URL Foto de Perfil</Label>
+                    <Input value={editingCoach?.photoUrl || ""} onChange={e => setEditingCoach({...editingCoach, photoUrl: e.target.value})} className="h-12 border-2" />
+                  </div>
+                </div>
               </div>
-              <Switch 
-                checked={editingCoach?.sport === 'rugby'} 
-                onCheckedChange={(v) => setEditingCoach({...editingCoach, sport: v ? 'rugby' : 'hockey'})} 
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre Completo</Label>
-              <Input value={editingCoach?.name || ""} onChange={e => setEditingCoach({...editingCoach, name: e.target.value})} className="h-12 border-2 font-bold" />
-            </div>
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Rol Institucional</Label>
-              <Select value={editingCoach?.role} onValueChange={v => setEditingCoach({...editingCoach, role: v})}>
-                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Admin Categoria)</SelectItem>
-                  <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
-                  <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
-                  <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">DNI</Label>
-                <Input value={editingCoach?.dni || ""} onChange={e => setEditingCoach({...editingCoach, dni: e.target.value})} className="h-12 border-2" />
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b pb-2">
+                  <Layers className="h-5 w-5 text-primary" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Rol Institucional</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-bold text-slate-700">Disciplina</Label>
+                      <p className="text-[10px] text-slate-500 font-black uppercase">{editingCoach?.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}</p>
+                    </div>
+                    <Switch checked={editingCoach?.sport === 'rugby'} onCheckedChange={(v) => setEditingCoach({...editingCoach, sport: v ? 'rugby' : 'hockey'})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Rol en el Club</Label>
+                    <Select value={editingCoach?.role} onValueChange={v => setEditingCoach({...editingCoach, role: v})}>
+                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Jefe de Rama)</SelectItem>
+                        <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
+                        <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
+                        <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Especialidad / Cargo</Label>
+                    <Input value={editingCoach?.specialty || ""} onChange={e => setEditingCoach({...editingCoach, specialty: e.target.value})} className="h-12 border-2 font-bold" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">N° Licencia / Matrícula</Label>
+                    <Input value={editingCoach?.license || ""} onChange={e => setEditingCoach({...editingCoach, license: e.target.value})} className="h-12 border-2" />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Teléfono</Label>
-                <Input value={editingCoach?.phone || ""} onChange={e => setEditingCoach({...editingCoach, phone: e.target.value})} className="h-12 border-2" />
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b pb-2">
+                  <Phone className="h-5 w-5 text-primary" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">3. Datos de Contacto</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Teléfono Personal</Label>
+                    <Input value={editingCoach?.phone || ""} onChange={e => setEditingCoach({...editingCoach, phone: e.target.value})} className="h-12 border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Dirección Particular</Label>
+                    <Input value={editingCoach?.address || ""} onChange={e => setEditingCoach({...editingCoach, address: e.target.value})} className="h-12 border-2" />
+                  </div>
+                </div>
               </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b pb-2">
+                  <Stethoscope className="h-5 w-5 text-primary" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Datos de Salud</h3>
+                </div>
+                <div className="space-y-2 mb-6">
+                  <Label className="font-bold text-slate-700">Grupo Sanguíneo</Label>
+                  <Select value={editingCoach?.bloodType || ""} onValueChange={v => setEditingCoach({...editingCoach, bloodType: v})}>
+                    <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Elegir tipo..." /></SelectTrigger>
+                    <SelectContent>
+                      {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t} className="font-bold">{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-orange-50 p-6 rounded-2xl border border-orange-100">
+                  <div className="space-y-2">
+                    <Label className="font-black text-orange-800 uppercase text-[10px]">Contacto de Emergencia</Label>
+                    <Input value={editingCoach?.emergencyContact || ""} onChange={e => setEditingCoach({...editingCoach, emergencyContact: e.target.value})} className="bg-white border-2" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-black text-orange-800 uppercase text-[10px]">Teléfono Emergencia</Label>
+                    <Input value={editingCoach?.emergencyPhone || ""} onChange={e => setEditingCoach({...editingCoach, emergencyPhone: e.target.value})} className="bg-white border-2" />
+                  </div>
+                </div>
+              </div>
+
             </div>
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Especialidad / Cargo</Label>
-              <Input value={editingCoach?.specialty || ""} onChange={e => setEditingCoach({...editingCoach, specialty: e.target.value})} className="h-12 border-2 font-bold" />
-            </div>
-          </div>
-          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-8 border-t rounded-b-[2rem]">
-            <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="font-bold">Cancelar</Button>
-            <Button onClick={handleUpdateCoach} className="font-black uppercase text-xs tracking-widest h-12 px-8 shadow-lg">Guardar Cambios</Button>
+          </ScrollArea>
+          <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4">
+            <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="font-bold text-slate-500 h-14 px-8">Cancelar</Button>
+            <Button onClick={handleUpdateCoach} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20">
+              Guardar Cambios
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
