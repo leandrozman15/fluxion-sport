@@ -8,19 +8,10 @@ import {
   QrCode, 
   Download,
   Share2,
-  Trophy,
-  Star,
   Building2,
-  LayoutDashboard,
-  Table as TableIcon,
-  CreditCard,
-  ShoppingBag,
-  Award,
-  BadgeCheck,
-  ClipboardCheck,
-  Calendar,
-  Users
+  ArrowLeft
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,10 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { SectionNav } from "@/components/layout/section-nav";
 
 export default function GenericIdCardPage() {
   const { firestore, user } = useFirebase();
+  const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [clubInfo, setClubInfo] = useState<any>(null);
   const [roleInfo, setRoleInfo] = useState<{ role: string, label: string }>({ role: 'player', label: 'Jugador' });
@@ -90,46 +81,25 @@ export default function GenericIdCardPage() {
 
   const isStaff = ['admin', 'club_admin', 'coordinator', 'coach', 'coach_lvl1', 'coach_lvl2'].includes(roleInfo.role);
 
-  const staffDashboardHref =
+  const backHref =
     roleInfo.role === 'coordinator' ? '/dashboard/coordinator' :
     (roleInfo.role === 'admin' || roleInfo.role === 'club_admin') ?
       (clubInfo ? `/dashboard/clubs/${clubInfo.id}` : '/dashboard/clubs') :
-    '/dashboard/coach';
-
-  const staffDashboardLabel =
-    roleInfo.role === 'coordinator' ? 'Coordinación' :
-    (roleInfo.role === 'admin' || roleInfo.role === 'club_admin') ? 'Panel Club' :
-    'Gestión Técnica';
-
-  const coachNav = [
-    { title: staffDashboardLabel, href: staffDashboardHref, icon: ClipboardCheck },
-    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-    { title: "Tienda Club", href: clubInfo ? `/dashboard/clubs/${clubInfo.id}/shop` : staffDashboardHref, icon: ShoppingBag },
-    { title: "Calendario", href: "/dashboard/calendar", icon: Calendar },
-  ];
-
-  const playerNav = [
-    { title: "Inicio Hub", href: "/dashboard/player", icon: LayoutDashboard },
-    { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
-    { title: "Estadísticas", href: "/dashboard/player/stats", icon: Star },
-    { title: "Posiciones", href: "/dashboard/player/standings", icon: TableIcon },
-    { title: "Pagos", href: "/dashboard/player/payments", icon: CreditCard },
-    { title: "Tienda Club", href: clubInfo ? `/dashboard/clubs/${clubInfo.id}/shop` : "/dashboard/player", icon: ShoppingBag },
-  ];
-
-  const currentNav = isStaff ? coachNav : playerNav;
+    isStaff ? '/dashboard/coach' :
+    '/dashboard/player';
 
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
 
   return (
-    <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
-      <SectionNav items={currentNav} basePath={isStaff ? "/dashboard/coach" : "/dashboard/player"} />
-      
-      <div className="flex-1 flex flex-col items-center justify-center space-y-8 max-w-md mx-auto pb-24 md:pb-20">
-        <header className="text-center space-y-2">
-          <h1 className="text-4xl font-black font-headline text-white drop-shadow-xl">Credencial Digital</h1>
-          <p className="ambient-text text-lg opacity-80">Identificación oficial para competencia y sede.</p>
-        </header>
+    <div className="flex flex-col items-center justify-center min-h-[100dvh] md:min-h-0 px-0 md:px-4 py-4 md:py-8 animate-in fade-in duration-500">
+      <div className="w-full max-w-md mx-auto space-y-4">
+        <Button
+          variant="ghost"
+          onClick={() => router.push(backHref)}
+          className="text-white hover:bg-white/10 font-black uppercase text-[10px] tracking-widest gap-2 h-10 rounded-xl"
+        >
+          <ArrowLeft className="h-4 w-4" /> Volver al Panel
+        </Button>
 
         <Card className={cn(
           "w-full text-white overflow-hidden shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] rounded-[2.5rem] border-none transition-all relative",
