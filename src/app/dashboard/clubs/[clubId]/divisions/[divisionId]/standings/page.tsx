@@ -35,6 +35,7 @@ export default function AdminStandingsPage() {
   const db = useFirestore();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("all");
   const [newTeam, setNewTeam] = useState({ 
     teamName: "", 
     opponentId: "",
@@ -52,6 +53,9 @@ export default function AdminStandingsPage() {
 
   const standingsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "standings"), [db, clubId, divisionId]);
   const { data: standings, isLoading: standingsLoading } = useCollection(standingsQuery);
+
+  const teamsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions", divisionId, "teams"), [db, clubId, divisionId]);
+  const { data: teams } = useCollection(teamsQuery);
 
   const opponentsQuery = useMemoFirebase(() => 
     query(collection(db, "clubs", clubId, "opponents"), orderBy("name", "asc")), 
@@ -81,6 +85,7 @@ export default function AdminStandingsPage() {
         ...newTeam,
         teamName: finalName,
         teamLogo: finalLogo,
+        subcategoryId: selectedSubcategory !== 'all' ? selectedSubcategory : '',
         id: standingId,
         createdAt: new Date().toISOString()
       });
@@ -94,7 +99,12 @@ export default function AdminStandingsPage() {
     }
   };
 
-  const sortedStandings = standings?.sort((a: any, b: any) => {
+  const filteredStandings = standings?.filter((s: any) => {
+    if (selectedSubcategory === 'all') return true;
+    return s.subcategoryId === selectedSubcategory;
+  });
+
+  const sortedStandings = filteredStandings?.sort((a: any, b: any) => {
     if (b.points !== a.points) return b.points - a.points;
     const diffA = a.goalsFor - a.goalsAgainst;
     const diffB = b.goalsFor - b.goalsAgainst;
@@ -129,6 +139,19 @@ export default function AdminStandingsPage() {
                 <DialogDescription className="font-bold text-slate-500">Selecciona un club de la base para vincular su escudo oficial.</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                {teams && teams.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Subcategoría / Torneo</Label>
+                    <Select value={selectedSubcategory !== 'all' ? selectedSubcategory : ''} onValueChange={v => setSelectedSubcategory(v)}>
+                      <SelectTrigger className="h-12 border-2 font-bold bg-white"><SelectValue placeholder="Seleccionar subcategoría..." /></SelectTrigger>
+                      <SelectContent>
+                        {teams.map((t: any) => (
+                          <SelectItem key={t.id} value={t.id} className="font-bold">{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival (Vinculado)</Label>
                   <Select value={newTeam.opponentId} onValueChange={v => setNewTeam({...newTeam, opponentId: v})}>
@@ -189,10 +212,27 @@ export default function AdminStandingsPage() {
 
       <Card className="border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md">
         <CardHeader className="bg-slate-50 border-b pb-6">
-          <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
-            <Trophy className="h-6 w-6 text-yellow-500" /> Posiciones de Liga
-          </CardTitle>
-          <CardDescription className="text-slate-500 font-bold italic">Tabla oficial actualizada para los socios.</CardDescription>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl font-black flex items-center gap-3 text-slate-900">
+                <Trophy className="h-6 w-6 text-yellow-500" /> Posiciones de Liga
+              </CardTitle>
+              <CardDescription className="text-slate-500 font-bold italic">Tabla oficial actualizada para los socios.</CardDescription>
+            </div>
+            {teams && teams.length > 0 && (
+              <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
+                <SelectTrigger className="w-full md:w-64 h-11 border-2 font-black text-xs uppercase tracking-widest bg-white">
+                  <SelectValue placeholder="Filtrar por subcategoría..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="font-black">Todas las subcategorías</SelectItem>
+                  {teams.map((t: any) => (
+                    <SelectItem key={t.id} value={t.id} className="font-bold">{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {standingsLoading ? (
