@@ -38,6 +38,7 @@ import { useClubPageNav } from "@/hooks/use-club-page-nav";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProductSize {
   label: string;
@@ -62,6 +63,7 @@ export default function ShopAdminPage() {
     category: "indumentaria",
     images: [] as string[],
     sizes: [{ label: "Único", stock: 10 }] as ProductSize[],
+    sports: [] as string[],
     status: "active"
   };
 
@@ -234,6 +236,40 @@ export default function ShopAdminPage() {
                       <Textarea value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} placeholder="Detalles técnicos..." className="border-2" />
                     </div>
 
+                    <div className="space-y-3">
+                      <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Rama Deportiva</Label>
+                      <div className="flex gap-6">
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                          <Checkbox
+                            checked={newProduct.sports.includes('hockey')}
+                            onCheckedChange={(checked) => {
+                              setNewProduct(prev => ({
+                                ...prev,
+                                sports: checked
+                                  ? [...prev.sports, 'hockey']
+                                  : prev.sports.filter(s => s !== 'hockey')
+                              }));
+                            }}
+                          />
+                          <span className="font-black text-sm text-slate-700">🏑 Hockey</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                          <Checkbox
+                            checked={newProduct.sports.includes('rugby')}
+                            onCheckedChange={(checked) => {
+                              setNewProduct(prev => ({
+                                ...prev,
+                                sports: checked
+                                  ? [...prev.sports, 'rugby']
+                                  : prev.sports.filter(s => s !== 'rugby')
+                              }));
+                            }}
+                          />
+                          <span className="font-black text-sm text-slate-700">🏉 Rugby</span>
+                        </label>
+                      </div>
+                    </div>
+
                     <div className="space-y-4 bg-slate-50 p-6 rounded-[2rem] border">
                       <div className="flex justify-between items-center">
                         <Label className="font-black text-xs uppercase tracking-widest text-primary">Variantes y Disponibilidad</Label>
@@ -301,6 +337,8 @@ export default function ShopAdminPage() {
                     <div className="flex items-center gap-2 mb-1.5">
                       <Tag className="h-3 w-3 text-primary" />
                       <span className="text-[9px] font-black uppercase text-primary tracking-widest">{p.category}</span>
+                      {p.sports?.includes('hockey') && <Badge variant="outline" className="text-[7px] font-black px-1.5 h-4 border-blue-300 text-blue-600">🏑 Hockey</Badge>}
+                      {p.sports?.includes('rugby') && <Badge variant="outline" className="text-[7px] font-black px-1.5 h-4 border-green-300 text-green-600">🏉 Rugby</Badge>}
                     </div>
                     <CardTitle className="text-xl font-black text-slate-900 line-clamp-1">{p.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-2">
@@ -354,6 +392,42 @@ export default function ShopAdminPage() {
                   <div className="space-y-2">
                     <Label className="font-bold">Precio</Label>
                     <Input type="number" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value)})} className="h-12 border-2 font-black text-primary" />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Rama Deportiva</Label>
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <Checkbox
+                        checked={(editingProduct.sports || []).includes('hockey')}
+                        onCheckedChange={(checked) => {
+                          const current = editingProduct.sports || [];
+                          setEditingProduct({
+                            ...editingProduct,
+                            sports: checked
+                              ? [...current, 'hockey']
+                              : current.filter((s: string) => s !== 'hockey')
+                          });
+                        }}
+                      />
+                      <span className="font-black text-sm text-slate-700">🏑 Hockey</span>
+                    </label>
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <Checkbox
+                        checked={(editingProduct.sports || []).includes('rugby')}
+                        onCheckedChange={(checked) => {
+                          const current = editingProduct.sports || [];
+                          setEditingProduct({
+                            ...editingProduct,
+                            sports: checked
+                              ? [...current, 'rugby']
+                              : current.filter((s: string) => s !== 'rugby')
+                          });
+                        }}
+                      />
+                      <span className="font-black text-sm text-slate-700">🏉 Rugby</span>
+                    </label>
                   </div>
                 </div>
 
