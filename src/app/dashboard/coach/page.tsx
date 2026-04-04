@@ -38,8 +38,10 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 import { useToast } from "@/hooks/use-toast";
+import { useRoleGuard } from "@/hooks/use-role-guard";
 
 export default function CoachDashboard() {
+  const { authorized, loading: guardLoading } = useRoleGuard(['coach', 'coach_lvl1', 'coach_lvl2']);
   const { firestore, user } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
@@ -175,7 +177,7 @@ export default function CoachDashboard() {
     if (!todayEvent || !selectedTeam) return;
     const nextStatus = currentStatus === 'going' ? 'not_going' : currentStatus === 'not_going' ? 'unknown' : 'going';
     const attDoc = doc(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id, "events", todayEvent.id, "attendance", playerId);
-    setDoc(attDoc, { playerId, playerName, status: nextStatus, updatedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(attDoc, { playerId, playerName, status: nextStatus, updatedAt: new Date().toISOString() }, { merge: true });
   };
 
   const coachNav = [
@@ -184,6 +186,10 @@ export default function CoachDashboard() {
     { title: "Tienda Club", href: selectedTeam ? `/dashboard/clubs/${selectedTeam.clubId}/shop` : "/dashboard/coach", icon: ShoppingBag },
     { title: "Calendario", href: selectedTeam ? `/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events` : "/dashboard/coach", icon: Calendar },
   ];
+
+  if (guardLoading || !authorized) return (
+    <div className="flex justify-center items-center h-[70vh]"><Loader2 className="animate-spin text-white h-8 w-8" /></div>
+  );
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-screen space-y-4">

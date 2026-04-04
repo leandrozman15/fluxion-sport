@@ -31,8 +31,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
+import { useRoleGuard } from "@/hooks/use-role-guard";
 
 export default function CoordinatorDashboard() {
+  const { authorized, loading: guardLoading } = useRoleGuard(['coordinator']);
   const { firestore, user } = useFirebase();
   const [club, setClub] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -45,16 +47,16 @@ export default function CoordinatorDashboard() {
       try {
         const email = user.email?.toLowerCase().trim();
         
-        // 1. Obtener Perfil (por Email o UID)
+        // 1. Obtener Perfil (por UID primero, luego email como fallback)
         let staffData = null;
-        if (email) {
+        const uidSnap = await getDoc(doc(firestore, "users", user.uid));
+        if (uidSnap.exists()) {
+          staffData = uidSnap.data();
+        }
+
+        if (!staffData && email) {
           const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
           if (!staffSnap.empty) staffData = staffSnap.docs[0].data();
-        }
-        
-        if (!staffData) {
-          const uidSnap = await getDoc(doc(firestore, "users", user.uid));
-          if (uidSnap.exists()) staffData = uidSnap.data();
         }
 
         if (staffData) {
@@ -113,6 +115,10 @@ export default function CoordinatorDashboard() {
     { title: "Tesorería", href: club ? `/dashboard/clubs/${club.id}/finances` : "/dashboard/coordinator", icon: CreditCard },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
   ];
+
+  if (guardLoading || !authorized) return (
+    <div className="flex justify-center items-center h-[70vh]"><Loader2 className="animate-spin text-white h-8 w-8" /></div>
+  );
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">

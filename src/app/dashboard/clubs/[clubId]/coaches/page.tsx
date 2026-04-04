@@ -141,8 +141,9 @@ export default function ClubCoachesPage() {
 
       // 2. Guardar perfil en Firestore con UID como ID de documento
       const fullName = `${newCoach.firstName} ${newCoach.lastName}`.trim();
+      const { password: _pw, ...coachDataWithoutPassword } = newCoach;
       await setDoc(doc(db, "users", newUid), {
-        ...newCoach,
+        ...coachDataWithoutPassword,
         name: fullName,
         email: normalizedEmail,
         id: newUid,
@@ -175,8 +176,9 @@ export default function ClubCoachesPage() {
     if (!editingCoach) return;
     const coachDoc = doc(db, "users", editingCoach.id);
     const updatedName = `${editingCoach.firstName || ''} ${editingCoach.lastName || ''}`.trim() || editingCoach.name || '';
+    const { password: _pw, ...editDataWithoutPassword } = editingCoach;
     updateDocumentNonBlocking(coachDoc, { 
-      ...editingCoach,
+      ...editDataWithoutPassword,
       name: updatedName,
       clubId: clubId,
       email: editingCoach.email.toLowerCase().trim() 

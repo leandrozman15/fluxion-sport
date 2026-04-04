@@ -36,8 +36,10 @@ import { useToast } from "@/hooks/use-toast";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 import { CreateSpecialEventDialog } from "@/components/dashboard/create-special-event-dialog";
+import { useRoleGuard } from "@/hooks/use-role-guard";
 
 export default function InstitutionDetailPage() {
+  const { authorized, loading: guardLoading } = useRoleGuard(['club_admin', 'coordinator', 'admin', 'fed_admin']);
   const { clubId } = useParams() as { clubId: string };
   const { firestore, user } = useFirebase();
   const db = useFirestore();
@@ -97,6 +99,8 @@ export default function InstitutionDetailPage() {
       color: t.type === 'in' ? "text-green-600" : "text-red-600"
     })) || [])
   ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+
+  if (guardLoading || !authorized) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   if (clubLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 

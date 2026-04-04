@@ -60,7 +60,7 @@ export default function PublicPlayerRegistration() {
 
     setLoading(true);
     try {
-      const playerId = normalizedEmail; // Usamos email como ID para facilitar vinculación
+      const playerId = doc(collection(db, "clubs", clubId, "players")).id;
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
       
       const playerData = {

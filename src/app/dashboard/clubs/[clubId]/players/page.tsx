@@ -151,8 +151,9 @@ export default function PlayersPage() {
       }
 
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
+      const { password: _pw, enableLogin: _el, ...playerDataClean } = newPlayer;
       const pData = {
-        ...newPlayer,
+        ...playerDataClean,
         id: playerId,
         email: normalizedEmail,
         clubId: clubId,
@@ -196,7 +197,8 @@ export default function PlayersPage() {
   const handleUpdatePlayer = async () => {
     if (!editingPlayer) return;
     const playerDoc = doc(db, "clubs", clubId, "players", editingPlayer.id);
-    updateDocumentNonBlocking(playerDoc, { ...editingPlayer, clubId: clubId, role: "player" });
+    const { password: _pw, enableLogin: _el, ...editDataClean } = editingPlayer;
+    updateDocumentNonBlocking(playerDoc, { ...editDataClean, clubId: clubId, role: "player" });
     
     // Usamos setDocumentNonBlocking con merge para asegurar que el índice global exista
     const indexDoc = doc(db, "all_players_index", editingPlayer.id);

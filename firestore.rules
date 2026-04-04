@@ -9,20 +9,48 @@ service cloud.firestore {
     }
 
     function isStaffMember() {
-      return isAuthenticated() && (
-        exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) ||
-        exists(/databases/$(database)/documents/users/$(request.auth.uid))
-      );
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // REGLAS GLOBALES PARA FLUXION CLUBES
-    // DATABASE: ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7
-    // UPDATED: 2026-04-03_1900 (Acceso total para prototipado)
+    function isPlayerMember() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/all_players_index/$(request.auth.uid));
+    }
 
-    match /{document=**} {
-      // Permitimos lectura y escritura total para asegurar que el motor encuentre los datos
-      // mientras se termina de configurar la identidad basada en Email.
-      allow read, write: if true;
+    function isMember() {
+      return isStaffMember() || isPlayerMember();
+    }
+
+    // --- Usuarios (staff) ---
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaffMember();
+    }
+
+    // --- Clubs y sub-colecciones ---
+    match /clubs/{clubId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaffMember();
+
+      match /{subcol=**} {
+        allow read: if isAuthenticated();
+        allow write: if isStaffMember();
+      }
+    }
+
+    // --- Índice global de jugadores ---
+    match /all_players_index/{playerId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaffMember();
+    }
+
+    // --- Registro público de jugadores (sin autenticación) ---
+    match /clubs/{clubId}/players/{playerId} {
+      allow create: if true;
+    }
+    match /all_players_index/{playerId} {
+      allow create: if true;
     }
   }
 }

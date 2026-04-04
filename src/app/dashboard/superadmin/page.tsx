@@ -23,10 +23,12 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { useRoleGuard } from "@/hooks/use-role-guard";
 
 const DATABASE_ID = "ai-studio-0867a4e6-d6f0-4ab1-84e3-aa53097594a7";
 
 export default function SuperAdminPage() {
+  const { authorized, loading: guardLoading } = useRoleGuard(['admin', 'fed_admin']);
   const { user } = useFirebase();
   const db = useFirestore();
   const { toast } = useToast();
@@ -51,18 +53,17 @@ export default function SuperAdminPage() {
     try {
       const normalizedEmail = form.adminEmail.toLowerCase().trim();
 
-      // 1. Crear el Club en Firestore (no bloqueante, ID generado localmente)
+      // 1. Crear acceso en Auth PRIMERO — si falla, no dejamos un club huérfano
+      const adminUid = await createUserWithSecondaryApp(normalizedEmail, form.adminPassword);
+
+      // 2. Crear el Club en Firestore (ahora que Auth exitó)
       const clubId = doc(collection(db, "clubs")).id;
-      setDocumentNonBlocking(doc(db, "clubs", clubId), {
+      await setDoc(doc(db, "clubs", clubId), {
         id: clubId,
         name: form.clubName,
         address: form.clubAddress,
         createdAt: new Date().toISOString()
-      }, {});
-
-      // 2. Crear acceso en Auth SIN cerrar la sesión actual (instancia secundaria)
-      //    Obtenemos el UID real antes de escribir en Firestore.
-      const adminUid = await createUserWithSecondaryApp(normalizedEmail, form.adminPassword);
+      });
 
       // 3. Crear el perfil del administrador con UID como ID de documento
       await setDoc(doc(db, "users", adminUid), {
@@ -93,6 +94,10 @@ export default function SuperAdminPage() {
       setLoading(false);
     }
   };
+
+  if (guardLoading || !authorized) {
+    return <div className="flex justify-center items-center h-[70vh]"><Loader2 className="animate-spin text-white h-8 w-8" /></div>;
+  }
 
   if (success) {
     return (
