@@ -381,13 +381,16 @@ export default function CoachDashboard() {
                                   <AvatarFallback className="font-black text-slate-300 bg-slate-50">{member.playerName[0]}</AvatarFallback>
                                 </Avatar>
                                 {member.isCaptain && (
-                                  <div className="absolute -top-2 -right-2 bg-yellow-400 rounded-full p-1 shadow-lg border-2 border-white">
-                                    <Crown className="h-2.5 w-2.5 text-yellow-900" />
+                                  <div className="absolute -top-2 -right-2 bg-yellow-400 rounded-full h-5 w-5 flex items-center justify-center shadow-lg border-2 border-white">
+                                    <span className="text-[9px] font-black text-yellow-900 leading-none">C</span>
                                   </div>
                                 )}
                                 {member.injury?.description && (
-                                  <div className="absolute -bottom-2 -right-2 bg-red-500 rounded-full p-1 shadow-lg border-2 border-white">
-                                    <Stethoscope className="h-2.5 w-2.5 text-white" />
+                                  <div className="absolute -bottom-2 -right-2 bg-red-500 rounded-full h-5 w-5 flex items-center justify-center shadow-lg border-2 border-white">
+                                    <svg viewBox="0 0 16 16" className="h-2.5 w-2.5" fill="white" xmlns="http://www.w3.org/2000/svg">
+                                      <rect x="6" y="1" width="4" height="14" rx="1"/>
+                                      <rect x="1" y="6" width="14" height="4" rx="1"/>
+                                    </svg>
                                   </div>
                                 )}
                               </div>
@@ -413,13 +416,13 @@ export default function CoachDashboard() {
                                 onClick={() => handleToggleCaptain(member)}
                                 title={member.isCaptain ? "Quitar capitana" : "Asignar capitana"}
                                 className={cn(
-                                  "h-10 w-10 md:h-12 md:w-12 p-0 rounded-xl border-2 transition-all",
+                                  "h-10 w-10 md:h-12 md:w-12 p-0 rounded-xl border-2 transition-all font-black text-lg",
                                   member.isCaptain
                                     ? "bg-yellow-400 text-yellow-900 border-yellow-500 shadow-md shadow-yellow-200"
-                                    : "bg-white text-slate-200 border-slate-100 hover:border-yellow-400 hover:text-yellow-500"
+                                    : "bg-white text-slate-300 border-slate-100 hover:border-yellow-400 hover:text-yellow-500"
                                 )}
                               >
-                                <Crown className="h-4 w-4 md:h-5 md:w-5" />
+                                <span className="text-base md:text-lg font-black leading-none">C</span>
                               </Button>
 
                               {/* Injury toggle */}
@@ -431,11 +434,14 @@ export default function CoachDashboard() {
                                 className={cn(
                                   "h-10 w-10 md:h-12 md:w-12 p-0 rounded-xl border-2 transition-all",
                                   member.injury?.description
-                                    ? "bg-red-100 text-red-500 border-red-200 shadow-md shadow-red-100"
+                                    ? "bg-red-500 text-white border-red-600 shadow-md shadow-red-200"
                                     : "bg-white text-slate-200 border-slate-100 hover:border-red-400 hover:text-red-400"
                                 )}
                               >
-                                <Stethoscope className="h-4 w-4 md:h-5 md:w-5" />
+                                <svg viewBox="0 0 16 16" className="h-4 w-4 md:h-5 md:w-5" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="6" y="1" width="4" height="14" rx="1"/>
+                                  <rect x="1" y="6" width="14" height="4" rx="1"/>
+                                </svg>
                               </Button>
 
                               {todayEvent && (
@@ -503,7 +509,10 @@ export default function CoachDashboard() {
           <DialogContent className="max-w-sm bg-white border-none shadow-2xl rounded-[2rem]">
             <DialogHeader>
               <DialogTitle className="text-xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-2">
-                <Stethoscope className="h-5 w-5 text-red-500" />
+                <svg viewBox="0 0 16 16" className="h-5 w-5 text-red-500" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="6" y="1" width="4" height="14" rx="1"/>
+                  <rect x="1" y="6" width="14" height="4" rx="1"/>
+                </svg>
                 {injuryDialog.member?.playerName}
               </DialogTitle>
             </DialogHeader>
