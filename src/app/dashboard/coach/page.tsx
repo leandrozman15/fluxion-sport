@@ -103,14 +103,14 @@ export default function CoachDashboard() {
           const tSnap = await getDocs(teamsRef);
           return tSnap.docs
             .map(td => ({
-              ...td.data(),
+              ...td.data() as any,
               id: td.id,
               clubId,
               divisionId: divDoc.id,
               divisionName: divDoc.data().name,
               sport: divDoc.data().sport || 'hockey'
             }))
-            .filter(t =>
+            .filter((t: any) =>
               t.coachId === staffUid ||
               t.coachId === staffEmail ||
               (staffLegacyId && t.coachId === staffLegacyId) ||
