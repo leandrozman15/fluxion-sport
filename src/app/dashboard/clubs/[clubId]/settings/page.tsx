@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { compressLogo } from "@/lib/compress-image";
 
 export default function ClubSettingsPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -55,14 +56,11 @@ export default function ClubSettingsPage() {
     }
   }, [club]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm(prev => ({ ...prev, logoUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      const compressed = await compressLogo(file);
+      setForm(prev => ({ ...prev, logoUrl: compressed }));
     }
   };
 

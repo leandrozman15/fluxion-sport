@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { compressLogo } from "@/lib/compress-image";
 
 export default function OpponentsManagerPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -52,16 +53,12 @@ export default function OpponentsManagerPage() {
   );
   const { data: opponents, isLoading } = useCollection(opponentsQuery);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        if (isEdit) setEditingOpp({ ...editingOpp, logoUrl: base64 });
-        else setNewOpp({ ...newOpp, logoUrl: base64 });
-      };
-      reader.readAsDataURL(file);
+      const compressed = await compressLogo(file);
+      if (isEdit) setEditingOpp({ ...editingOpp, logoUrl: compressed });
+      else setNewOpp({ ...newOpp, logoUrl: compressed });
     }
   };
 

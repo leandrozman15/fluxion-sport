@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { compressImage } from "@/lib/compress-image";
 
 export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: string, authorName: string }) {
   const { firestore } = useFirebase();
@@ -32,14 +33,11 @@ export function CreateSpecialEventDialog({ clubId, authorName }: { clubId: strin
     imageUrl: ""
   });
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm(prev => ({ ...prev, imageUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      const compressed = await compressImage(file);
+      setForm(prev => ({ ...prev, imageUrl: compressed }));
     }
   };
 

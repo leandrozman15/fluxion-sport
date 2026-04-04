@@ -44,41 +44,38 @@ export function SectionNav({ items }: SectionNavProps) {
     router.push("/login");
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user || !firestore) return;
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      const email = user.email?.toLowerCase().trim();
+    const { compressProfilePhoto } = await import("@/lib/compress-image");
+    const base64 = await compressProfilePhoto(file);
+    const email = user.email?.toLowerCase().trim();
 
-      // 1. Actualizar perfiles vinculados con la nueva imagen Base64
-      setDocumentNonBlocking(doc(firestore, "users", user.uid), { 
-        photoUrl: base64,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+    // 1. Actualizar perfiles vinculados con la nueva imagen comprimida
+    setDocumentNonBlocking(doc(firestore, "users", user.uid), { 
+      photoUrl: base64,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
 
-      if (email) {
-        const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
-        staffSnap.forEach(d => {
-          if (d.id !== user.uid) updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: base64 });
-        });
+    if (email) {
+      const staffSnap = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
+      staffSnap.forEach(d => {
+        if (d.id !== user.uid) updateDocumentNonBlocking(doc(firestore, "users", d.id), { photoUrl: base64 });
+      });
 
-        const indexSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
-        indexSnap.forEach(d => {
-          updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: base64 });
-          const clubId = d.data().clubId;
-          if (clubId) {
-            updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "players", d.id), { photoUrl: base64 });
-          }
-        });
-      }
+      const indexSnap = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
+      indexSnap.forEach(d => {
+        updateDocumentNonBlocking(doc(firestore, "all_players_index", d.id), { photoUrl: base64 });
+        const clubId = d.data().clubId;
+        if (clubId) {
+          updateDocumentNonBlocking(doc(firestore, "clubs", clubId, "players", d.id), { photoUrl: base64 });
+        }
+      });
+    }
 
-      toast({ title: "Foto Actualizada", description: "Tu imagen oficial se ha guardado en Firestore." });
-      setIsPhotoOpen(false);
-    };
-    reader.readAsDataURL(file);
+    toast({ title: "Foto Actualizada", description: "Tu imagen oficial se ha guardado en Firestore." });
+    setIsPhotoOpen(false);
   };
 
   if (!mounted) {

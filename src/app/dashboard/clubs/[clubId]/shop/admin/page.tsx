@@ -39,6 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { compressImage } from "@/lib/compress-image";
 
 interface ProductSize {
   label: string;
@@ -84,17 +85,13 @@ export default function ShopAdminPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        if (isEdit) {
-          setEditingProduct((prev: any) => ({ ...prev, images: [...(prev.images || []), base64] }));
-        } else {
-          setNewProduct(prev => ({ ...prev, images: [...prev.images, base64] }));
-        }
-      };
-      reader.readAsDataURL(file);
+    Array.from(files).forEach(async (file) => {
+      const compressed = await compressImage(file);
+      if (isEdit) {
+        setEditingProduct((prev: any) => ({ ...prev, images: [...(prev.images || []), compressed] }));
+      } else {
+        setNewProduct(prev => ({ ...prev, images: [...prev.images, compressed] }));
+      }
     });
   };
 
