@@ -35,6 +35,7 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PositionSlot {
   id: string;
@@ -85,6 +86,8 @@ export function HockeyTacticalBoard({
   const [tacticName, setSaveTacticName] = useState("");
   const [saving, setSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isMobile = useIsMobile();
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   const tacticsQuery = useMemoFirebase(() => {
     if (!db || !clubId || !divisionId || !teamId) return null;
@@ -136,6 +139,19 @@ export function HockeyTacticalBoard({
     setPositions(newPositions);
   }, [playerCount, sport]);
 
+  // Prevent page scroll when drawing on touch devices
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !drawMode) return;
+    const prevent = (e: TouchEvent) => e.preventDefault();
+    canvas.addEventListener('touchstart', prevent, { passive: false });
+    canvas.addEventListener('touchmove', prevent, { passive: false });
+    return () => {
+      canvas.removeEventListener('touchstart', prevent);
+      canvas.removeEventListener('touchmove', prevent);
+    };
+  }, [drawMode]);
+
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     if (!drawMode || !canvasRef.current) return;
     setIsDrawing(true);
@@ -144,20 +160,22 @@ export function HockeyTacticalBoard({
     if (!ctx) return;
 
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
     let x, y;
     if ('touches' in e) {
-      x = e.touches[0].clientX - rect.left;
-      y = e.touches[0].clientY - rect.top;
+      x = (e.touches[0].clientX - rect.left) * scaleX;
+      y = (e.touches[0].clientY - rect.top) * scaleY;
     } else {
-      x = e.clientX - rect.left;
-      y = e.clientY - rect.top;
+      x = (e.clientX - rect.left) * scaleX;
+      y = (e.clientY - rect.top) * scaleY;
     }
 
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineWidth = drawMode === 'eraser' ? 20 : 3;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = drawMode === 'eraser' ? '#1a3a0f' : penColor; 
+    ctx.strokeStyle = drawMode === 'eraser' ? '#1a3a0f' : penColor;
     ctx.globalCompositeOperation = drawMode === 'eraser' ? 'destination-out' : 'source-over';
   };
 
@@ -168,13 +186,15 @@ export function HockeyTacticalBoard({
     if (!ctx) return;
 
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
     let x, y;
     if ('touches' in e) {
-      x = e.touches[0].clientX - rect.left;
-      y = e.touches[0].clientY - rect.top;
+      x = (e.touches[0].clientX - rect.left) * scaleX;
+      y = (e.touches[0].clientY - rect.top) * scaleY;
     } else {
-      x = e.clientX - rect.left;
-      y = e.clientY - rect.top;
+      x = (e.clientX - rect.left) * scaleX;
+      y = (e.clientY - rect.top) * scaleY;
     }
 
     ctx.lineTo(x, y);
@@ -216,6 +236,26 @@ export function HockeyTacticalBoard({
   const handleMouseUp = () => {
     stopDrawing();
     setDraggingId(null);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (drawMode) {
+      draw(e);
+      return;
+    }
+    if (!draggingId || !fieldRef.current) return;
+    const rect = fieldRef.current.getBoundingClientRect();
+    const x = ((e.touches[0].clientX - rect.left) / rect.width) * 100;
+    const y = ((e.touches[0].clientY - rect.top) / rect.height) * 100;
+    if (draggingId.type === 'home') {
+      setPositions(prev => prev.map(p =>
+        p.id === draggingId.id ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
+      ));
+    } else {
+      setRivals(prev => prev.map(p =>
+        p.id === draggingId.id ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
+      ));
+    }
   };
 
   const onDragStartPlayer = (e: React.DragEvent, playerId: string) => {
@@ -418,20 +458,21 @@ export function HockeyTacticalBoard({
         </div>
       </div>
 
-      {/* ── Field ──────────────────────────────────────────────── */}
+      {/* ── Field + Mobile suplentes strip ───────────────────── */}
+      <div className={cn(!isFullscreen && "lg:col-span-8 flex flex-row items-stretch gap-3")}>
       <div 
         ref={fieldRef}
         className={cn(
-          "relative bg-[#1a3a0f] border-[10px] border-white shadow-2xl overflow-hidden",
+          "relative bg-[#1a3a0f] border-[10px] border-white shadow-2xl overflow-hidden touch-none",
           isFullscreen
             ? "flex-1 w-full rounded-none border-x-0 border-b-0"
-            : "lg:col-span-8 aspect-[2/3] max-w-md mx-auto rounded-[2.5rem]"
+            : "flex-1 aspect-[2/3] rounded-[2.5rem]"
         )}
           onMouseDown={drawMode ? startDrawing : undefined}
           onMouseMove={drawMode ? draw : handleMouseMove}
           onMouseUp={handleMouseUp}
           onTouchStart={drawMode ? startDrawing : undefined}
-          onTouchMove={drawMode ? draw : undefined}
+          onTouchMove={handleTouchMove}
           onTouchEnd={handleMouseUp}
         >
           <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 100 150">
@@ -461,6 +502,12 @@ export function HockeyTacticalBoard({
             )}
           />
 
+          {selectedPlayerId && !drawMode && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-primary text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-xl uppercase tracking-widest animate-bounce pointer-events-none lg:hidden">
+              Toca una posición ↓
+            </div>
+          )}
+
           {positions.map((p) => {
             const player = roster.find(r => r.playerId === p.assignedPlayerId);
             return (
@@ -468,10 +515,19 @@ export function HockeyTacticalBoard({
                 key={p.id}
                 className={cn(
                   "absolute -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 z-30",
-                  draggingId?.id === p.id && draggingId?.type === 'home' ? "scale-125 z-50 shadow-2xl" : ""
+                  draggingId?.id === p.id && draggingId?.type === 'home' ? "scale-125 z-50 shadow-2xl" : "",
+                  selectedPlayerId && !p.assignedPlayerId && !drawMode ? "scale-110 animate-pulse" : ""
                 )}
                 style={{ left: `${p.x}%`, top: `${p.y}%` }}
                 onMouseDown={!drawMode ? () => setDraggingId({ id: p.id, type: 'home' }) : undefined}
+                onTouchStart={!drawMode ? (e) => { e.stopPropagation(); setDraggingId({ id: p.id, type: 'home' }); } : undefined}
+                onClick={!drawMode && selectedPlayerId ? () => {
+                  setPositions(prev => {
+                    const cleaned = prev.map(q => q.assignedPlayerId === selectedPlayerId ? { ...q, assignedPlayerId: null } : q);
+                    return cleaned.map(q => q.id === p.id ? { ...q, assignedPlayerId: selectedPlayerId } : q);
+                  });
+                  setSelectedPlayerId(null);
+                } : undefined}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => onDropOnSlot(e, p.id)}
               >
@@ -504,6 +560,7 @@ export function HockeyTacticalBoard({
               )}
               style={{ left: `${r.x}%`, top: `${r.y}%` }}
               onMouseDown={!drawMode ? () => setDraggingId({ id: r.id, type: 'away' }) : undefined}
+              onTouchStart={!drawMode ? (e) => { e.stopPropagation(); setDraggingId({ id: r.id, type: 'away' }); } : undefined}
             >
               <div className="flex flex-col items-center group cursor-grab active:cursor-grabbing">
                 <div className="relative">
@@ -522,6 +579,36 @@ export function HockeyTacticalBoard({
             </div>
           ))}
         </div>
+
+        {/* Mobile suplentes strip — visible only below lg, next to the field */}
+        {!isFullscreen && (
+          <div className="lg:hidden w-[72px] shrink-0 flex flex-col gap-1.5 overflow-hidden rounded-[1.5rem] bg-slate-50/90 border border-slate-200/80 py-2 shadow-inner">
+            <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 text-center px-1 shrink-0">Suplentes</p>
+            <div className="flex-1 overflow-y-auto flex flex-col gap-1.5 px-1.5 min-h-0 pb-2">
+              {roster.filter((player: any) => !positions.some(p => p.assignedPlayerId === player.playerId)).map((player: any) => (
+                <button
+                  key={player.id}
+                  onClick={() => setSelectedPlayerId(sel => sel === player.playerId ? null : player.playerId)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-1.5 rounded-xl border-2 transition-all w-full",
+                    selectedPlayerId === player.playerId
+                      ? "border-primary bg-primary/10 shadow-lg shadow-primary/20 scale-105"
+                      : "border-slate-200 bg-white shadow-sm active:scale-95"
+                  )}
+                >
+                  <Avatar className={cn("h-9 w-9 border-2", selectedPlayerId === player.playerId ? "border-primary" : "border-slate-100")}>
+                    <AvatarImage src={clubLogo} className="object-contain p-0.5" />
+                    <AvatarFallback className="text-[8px] font-black">{player.playerName[0]}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-[7px] font-black text-slate-900 leading-tight text-center w-full truncate px-0.5 block">
+                    {player.playerName.split(' ')[0]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── Sidebar (hidden in fullscreen) ───────────────────────── */}
       {!isFullscreen && (
