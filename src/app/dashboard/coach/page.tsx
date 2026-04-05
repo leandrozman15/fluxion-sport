@@ -216,6 +216,7 @@ export default function CoachDashboard() {
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
     { title: "Tienda Club", href: selectedTeam ? `/dashboard/clubs/${selectedTeam.clubId}/shop` : "/dashboard/coach", icon: ShoppingBag },
     { title: "Calendario", href: selectedTeam ? `/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events` : "/dashboard/coach", icon: Calendar },
+    { title: "Tablas/Fixture", href: "/dashboard/standings-fixture", icon: Trophy },
   ];
 
   if (guardLoading || !authorized) return (

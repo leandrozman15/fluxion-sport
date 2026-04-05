@@ -119,7 +119,7 @@ export default function PlayerDashboardHub() {
     { title: "Inicio Hub", href: "/dashboard/player", icon: LayoutDashboard },
     { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
     { title: "Estadísticas", href: "/dashboard/player/stats", icon: Star },
-    { title: "Posiciones", href: "/dashboard/player/standings", icon: TableIcon },
+    { title: "Tablas/Fixture", href: "/dashboard/standings-fixture", icon: Trophy },
     { title: "Pagos", href: "/dashboard/player/payments", icon: CreditCard },
     { title: "Tienda Club", href: playerInfo ? `/dashboard/clubs/${playerInfo.clubId}/shop` : "/dashboard/player", icon: ShoppingBag },
   ];
