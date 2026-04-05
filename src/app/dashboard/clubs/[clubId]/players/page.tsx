@@ -252,40 +252,9 @@ export default function PlayersPage() {
   const db = useFirestore();
   const { user: currentUser } = useFirebase();
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  
-  const initialForm = { 
-    firstName: "", 
-    lastName: "", 
-    email: "", 
-    phone: "", 
-    dni: "",
-    birthDate: "",
-    weight: "",
-    height: "",
-    address: "",
-    bloodType: "",
-    emergencyContact: "",
-    emergencyPhone: "",
-    position: "",
-    jerseyNumber: "",
-    photoUrl: "",
-    divisionId: "",
-    enableLogin: false,
-    password: "",
-    sport: "hockey",
-    joinedDate: "",
-    matchesPlayed: "",
-    attendanceAvg: "",
-    notes: "",
-    parkingIncluded: false,
-  };
-
-  const [newPlayer, setNewPlayer] = useState(initialForm);
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club } = useDoc(clubRef);
@@ -301,67 +270,7 @@ export default function PlayersPage() {
 
   const activeNav = useClubPageNav(clubId);
 
-  const handleCreatePlayer = async () => {
-    if (!newPlayer.firstName || !newPlayer.lastName || !newPlayer.dni) {
-      toast({ variant: "destructive", title: "Faltan datos", description: "Nombre, apellido y DNI son obligatorios." });
-      return;
-    }
 
-    setLoading(true);
-    try {
-      const normalizedEmail = newPlayer.email.toLowerCase().trim();
-      let playerId: string;
-
-      if (newPlayer.enableLogin && normalizedEmail && newPlayer.password) {
-        // Crear Auth user sin cerrar la sesión activa del admin/coordinador
-        playerId = await createUserWithSecondaryApp(normalizedEmail, newPlayer.password);
-      } else {
-        playerId = doc(collection(db, "clubs", clubId, "players")).id;
-      }
-
-      const playerDoc = doc(db, "clubs", clubId, "players", playerId);
-      const { password: _pw, enableLogin: _el, ...playerDataClean } = newPlayer;
-      const pData = {
-        ...playerDataClean,
-        id: playerId,
-        email: normalizedEmail,
-        clubId: clubId,
-        role: "player",
-        createdAt: new Date().toISOString()
-      };
-
-      await setDoc(playerDoc, pData);
-
-      if (newPlayer.enableLogin && normalizedEmail) {
-        await setDoc(doc(db, "all_players_index", playerId), {
-          id: playerId,
-          firstName: newPlayer.firstName,
-          lastName: newPlayer.lastName,
-          email: normalizedEmail,
-          clubId: clubId,
-          divisionId: newPlayer.divisionId,
-          clubName: club?.name || "Club",
-          sport: newPlayer.sport,
-          role: "player",
-          createdAt: new Date().toISOString()
-        });
-        toast({ title: "Jugador Registrado", description: "Ficha y acceso al app generados correctamente." });
-      } else {
-        toast({ title: "Jugador Registrado", description: "Ficha oficial generada con éxito." });
-      }
-
-      setNewPlayer(initialForm);
-      setIsDialogOpen(false);
-    } catch (e: any) {
-      console.error(e);
-      const msg = e.code === 'auth/email-already-in-use'
-        ? "Ese email ya tiene una cuenta. Edite el legajo existente."
-        : "No se pudo completar el alta. Verifique los datos.";
-      toast({ variant: "destructive", title: "Error al registrar", description: msg });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleUpdatePlayer = async () => {
     if (!editingPlayer) return;
@@ -417,58 +326,11 @@ export default function PlayersPage() {
               <h1 className="text-3xl font-black font-headline text-white drop-shadow-md">Legajos Deportivos</h1>
               <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{club?.name} • Padrón oficial de jugadores.</p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest bg-white text-primary hover:bg-slate-50">
-                  <UserPlus className="h-5 w-5" /> Alta de Jugador
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden max-h-[92dvh] flex flex-col">
-                <DialogHeader className="bg-primary p-8 text-primary-foreground shrink-0">
-                  <DialogTitle className="text-2xl font-black flex items-center gap-2">
-                    <ShieldCheck className="h-7 w-7" /> Nueva Ficha Deportiva Oficial
-                  </DialogTitle>
-                  <DialogDescription className="text-primary-foreground/80 font-bold">
-                    Completa el legajo federativo del deportista.
-                  </DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="flex-1 min-h-0">
-                  <div className="p-8 space-y-10">
-                    <PlayerFormFields values={newPlayer} onChange={(v) => setNewPlayer(v as typeof newPlayer)} divisions={divisions || []} />
-
-                    <div className="space-y-6 bg-slate-50 -mx-8 p-8 border-y">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                            <ShieldCheck className="h-5 w-5" /> Acceso App Fluxion
-                          </h3>
-                          <p className="text-xs text-slate-500 font-bold">Habilita al socio para ver su carnet y estadísticas.</p>
-                        </div>
-                        <Switch checked={newPlayer.enableLogin} onCheckedChange={(v) => setNewPlayer({...newPlayer, enableLogin: v})} />
-                      </div>
-                      {newPlayer.enableLogin && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2">
-                          <div className="space-y-2">
-                            <Label className="font-bold text-slate-700">Usuario (Email)</Label>
-                            <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="Email de login" className="bg-white border-2" />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="font-bold text-slate-700">Clave Temporal</Label>
-                            <Input type="password" value={newPlayer.password} onChange={e => setNewPlayer({...newPlayer, password: e.target.value})} placeholder="Mínimo 6 caracteres" className="bg-white border-2" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </ScrollArea>
-                <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4 shrink-0">
-                  <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
-                  <Button onClick={handleCreatePlayer} disabled={loading} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20 gap-2">
-                    {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <><ShieldCheck className="h-5 w-5" /> Confirmar Alta Federativa</>}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button asChild className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest bg-white text-primary hover:bg-slate-50">
+              <Link href={`/dashboard/clubs/${clubId}/players/new`}>
+                <UserPlus className="h-5 w-5" /> Alta de Jugador
+              </Link>
+            </Button>
           </div>
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />

@@ -591,9 +591,6 @@ export default function CoordinatorDashboard() {
                 <Link href={club ? `/dashboard/clubs/${club.id}/coaches` : "#"}><UserRound className="h-4 w-4 text-primary" /> Staff</Link>
               </Button>
               <Button variant="secondary" size="sm" className="h-12 gap-3 bg-slate-50 hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
-                <Link href={club ? `/dashboard/clubs/${club.id}/finances` : "#"}><Activity className="h-4 w-4 text-primary" /> Tesorería</Link>
-              </Button>
-              <Button variant="secondary" size="sm" className="h-12 gap-3 bg-slate-50 hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest rounded-xl" asChild>
                 <Link href={club ? `/dashboard/clubs/${club.id}/fixture` : "#"}><CalendarDays className="h-4 w-4 text-primary" /> Fixture</Link>
               </Button>
             </div>

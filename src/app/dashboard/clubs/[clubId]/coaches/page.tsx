@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { 
   Plus, 
   Loader2,
@@ -63,31 +64,8 @@ export default function ClubCoachesPage() {
   const { user: currentUser } = useFirebase();
   const db = useFirestore();
   const { toast } = useToast();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [editingCoach, setEditingCoach] = useState<any>(null);
-  
-  const initialCoachForm = {
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    dni: "",
-    birthDate: "",
-    address: "",
-    password: "",
-    role: "coach_lvl2",
-    specialty: "",
-    license: "",
-    photoUrl: "",
-    bloodType: "",
-    emergencyContact: "",
-    emergencyPhone: "",
-    sport: "hockey",
-    parkingIncluded: false,
-  };
-  const [newCoach, setNewCoach] = useState(initialCoachForm);
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
@@ -107,51 +85,7 @@ export default function ClubCoachesPage() {
 
   const activeNav = useClubPageNav(clubId);
 
-  const handleCreateCoach = async () => {
-    if (!newCoach.email || !newCoach.password || !newCoach.firstName || !newCoach.lastName || !newCoach.dni) {
-      toast({ variant: "destructive", title: "Datos faltantes", description: "Nombre, Apellido, Email, Clave y DNI son obligatorios." });
-      return;
-    }
 
-    setLoading(true);
-    try {
-      const normalizedEmail = newCoach.email.toLowerCase().trim();
-
-      // 1. Crear usuario en Auth SIN cerrar la sesión del admin actual (instancia secundaria)
-      const newUid = await createUserWithSecondaryApp(normalizedEmail, newCoach.password);
-
-      // 2. Guardar perfil en Firestore con UID como ID de documento
-      const fullName = `${newCoach.firstName} ${newCoach.lastName}`.trim();
-      const { password: _pw, ...coachDataWithoutPassword } = newCoach;
-      await setDoc(doc(db, "users", newUid), {
-        ...coachDataWithoutPassword,
-        name: fullName,
-        email: normalizedEmail,
-        id: newUid,
-        uid: newUid,
-        clubId: clubId,
-        requiresPasswordChange: true,
-        createdAt: new Date().toISOString()
-      });
-      
-      toast({ 
-        title: "Miembro Registrado", 
-        description: `Cuenta creada para ${newCoach.firstName} ${newCoach.lastName}. Ya puede ingresar a la plataforma.` 
-      });
-      
-      setNewCoach(initialCoachForm);
-      setIsCreateOpen(false);
-    } catch (error: any) {
-      console.error(error);
-      toast({ 
-        variant: "destructive", 
-        title: "Error al registrar", 
-        description: error.code === 'auth/email-already-in-use' ? "Ese email ya tiene una cuenta registrada." : "Verifica los datos e intenta nuevamente." 
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleUpdateCoach = () => {
     if (!editingCoach) return;
@@ -206,173 +140,11 @@ export default function ClubCoachesPage() {
             <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Staff Institucional</h1>
             <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">{club?.name} • Gestión de profesores y coordinadores.</p>
           </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest bg-white text-primary hover:bg-slate-50">
+          <Button asChild className="flex items-center gap-2 shadow-lg h-12 px-6 font-black uppercase text-xs tracking-widest bg-white text-primary hover:bg-slate-50">
+              <Link href={`/dashboard/clubs/${clubId}/coaches/new`}>
                 <Plus className="h-5 w-5" /> Registrar Nuevo Miembro
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl bg-white border-none shadow-2xl rounded-[2.5rem] p-0 overflow-hidden max-h-[92dvh] flex flex-col">
-              <DialogHeader className="bg-primary p-8 text-primary-foreground shrink-0">
-                <DialogTitle className="text-2xl font-black flex items-center gap-2">
-                  <UserPlus className="h-7 w-7" /> Nueva Ficha de Personal
-                </DialogTitle>
-                <DialogDescription className="text-primary-foreground/80 font-bold">
-                  Completa el legajo oficial del staff técnico o administrativo.
-                </DialogDescription>
-              </DialogHeader>
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="p-8 space-y-10">
-
-                  {/* 1. Identidad Personal */}
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b pb-2">
-                      <UserRound className="h-5 w-5 text-primary" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">1. Identidad Personal</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Nombre</Label>
-                        <Input value={newCoach.firstName} onChange={e => setNewCoach({...newCoach, firstName: e.target.value})} placeholder="Ej. Camila" className="h-12 border-2" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Apellido</Label>
-                        <Input value={newCoach.lastName} onChange={e => setNewCoach({...newCoach, lastName: e.target.value})} placeholder="Ej. Rodríguez" className="h-12 border-2" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">DNI / Documento</Label>
-                        <Input value={newCoach.dni} onChange={e => setNewCoach({...newCoach, dni: e.target.value})} placeholder="Sin puntos" className="h-12 border-2 font-bold" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Fecha de Nacimiento</Label>
-                        <Input type="date" value={newCoach.birthDate} onChange={e => setNewCoach({...newCoach, birthDate: e.target.value})} className="h-12 border-2" />
-                      </div>
-                      <div className="col-span-full space-y-2">
-                        <Label className="font-bold text-slate-700">URL Foto de Perfil (Opcional)</Label>
-                        <Input value={newCoach.photoUrl} onChange={e => setNewCoach({...newCoach, photoUrl: e.target.value})} placeholder="https://..." className="h-12 border-2" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 2. Rol Institucional */}
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b pb-2">
-                      <Layers className="h-5 w-5 text-primary" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Rol Institucional</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
-                        <div className="space-y-0.5">
-                          <Label className="text-sm font-bold text-slate-700">Disciplina</Label>
-                          <p className="text-[10px] text-primary font-black uppercase tracking-widest">{newCoach.sport === 'rugby' ? '🏉 Rugby' : '🏑 Hockey'}</p>
-                        </div>
-                        <Switch checked={newCoach.sport === 'rugby'} onCheckedChange={(v) => setNewCoach({...newCoach, sport: v ? 'rugby' : 'hockey'})} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Rol en el Club</Label>
-                        <Select value={newCoach.role} onValueChange={v => setNewCoach({...newCoach, role: v})}>
-                          <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Jefe de Rama)</SelectItem>
-                            <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
-                            <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
-                            <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Especialidad / Cargo</Label>
-                        <Input value={newCoach.specialty} onChange={e => setNewCoach({...newCoach, specialty: e.target.value})} placeholder="Ej. Preparador Físico, DT…" className="h-12 border-2 font-bold" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">N° Licencia / Matrícula</Label>
-                        <Input value={newCoach.license} onChange={e => setNewCoach({...newCoach, license: e.target.value})} placeholder="Ej. FHR-00412" className="h-12 border-2" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 3. Acceso App */}
-                  <div className="space-y-6 bg-slate-50 -mx-8 p-8 border-y">
-                    <div className="flex items-center gap-3 border-b pb-2">
-                      <ShieldCheck className="h-5 w-5 text-primary" />
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-widest text-primary">3. Acceso App Fluxion</h3>
-                        <p className="text-[10px] text-slate-500 font-bold mt-0.5">Credenciales para ingresar a la plataforma.</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Email (Usuario de Acceso)</Label>
-                        <Input type="email" value={newCoach.email} onChange={e => setNewCoach({...newCoach, email: e.target.value})} placeholder="usuario@club.com" className="h-12 border-2 bg-white" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Clave Temporal</Label>
-                        <Input type="password" value={newCoach.password} onChange={e => setNewCoach({...newCoach, password: e.target.value})} placeholder="Mínimo 6 caracteres" className="h-12 border-2 bg-white" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 4. Contacto */}
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b pb-2">
-                      <Phone className="h-5 w-5 text-primary" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Datos de Contacto</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Teléfono Personal</Label>
-                        <Input value={newCoach.phone} onChange={e => setNewCoach({...newCoach, phone: e.target.value})} placeholder="+54 9 11..." className="h-12 border-2" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700">Dirección Particular</Label>
-                        <Input value={newCoach.address} onChange={e => setNewCoach({...newCoach, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 5. Salud */}
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b pb-2">
-                      <Stethoscope className="h-5 w-5 text-primary" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">5. Datos de Salud</h3>
-                    </div>
-                    <div className="space-y-2 mb-6">
-                      <Label className="font-bold text-slate-700">Grupo Sanguíneo</Label>
-                      <Select value={newCoach.bloodType} onValueChange={v => setNewCoach({...newCoach, bloodType: v})}>
-                        <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Elegir tipo..." /></SelectTrigger>
-                        <SelectContent>
-                          {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t} className="font-bold">{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-orange-50 p-6 rounded-2xl border border-orange-100">
-                      <div className="space-y-2">
-                        <Label className="font-black text-orange-800 uppercase text-[10px]">Contacto de Emergencia</Label>
-                        <Input value={newCoach.emergencyContact} onChange={e => setNewCoach({...newCoach, emergencyContact: e.target.value})} placeholder="Nombre del familiar" className="bg-white border-2" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-black text-orange-800 uppercase text-[10px]">Teléfono Emergencia</Label>
-                        <Input value={newCoach.emergencyPhone} onChange={e => setNewCoach({...newCoach, emergencyPhone: e.target.value})} placeholder="Número 24hs" className="bg-white border-2" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
-                    <div>
-                      <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
-                      <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
-                    </div>
-                    <Switch checked={newCoach.parkingIncluded} onCheckedChange={v => setNewCoach({...newCoach, parkingIncluded: v})} />
-                  </div>
-                </div>
-              </ScrollArea>
-              <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4 shrink-0">
-                <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
-                <Button onClick={handleCreateCoach} disabled={loading || !newCoach.firstName || !newCoach.lastName || !newCoach.email || newCoach.password.length < 6 || !newCoach.dni} className="flex-1 font-black uppercase text-xs tracking-widest h-14 shadow-xl shadow-primary/20 gap-2">
-                  {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <><ShieldCheck className="h-5 w-5" /> Dar de Alta al Staff</>}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </Link>
+            </Button>
         </header>
 
         <div className="space-y-4">

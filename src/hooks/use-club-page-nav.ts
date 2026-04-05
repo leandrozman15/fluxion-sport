@@ -37,6 +37,7 @@ export function useClubPageNav(clubId: string) {
         { title: "Categorías", href: `/dashboard/clubs/${clubId}/divisions`, icon: Layers },
         { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
         { title: "Tienda Club", href: `/dashboard/clubs/${clubId}/shop`, icon: ShoppingBag },
+        { title: "Tablas/Fixture", href: "/dashboard/standings-fixture", icon: Trophy },
       ];
     }
 
@@ -50,6 +51,7 @@ export function useClubPageNav(clubId: string) {
         { title: "Staff Técnico", href: `/dashboard/clubs/${clubId}/coaches`, icon: UserRound },
         { title: "Tesorería", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
         { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
+        { title: "Tablas/Fixture", href: "/dashboard/standings-fixture", icon: Trophy },
       ];
     }
     return [
@@ -60,6 +62,7 @@ export function useClubPageNav(clubId: string) {
       { title: "Base Jugadores", href: `/dashboard/clubs/${clubId}/players`, icon: Users },
       { title: "Finanzas", href: `/dashboard/clubs/${clubId}/finances`, icon: CreditCard },
       { title: "Mi Carnet", href: "/dashboard/player/id-card", icon: ShieldCheck },
+      { title: "Tablas/Fixture", href: "/dashboard/standings-fixture", icon: Trophy },
     ];
   }, [isCoach, isCoordinator, clubId]);
 
