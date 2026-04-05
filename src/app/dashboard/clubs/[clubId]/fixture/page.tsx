@@ -50,7 +50,7 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
 
   const [createDialog, setCreateDialog] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: "", divisionId: "", selectedTeamIds: [] as string[] });
+  const [createForm, setCreateForm] = useState({ name: "", divisionId: "", selectedTeamIds: [] as string[], vueltas: 1 as 1 | 2 });
   const [createFormTeams, setCreateFormTeams] = useState<any[]>([]);
   const [createLoading, setCreateLoading] = useState(false);
 
@@ -150,6 +150,9 @@ export default function TournamentsPage() {
       const selectedTeams = createFormTeams.filter(t => createForm.selectedTeamIds.includes(t.id));
       const teamNames: Record<string, string> = {};
       selectedTeams.forEach(t => { teamNames[t.id] = t.name; });
+      const n = selectedTeams.length;
+      const roundsPerVuelta = n % 2 === 0 ? n - 1 : n;
+      const matchesPerVuelta = Math.floor(n * (n - 1) / 2);
       const tournament = {
         id: tid,
         name: createForm.name.trim(),
@@ -157,6 +160,9 @@ export default function TournamentsPage() {
         divisionName: div?.name || "",
         teamIds: selectedTeams.map(t => t.id),
         teamNames,
+        vueltas: createForm.vueltas,
+        totalRounds: roundsPerVuelta * createForm.vueltas,
+        totalMatches: matchesPerVuelta * createForm.vueltas,
         createdAt: new Date().toISOString(),
         status: "active",
       };
@@ -175,9 +181,9 @@ export default function TournamentsPage() {
       }));
       setTournaments(prev => [tournament, ...prev]);
       setCreateDialog(false);
-      setCreateForm({ name: "", divisionId: "", selectedTeamIds: [] });
+      setCreateForm({ name: "", divisionId: "", selectedTeamIds: [], vueltas: 1 });
       setCreateFormTeams([]);
-      toast({ title: "Torneo creado", description: `\${tournament.name} · \${selectedTeams.length} equipos` });
+      toast({ title: "Torneo creado", description: `${tournament.name} · ${selectedTeams.length} equipos` });
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Error al crear el torneo" });
@@ -194,7 +200,7 @@ export default function TournamentsPage() {
   };
 
   const handleDeleteTournament = async (tid: string, tname: string) => {
-    if (!confirm(`¿Eliminar el torneo "\${tname}"? Se borrarán sus datos de posiciones.`)) return;
+    if (!confirm(`¿Eliminar el torneo "${tname}"? Se borrarán sus datos de posiciones.`)) return;
     await deleteDoc(doc(db, "clubs", clubId, "tournaments", tid));
     setTournaments(prev => prev.filter(t => t.id !== tid));
     toast({ variant: "destructive", title: "Torneo eliminado", description: tname });
@@ -221,7 +227,7 @@ export default function TournamentsPage() {
         opponentLogo: selectedOpp.logoUrl || "",
         location: newMatch.isHome ? (clubData?.address || "Sede Propia") : (selectedOpp.city || selectedOpp.address || "Sede Rival"),
         address: newMatch.isHome ? (clubData?.address || "") : (selectedOpp.address || ""),
-        title: newMatch.title || `vs \${selectedOpp.name}`,
+        title: newMatch.title || `vs ${selectedOpp.name}`,
         homeTeam: newMatch.isHome ? (clubData?.name || teamName) : selectedOpp.name,
         awayTeam: newMatch.isHome ? selectedOpp.name : (clubData?.name || teamName),
         status: "scheduled",
@@ -231,7 +237,7 @@ export default function TournamentsPage() {
       setAllMatches(prev =>
         [...prev, { ...data, teamName }].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       );
-      toast({ title: "Partido programado", description: `\${data.homeTeam} vs \${data.awayTeam}` });
+      toast({ title: "Partido programado", description: `${data.homeTeam} vs ${data.awayTeam}` });
       setMatchDialog(false);
       setNewMatch({ ...MATCH_INITIAL });
     } catch (e) {
@@ -825,7 +831,7 @@ export default function TournamentsPage() {
 
       {/* CREATE TOURNAMENT DIALOG */}
       <Dialog open={createDialog} onOpenChange={open => {
-        if (!open) { setCreateDialog(false); setCreateForm({ name: "", divisionId: "", selectedTeamIds: [] }); setCreateFormTeams([]); }
+        if (!open) { setCreateDialog(false); setCreateForm({ name: "", divisionId: "", selectedTeamIds: [], vueltas: 1 }); setCreateFormTeams([]); }
       }}>
         <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
           <DialogHeader>
@@ -857,6 +863,38 @@ export default function TournamentsPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            {/* Modalidad: vueltas */}
+            <div className="space-y-2">
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Modalidad</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCreateForm(prev => ({ ...prev, vueltas: 1 }))}
+                  className={cn(
+                    "h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 font-black text-xs uppercase tracking-widest transition-all",
+                    createForm.vueltas === 1
+                      ? "bg-primary text-white border-primary shadow-lg"
+                      : "border-slate-200 text-slate-400 hover:border-primary/40"
+                  )}
+                >
+                  <span>1 Vuelta</span>
+                  <span className={cn("text-[9px] font-bold normal-case tracking-normal", createForm.vueltas === 1 ? "text-white/70" : "text-slate-300")}>ida solamente</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateForm(prev => ({ ...prev, vueltas: 2 }))}
+                  className={cn(
+                    "h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 font-black text-xs uppercase tracking-widest transition-all",
+                    createForm.vueltas === 2
+                      ? "bg-primary text-white border-primary shadow-lg"
+                      : "border-slate-200 text-slate-400 hover:border-primary/40"
+                  )}
+                >
+                  <span>2 Vueltas</span>
+                  <span className={cn("text-[9px] font-bold normal-case tracking-normal", createForm.vueltas === 2 ? "text-white/70" : "text-slate-300")}>ida y vuelta</span>
+                </button>
+              </div>
             </div>
             {createForm.divisionId && (
               <div className="space-y-3">
@@ -906,10 +944,36 @@ export default function TournamentsPage() {
                     })}
                   </div>
                 )}
-                {createForm.selectedTeamIds.length > 0 && (
-                  <p className="text-[10px] font-black text-primary uppercase tracking-widest text-right">
-                    {createForm.selectedTeamIds.length} equipo{createForm.selectedTeamIds.length !== 1 ? "s" : ""} seleccionado{createForm.selectedTeamIds.length !== 1 ? "s" : ""}
-                  </p>
+                {createForm.selectedTeamIds.length >= 2 && (() => {
+                  const n = createForm.selectedTeamIds.length;
+                  const rounds = (n % 2 === 0 ? n - 1 : n) * createForm.vueltas;
+                  const matches = Math.floor(n * (n - 1) / 2) * createForm.vueltas;
+                  return (
+                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-around gap-2 mt-1">
+                      <div className="text-center">
+                        <p className="text-2xl font-black text-primary">{n}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Equipos</p>
+                      </div>
+                      <div className="h-8 w-px bg-slate-200" />
+                      <div className="text-center">
+                        <p className="text-2xl font-black text-primary">{rounds}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fechas</p>
+                      </div>
+                      <div className="h-8 w-px bg-slate-200" />
+                      <div className="text-center">
+                        <p className="text-2xl font-black text-primary">{matches}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Partidos</p>
+                      </div>
+                      <div className="h-8 w-px bg-slate-200" />
+                      <div className="text-center">
+                        <p className="text-2xl font-black text-primary">{createForm.vueltas}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{createForm.vueltas === 1 ? "Vuelta" : "Vueltas"}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+                {createForm.selectedTeamIds.length === 1 && (
+                  <p className="text-[10px] font-bold text-slate-400 text-center">Seleccioná al menos 2 equipos para calcular el fixture.</p>
                 )}
               </div>
             )}
