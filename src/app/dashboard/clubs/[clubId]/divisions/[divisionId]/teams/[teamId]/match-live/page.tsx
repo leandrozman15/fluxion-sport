@@ -24,7 +24,10 @@ import {
   HeartPulse,
   UserPlus,
   ArrowLeft,
-  Shield
+  Shield,
+  Pencil,
+  Eraser,
+  Trash2,
 } from "lucide-react";
 import { doc, setDoc, collection, deleteDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
@@ -106,6 +109,13 @@ export default function MatchLiveTrackerPage() {
   
   // HIA Dialog State
   const [medicalModal, setMedicalModal] = useState<{ isOpen: boolean, playerId: string, positionId: string } | null>(null);
+
+  // Pizarra state
+  const [activeTab, setActiveTab] = useState<'campo' | 'pizarra'>('campo');
+  const [drawMode, setDrawMode] = useState<'pen' | 'eraser' | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [penColor, setPenColor] = useState('#3b82f6');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const teamRef = useMemoFirebase(() => 
     doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), 
@@ -249,9 +259,71 @@ export default function MatchLiveTrackerPage() {
     const rect = fieldRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setPositions(prev => prev.map(p => 
+    setPositions(prev => prev.map(p =>
       p.id === draggingPosId ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
     ));
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!draggingPosId || !fieldRef.current) return;
+    const touch = e.touches[0];
+    const rect = fieldRef.current.getBoundingClientRect();
+    const x = ((touch.clientX - rect.left) / rect.width) * 100;
+    const y = ((touch.clientY - rect.top) / rect.height) * 100;
+    setPositions(prev => prev.map(p =>
+      p.id === draggingPosId ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
+    ));
+  };
+
+  const startCanvasDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!drawMode || !canvasRef.current) return;
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    let cx: number, cy: number;
+    if ('touches' in e) {
+      cx = (e.touches[0].clientX - rect.left) * scaleX;
+      cy = (e.touches[0].clientY - rect.top) * scaleY;
+    } else {
+      cx = (e.clientX - rect.left) * scaleX;
+      cy = (e.clientY - rect.top) * scaleY;
+    }
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineWidth = drawMode === 'eraser' ? 20 : 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = penColor;
+    ctx.globalCompositeOperation = drawMode === 'eraser' ? 'destination-out' : 'source-over';
+  };
+
+  const drawOnCanvas = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    let cx: number, cy: number;
+    if ('touches' in e) {
+      cx = (e.touches[0].clientX - rect.left) * scaleX;
+      cy = (e.touches[0].clientY - rect.top) * scaleY;
+    } else {
+      cx = (e.clientX - rect.left) * scaleX;
+      cy = (e.clientY - rect.top) * scaleY;
+    }
+    ctx.lineTo(cx, cy);
+    ctx.stroke();
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   };
 
   const onDragStartPlayer = (e: React.DragEvent, playerId: string) => {
@@ -431,9 +503,9 @@ export default function MatchLiveTrackerPage() {
   if (rosterLoading || teamLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-24 select-none" 
-         onMouseMove={handleMouseMove} 
-         onMouseUp={() => setDragPosId(null)}>
+    <div className="space-y-4 animate-in fade-in duration-500 pb-24 select-none" 
+         onMouseMove={activeTab === 'campo' ? handleMouseMove : undefined} 
+         onMouseUp={() => { setDragPosId(null); setIsDrawing(false); }}>
       
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -455,84 +527,66 @@ export default function MatchLiveTrackerPage() {
         </div>
       </header>
 
-      <Card className="bg-white border-none shadow-2xl overflow-hidden rounded-[2.5rem]">
-        <CardContent className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-            <div className="text-center space-y-3">
-              <Badge className="bg-primary text-white border-none uppercase text-[10px] tracking-widest px-4 py-1.5 rounded-full">Local</Badge>
-              <h2 className="text-2xl font-black truncate text-slate-900 leading-none mt-2">{team?.name || "Mi Equipo"}</h2>
-              <div className="flex items-center justify-center gap-6">
-                <div className="text-7xl font-black tabular-nums text-slate-900 tracking-tighter">{homeScore}</div>
-                <div className="flex flex-col gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => setHomeScore(s => s + 1)} className="h-8 w-8 p-0 text-lg bg-slate-100 hover:bg-primary hover:text-white">+</Button>
-                  <Button variant="secondary" size="sm" onClick={() => setHomeScore(s => Math.max(0, s - 1))} className="h-8 w-8 p-0 text-lg bg-slate-100">-</Button>
+      <Card className="bg-white border-none shadow-xl overflow-hidden rounded-[2rem]">
+        <CardContent className="p-3 md:p-4">
+          <div className="grid grid-cols-3 gap-3 items-center">
+            {/* Home */}
+            <div className="text-center space-y-1">
+              <Badge className="bg-primary text-white border-none uppercase text-[9px] tracking-widest px-3 py-1 rounded-full">Local</Badge>
+              <h2 className="text-sm font-black truncate text-slate-900 leading-none">{team?.name || "Mi Equipo"}</h2>
+              <div className="flex items-center justify-center gap-3">
+                <div className="text-4xl md:text-5xl font-black tabular-nums text-slate-900 tracking-tighter">{homeScore}</div>
+                <div className="flex flex-col gap-1">
+                  <Button variant="secondary" size="sm" onClick={() => setHomeScore(s => s + 1)} className="h-7 w-7 p-0 text-sm bg-slate-100 hover:bg-primary hover:text-white rounded-lg">+</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setHomeScore(s => Math.max(0, s - 1))} className="h-7 w-7 p-0 text-sm bg-slate-100 rounded-lg">-</Button>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-[2rem] border-2 border-slate-100 shadow-inner">
-              <div className="text-5xl font-black font-mono tracking-tighter tabular-nums text-primary">
+            {/* Center: timer */}
+            <div className="flex flex-col items-center justify-center p-2 md:p-3 bg-slate-50 rounded-[1.5rem] border-2 border-slate-100">
+              <div className="text-2xl md:text-3xl font-black font-mono tracking-tighter tabular-nums text-primary">
                 {formatTime(seconds)}
               </div>
-              <div className="mt-3 flex gap-1.5">
-                <Button
-                  size="sm"
-                  variant={matchPhase === 'en_curso' ? 'default' : 'outline'}
-                  className={cn("text-[9px] font-black uppercase tracking-widest rounded-full px-3 h-7", matchPhase === 'en_curso' && "bg-green-500 hover:bg-green-600")}
-                  onClick={() => setMatchPhase('en_curso')}
-                >
-                  En Curso
-                </Button>
-                <Button
-                  size="sm"
-                  variant={matchPhase === 'entretiempo' ? 'default' : 'outline'}
-                  className={cn("text-[9px] font-black uppercase tracking-widest rounded-full px-3 h-7", matchPhase === 'entretiempo' && "bg-yellow-500 hover:bg-yellow-600")}
-                  onClick={() => { setMatchPhase('entretiempo'); setIsActive(false); }}
-                >
-                  Entretiempo
-                </Button>
-                <Button
-                  size="sm"
-                  variant={matchPhase === 'finalizado' ? 'default' : 'outline'}
-                  className={cn("text-[9px] font-black uppercase tracking-widest rounded-full px-3 h-7", matchPhase === 'finalizado' && "bg-red-500 hover:bg-red-600")}
-                  onClick={() => { setMatchPhase('finalizado'); setIsActive(false); }}
-                >
-                  Finalizado
-                </Button>
+              <div className="mt-1.5 flex gap-1 flex-wrap justify-center">
+                <Button size="sm" variant={matchPhase === 'en_curso' ? 'default' : 'outline'} className={cn("text-[7px] font-black uppercase rounded-full px-1.5 h-5", matchPhase === 'en_curso' && "bg-green-500 hover:bg-green-600")} onClick={() => setMatchPhase('en_curso')}>Curso</Button>
+                <Button size="sm" variant={matchPhase === 'entretiempo' ? 'default' : 'outline'} className={cn("text-[7px] font-black uppercase rounded-full px-1.5 h-5", matchPhase === 'entretiempo' && "bg-yellow-500 hover:bg-yellow-600")} onClick={() => { setMatchPhase('entretiempo'); setIsActive(false); }}>ET</Button>
+                <Button size="sm" variant={matchPhase === 'finalizado' ? 'default' : 'outline'} className={cn("text-[7px] font-black uppercase rounded-full px-1.5 h-5", matchPhase === 'finalizado' && "bg-red-500 hover:bg-red-600")} onClick={() => { setMatchPhase('finalizado'); setIsActive(false); }}>Fin</Button>
               </div>
-              <div className="mt-6 flex gap-4">
-                <Button 
-                  size="lg" 
-                  className={cn("rounded-full h-16 w-16 shadow-2xl border-4 border-white transition-all", isActive ? "bg-orange-500 hover:bg-orange-600 scale-110" : "bg-green-500 hover:bg-green-600")}
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  className={cn("rounded-full h-11 w-11 shadow-xl border-4 border-white transition-all", isActive ? "bg-orange-500 hover:bg-orange-600 scale-110" : "bg-green-500 hover:bg-green-600")}
                   onClick={() => setIsActive(!isActive)}
                 >
-                  {isActive ? <Pause className="h-8 w-8 fill-current" /> : <Play className="h-8 w-8 fill-current translate-x-0.5" />}
+                  {isActive ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current translate-x-0.5" />}
                 </Button>
               </div>
             </div>
 
-            <div className="text-center space-y-3">
-              <Badge className="bg-slate-200 text-slate-600 border-none uppercase text-[10px] tracking-widest px-4 py-1.5 rounded-full">Visitante</Badge>
-              <Input 
-                value={opponentName} 
-                onChange={(e) => setOpponentName(e.target.value)} 
-                className="bg-white border-2 text-center text-2xl font-black text-slate-900 focus-visible:ring-primary h-14"
-                placeholder="Nombre Rival..."
+            {/* Away */}
+            <div className="text-center space-y-1">
+              <Badge className="bg-slate-200 text-slate-600 border-none uppercase text-[9px] tracking-widest px-3 py-1 rounded-full">Visitante</Badge>
+              <Input
+                value={opponentName}
+                onChange={(e) => setOpponentName(e.target.value)}
+                className="bg-white border-2 text-center text-sm font-black text-slate-900 focus-visible:ring-primary h-8"
+                placeholder="Rival..."
               />
-              <div className="flex items-center justify-center gap-6 mt-4">
-                <div className="text-7xl font-black tabular-nums text-slate-900 tracking-tighter">{awayScore}</div>
-                <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-center gap-3">
+                <div className="text-4xl md:text-5xl font-black tabular-nums text-slate-900 tracking-tighter">{awayScore}</div>
+                <div className="flex flex-col gap-1">
                   {sport === 'rugby' ? (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 5)} className="px-2 text-[10px] font-black bg-slate-100">+5</Button>
-                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 3)} className="px-2 text-[10px] font-black bg-slate-100">+3</Button>
-                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 2)} className="px-2 text-[10px] font-black bg-slate-100">+2</Button>
-                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => Math.max(0, s - 1))} className="px-2 text-[10px] font-black bg-slate-100">-1</Button>
+                    <div className="grid grid-cols-2 gap-1">
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 5)} className="px-1 text-[9px] font-black bg-slate-100 h-6">+5</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 3)} className="px-1 text-[9px] font-black bg-slate-100 h-6">+3</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 2)} className="px-1 text-[9px] font-black bg-slate-100 h-6">+2</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => Math.max(0, s - 1))} className="px-1 text-[9px] font-black bg-slate-100 h-6">-1</Button>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-2">
-                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 1)} className="h-8 w-8 p-0 text-lg bg-slate-100 hover:bg-primary hover:text-white">+</Button>
-                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => Math.max(0, s - 1))} className="h-8 w-8 p-0 text-lg bg-slate-100">-</Button>
+                    <div className="flex flex-col gap-1">
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => s + 1)} className="h-7 w-7 p-0 text-sm bg-slate-100 hover:bg-primary hover:text-white rounded-lg">+</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setAwayScore(s => Math.max(0, s - 1))} className="h-7 w-7 p-0 text-sm bg-slate-100 rounded-lg">-</Button>
                     </div>
                   )}
                 </div>
@@ -542,39 +596,98 @@ export default function MatchLiveTrackerPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-white/60 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-accent" /> Campo de Juego
-            </h3>
-            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl">
-              <Tabs value={sport} onValueChange={(v: any) => {
-                setSport(v);
-                if (v === 'hockey' && playerCount > 11) setPlayerCount(11);
-              }}>
-                <TabsList className="h-9 bg-white/5 p-1">
-                  <TabsTrigger value="hockey" className="text-[10px] uppercase font-bold text-white data-[state=active]:bg-white data-[state=active]:text-primary">Hockey</TabsTrigger>
-                  <TabsTrigger value="rugby" className="text-[10px] uppercase font-bold text-white data-[state=active]:bg-white data-[state=active]:text-primary">Rugby</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              <div className="h-6 w-px bg-white/10 hidden md:block" />
-              <div className="flex items-center gap-3 pr-2">
-                <Label className="text-[10px] font-black uppercase text-white/60">Plantel:</Label>
-                <Badge className="bg-white text-primary font-black h-6">{playerCount}</Badge>
-                <Slider 
-                  className="w-24 md:w-32"
-                  value={[playerCount]} 
-                  min={5} max={sport === 'rugby' ? 15 : 11} step={1} 
-                  onValueChange={(v) => setPlayerCount(v[0])}
-                />
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-5">
+
+        {/* ── Campo / Pizarra ──────────────────────────────── */}
+        <div className="md:col-span-3 space-y-3">
+          {/* Control bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl">
+            {/* Tab toggle */}
+            <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl">
+              <Button
+                size="sm"
+                variant={activeTab === 'campo' ? 'default' : 'ghost'}
+                className={cn("h-8 px-3 font-black text-[9px] uppercase tracking-widest gap-1.5 rounded-lg", activeTab === 'campo' ? "bg-white text-primary shadow" : "text-white/70 hover:text-white")}
+                onClick={() => setActiveTab('campo')}
+              >
+                <ShieldCheck className="h-3 w-3" /> Campo
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'pizarra' ? 'default' : 'ghost'}
+                className={cn("h-8 px-3 font-black text-[9px] uppercase tracking-widest gap-1.5 rounded-lg", activeTab === 'pizarra' ? "bg-white text-primary shadow" : "text-white/70 hover:text-white")}
+                onClick={() => setActiveTab('pizarra')}
+              >
+                <Pencil className="h-3 w-3" /> Pizarra
+              </Button>
             </div>
+
+            {/* Sport + count (campo mode) */}
+            {activeTab === 'campo' ? (
+              <div className="flex items-center gap-3">
+                <Tabs value={sport} onValueChange={(v: any) => {
+                  setSport(v);
+                  if (v === 'hockey' && playerCount > 11) setPlayerCount(11);
+                }}>
+                  <TabsList className="h-8 bg-white/5 p-1">
+                    <TabsTrigger value="hockey" className="text-[9px] uppercase font-bold text-white data-[state=active]:bg-white data-[state=active]:text-primary px-2">🏑 Hockey</TabsTrigger>
+                    <TabsTrigger value="rugby" className="text-[9px] uppercase font-bold text-white data-[state=active]:bg-white data-[state=active]:text-primary px-2">🏉 Rugby</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-white text-primary font-black h-6 text-[10px]">{playerCount}</Badge>
+                  <Slider className="w-20" value={[playerCount]} min={5} max={sport === 'rugby' ? 15 : 11} step={1} onValueChange={(v) => setPlayerCount(v[0])} />
+                </div>
+              </div>
+            ) : (
+              /* Draw tools (pizarra mode) */
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button
+                  variant={drawMode === 'pen' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setDrawMode(drawMode === 'pen' ? null : 'pen')}
+                  className={cn("h-8 px-3 font-black text-[9px] uppercase gap-1.5 rounded-lg", drawMode === 'pen' ? "bg-white text-primary" : "text-white/70 hover:text-white")}
+                >
+                  <Pencil className="h-3 w-3" /> Dibujar
+                </Button>
+                <Button
+                  variant={drawMode === 'eraser' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setDrawMode(drawMode === 'eraser' ? null : 'eraser')}
+                  className={cn("h-8 px-3 font-black text-[9px] uppercase gap-1.5 rounded-lg", drawMode === 'eraser' ? "bg-white text-primary" : "text-white/70 hover:text-white")}
+                >
+                  <Eraser className="h-3 w-3" /> Borrar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearCanvas}
+                  className="h-8 px-3 font-black text-[9px] uppercase gap-1.5 rounded-lg text-red-300 hover:text-red-200"
+                >
+                  <Trash2 className="h-3 w-3" /> Limpiar
+                </Button>
+                <div className="flex items-center gap-1 px-1">
+                  {['#3b82f6', '#f97316', '#ef4444', '#facc15', '#ffffff'].map(color => (
+                    <button
+                      key={color}
+                      className={cn("h-5 w-5 rounded-full border-2 transition-all", penColor === color && drawMode === 'pen' ? "scale-125 border-white" : "border-transparent opacity-60 hover:opacity-100")}
+                      style={{ backgroundColor: color }}
+                      onClick={() => { setPenColor(color); setDrawMode('pen'); }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          
-          <div 
+
+          {/* Field */}
+          <div
             ref={fieldRef}
-            className="relative w-full aspect-[2/3] max-w-lg mx-auto bg-[#244d1f] rounded-[2.5rem] border-[10px] border-white shadow-[0_30px_100px_rgba(0,0,0,0.5)] overflow-hidden cursor-crosshair"
+            className="relative w-full aspect-[2/3] max-w-sm md:max-w-none mx-auto bg-[#244d1f] rounded-[2rem] border-[8px] border-white shadow-[0_20px_80px_rgba(0,0,0,0.4)] overflow-hidden touch-none"
+            onMouseDown={activeTab === 'pizarra' && drawMode ? startCanvasDraw : undefined}
+            onMouseMove={activeTab === 'pizarra' && drawMode ? drawOnCanvas : undefined}
+            onTouchMove={activeTab === 'campo' ? handleTouchMove : (activeTab === 'pizarra' && drawMode ? drawOnCanvas : undefined)}
+            onTouchEnd={() => { setDragPosId(null); setIsDrawing(false); }}
           >
             <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 100 150">
               {sport === 'hockey' ? (
@@ -594,7 +707,19 @@ export default function MatchLiveTrackerPage() {
                 </>
               )}
             </svg>
-            
+
+            {/* Drawing canvas */}
+            <canvas
+              ref={canvasRef}
+              width={500}
+              height={750}
+              className={cn(
+                "absolute inset-0 w-full h-full z-20",
+                activeTab === 'pizarra' && drawMode ? "pointer-events-auto cursor-crosshair" : "pointer-events-none"
+              )}
+            />
+
+            {/* Player positions */}
             {positions.map((p) => {
               const stats = p.assignedPlayerId ? playerStats[p.assignedPlayerId] : null;
               return (
@@ -602,24 +727,26 @@ export default function MatchLiveTrackerPage() {
                   key={p.id}
                   className={cn(
                     "absolute -translate-x-1/2 -translate-y-1/2 transition-transform duration-75",
-                    draggingPosId === p.id ? "scale-125 z-50" : "z-10"
+                    draggingPosId === p.id ? "scale-125 z-50" : "z-10",
+                    activeTab === 'pizarra' ? "pointer-events-none opacity-30" : ""
                   )}
                   style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                  onMouseDown={() => setDragPosId(p.id)}
+                  onMouseDown={activeTab === 'campo' ? () => setDragPosId(p.id) : undefined}
+                  onTouchStart={activeTab === 'campo' ? (e) => { e.stopPropagation(); setDragPosId(p.id); } : undefined}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => onDropOnSlot(e, p.id)}
                 >
                   <div className="flex flex-col items-center group">
                     <div className="relative">
                       <Avatar className={cn(
-                        "h-16 w-16 border-4 shadow-2xl bg-white transition-all",
+                        "h-10 w-10 md:h-12 md:w-12 border-4 shadow-2xl bg-white transition-all",
                         stats ? "border-primary" : "border-dashed border-white/30 bg-black/10"
                       )}>
                         <AvatarImage src={club?.logoUrl} className="object-contain p-1" />
-                        <AvatarFallback className="text-[10px] font-black opacity-50 bg-slate-100 text-slate-900">{p.label}</AvatarFallback>
+                        <AvatarFallback className="text-[9px] font-black opacity-50 bg-slate-100 text-slate-900">{p.label}</AvatarFallback>
                       </Avatar>
                       {stats && (
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleUnassign(p.id); }}
                           className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity"
                         >
@@ -627,30 +754,30 @@ export default function MatchLiveTrackerPage() {
                         </button>
                       )}
                       {stats && (
-                        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 z-50 bg-white p-2 rounded-2xl shadow-2xl border border-slate-100">
+                        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 z-50 bg-white p-1.5 rounded-2xl shadow-2xl border border-slate-100">
                           {sport === 'hockey' ? (
-                            <Button size="icon" className="h-9 w-9 rounded-xl bg-primary text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'goal'); }}>⚽</Button>
+                            <Button size="icon" className="h-8 w-8 rounded-xl bg-primary text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'goal'); }}>⚽</Button>
                           ) : (
                             <>
-                              <Button size="icon" className="h-9 w-9 rounded-xl bg-orange-600 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'try'); }}>🏉</Button>
-                              <Button size="icon" className="h-9 w-9 rounded-xl bg-blue-600 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'conversion'); }}>🎯</Button>
-                              <Button size="icon" className="h-9 w-9 rounded-xl bg-green-600 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'penalty'); }}>👟</Button>
-                              <Button size="icon" className="h-9 w-9 rounded-xl bg-red-500 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); setMedicalModal({ isOpen: true, playerId: stats.playerId, positionId: p.id }); }}>
+                              <Button size="icon" className="h-8 w-8 rounded-xl bg-orange-600 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'try'); }}>🏉</Button>
+                              <Button size="icon" className="h-8 w-8 rounded-xl bg-blue-600 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'conversion'); }}>🎯</Button>
+                              <Button size="icon" className="h-8 w-8 rounded-xl bg-green-600 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'penalty'); }}>👟</Button>
+                              <Button size="icon" className="h-8 w-8 rounded-xl bg-red-500 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); setMedicalModal({ isOpen: true, playerId: stats.playerId, positionId: p.id }); }}>
                                 <Stethoscope className="h-4 w-4" />
                               </Button>
                             </>
                           )}
-                          <Button size="icon" className="h-9 w-9 rounded-xl bg-yellow-500 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'yellow'); }}>🟨</Button>
-                          <Button size="icon" className="h-9 w-9 rounded-xl bg-red-600 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'red'); }}>🟥</Button>
+                          <Button size="icon" className="h-8 w-8 rounded-xl bg-yellow-500 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'yellow'); }}>🟨</Button>
+                          <Button size="icon" className="h-8 w-8 rounded-xl bg-red-600 text-white shadow-lg" onClick={(e) => { e.stopPropagation(); handleEvent(stats.playerId, 'red'); }}>🟥</Button>
                         </div>
                       )}
                     </div>
                     {stats && (
-                      <div className="mt-2 flex flex-col items-center">
-                        <span className="px-3 py-1 bg-slate-900 rounded-full text-[10px] font-black text-white shadow-xl border border-white/10">
+                      <div className="mt-1 flex flex-col items-center">
+                        <span className="px-2 py-0.5 bg-slate-900 rounded-full text-[9px] font-black text-white shadow-xl border border-white/10">
                           {stats.playerName.split(' ')[0]}
                         </span>
-                        <span className="text-[9px] font-black text-primary bg-white px-2 rounded-lg mt-1 shadow-md">
+                        <span className="text-[8px] font-black text-primary bg-white px-1.5 rounded-lg mt-0.5 shadow-md">
                           {formatTime(stats.timePlayed)}
                         </span>
                       </div>
@@ -662,58 +789,58 @@ export default function MatchLiveTrackerPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-4 flex flex-col gap-6">
+        {/* ── Banco + Acta ─────────────────────────────────── */}
+        <div className="md:col-span-2 flex flex-col gap-4">
           <Card className="flex-1 flex flex-col border-none shadow-2xl bg-white/95 backdrop-blur-md rounded-[2rem] overflow-hidden">
-            <CardHeader className="bg-slate-50/50 pb-4 border-b border-slate-100">
-              <CardTitle className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 text-slate-500">
+            <CardHeader className="bg-slate-50/50 py-3 px-5 border-b border-slate-100">
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-slate-500">
                 <Users className="h-4 w-4 text-primary" /> Banco de Suplentes
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-hidden">
-              <ScrollArea className="h-[500px]">
-                <div className="p-5 space-y-3">
+              <ScrollArea className="h-[320px] md:h-[400px]">
+                <div className="p-3 space-y-2">
                   {roster?.map((p: any) => {
                     const stats = playerStats[p.playerId];
                     const isAssigned = positions.some(pos => pos.assignedPlayerId === p.playerId);
                     const isSuspended = sinBin.some(s => s.playerId === p.playerId);
                     const isMedical = hiaList.some(h => h.playerId === p.playerId);
-                    
                     return (
-                      <div 
-                        key={p.id} 
+                      <div
+                        key={p.id}
                         draggable={!isAssigned && !isSuspended && !isMedical}
                         onDragStart={(e) => onDragStartPlayer(e, p.playerId)}
                         className={cn(
-                          "flex items-center justify-between p-4 rounded-2xl border-2 transition-all group",
-                          isAssigned 
-                            ? "bg-slate-50/50 opacity-40 border-transparent grayscale" 
+                          "flex items-center justify-between p-3 rounded-2xl border-2 transition-all group",
+                          isAssigned
+                            ? "bg-slate-50/50 opacity-40 border-transparent grayscale"
                             : isSuspended || isMedical
                             ? "bg-red-50 border-red-100"
-                            : "bg-white border-slate-100 shadow-lg hover:border-primary hover:-translate-y-0.5 cursor-grab active:cursor-grabbing"
+                            : "bg-white border-slate-100 shadow-md hover:border-primary hover:-translate-y-0.5 cursor-grab active:cursor-grabbing"
                         )}
                       >
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                           <div className="relative">
-                            <Avatar className="h-12 w-12 border-2 border-slate-100 shadow-sm">
+                            <Avatar className="h-10 w-10 border-2 border-slate-100 shadow-sm">
                               <AvatarImage src={club?.logoUrl} className="object-contain p-1" />
                               <AvatarFallback className="font-black text-slate-300">{p.playerName[0]}</AvatarFallback>
                             </Avatar>
                             {isSuspended && (
-                              <div className="absolute -top-1.5 -right-1.5 bg-orange-500 text-white text-[8px] font-black rounded-lg px-1.5 py-0.5 border-2 border-white shadow-lg">BIN</div>
+                              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-[7px] font-black rounded px-1 border border-white shadow">BIN</div>
                             )}
                             {isMedical && (
-                              <div className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[8px] font-black rounded-lg px-1.5 py-0.5 border-2 border-white shadow-lg">MED</div>
+                              <div className="absolute -top-1 -right-1 bg-red-600 text-white text-[7px] font-black rounded px-1 border border-white shadow">MED</div>
                             )}
                           </div>
                           <div className="flex flex-col">
                             <span className="text-sm font-black text-slate-900 leading-none">{p.playerName}</span>
-                            <span className="text-[9px] font-bold text-slate-400 mt-1.5 uppercase tracking-widest">
-                              {isAssigned ? "EN CAMPO" : isSuspended ? "SUSPENDIDA" : isMedical ? "EN REVISIÓN" : `Jugado: ${Math.floor((stats?.timePlayed || 0) / 60)} min`}
+                            <span className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-widest">
+                              {isAssigned ? "EN CAMPO" : isSuspended ? "SUSPENDIDA" : isMedical ? "EN REVISIÓN" : `${Math.floor((stats?.timePlayed || 0) / 60)} min`}
                             </span>
                           </div>
                         </div>
-                        {!isAssigned && !isSuspended && !isMedical && <GripVertical className="h-5 w-5 text-slate-200 group-hover:text-primary transition-colors" />}
-                        {isMedical && <HeartPulse className="h-5 w-5 text-red-500 animate-pulse" />}
+                        {!isAssigned && !isSuspended && !isMedical && <GripVertical className="h-4 w-4 text-slate-200 group-hover:text-primary transition-colors" />}
+                        {isMedical && <HeartPulse className="h-4 w-4 text-red-500 animate-pulse" />}
                       </div>
                     );
                   })}
@@ -723,31 +850,31 @@ export default function MatchLiveTrackerPage() {
           </Card>
 
           <Card className="shadow-2xl border-none bg-white rounded-[2rem] overflow-hidden">
-            <CardHeader className="bg-slate-50 pb-3 border-b pt-6 px-6">
+            <CardHeader className="bg-slate-50 py-3 px-5 border-b">
               <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 text-slate-400">
                 <History className="h-4 w-4 text-primary" /> Acta del Encuentro
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <ScrollArea className="h-[200px]">
-                <div className="p-4 space-y-2">
+              <ScrollArea className="h-[180px]">
+                <div className="p-3 space-y-1.5">
                   {matchEvents.map((ev) => (
-                    <div key={ev.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border-2 border-slate-100 group hover:border-primary/20 transition-all">
-                      <div className="flex items-center gap-3">
-                        <span className="text-base font-black text-primary tabular-nums">{ev.minute}'</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">
-                          {ev.type === 'goal' ? '⚽ GOL' : 
-                           ev.type === 'try' ? '🏉 TRY' : 
-                           ev.type === 'conversion' ? '🎯 CONV' : 
-                           ev.type === 'penalty' ? '👟 PENAL' : 
-                           ev.type === 'yellow' ? '🟨 AMARILLA' : '🟥 ROJA'}
+                    <div key={ev.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border-2 border-slate-100 group hover:border-primary/20 transition-all">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-primary tabular-nums">{ev.minute}'</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-900">
+                          {ev.type === 'goal' ? '⚽ Gol' :
+                           ev.type === 'try' ? '🏉 Try' :
+                           ev.type === 'conversion' ? '🎯 Conv' :
+                           ev.type === 'penalty' ? '👟 Pen' :
+                           ev.type === 'yellow' ? '🟨' : '🟥'}
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-500 truncate max-w-[100px]">{ev.playerName}</span>
+                      <span className="text-[9px] font-bold text-slate-500 truncate max-w-[80px]">{ev.playerName.split(' ')[0]}</span>
                     </div>
                   ))}
                   {matchEvents.length === 0 && (
-                    <div className="text-center py-10 opacity-30 text-[10px] font-black uppercase tracking-widest text-slate-400">Sin incidencias</div>
+                    <div className="text-center py-8 opacity-30 text-[9px] font-black uppercase tracking-widest text-slate-400">Sin incidencias</div>
                   )}
                 </div>
               </ScrollArea>

@@ -44,6 +44,8 @@ const INITIAL_EVENT_STATE = {
   location: "", 
   address: "", 
   opponent: "", 
+  homeTeam: "",
+  awayTeam: "",
   description: "",
   duration: 90,
   objectives: "",
@@ -86,6 +88,8 @@ export default function TeamEventsPage() {
       location: ev.location || "",
       address: ev.address || "",
       opponent: ev.opponent || "",
+      homeTeam: ev.homeTeam || "",
+      awayTeam: ev.awayTeam || "",
       description: ev.description || "",
       duration: ev.duration || 90,
       objectives: ev.objectives || "",
@@ -133,10 +137,14 @@ export default function TeamEventsPage() {
   const getTypeStyle = (type: string) => {
     switch(type) {
       case 'training': return { icon: Activity, color: "bg-primary", label: "ENTRENAMIENTO", border: "border-primary/20", light: "bg-primary/5" };
-      case 'match': return { icon: Trophy, color: "bg-accent", label: "PARTIDO", border: "border-accent/20", light: "bg-accent/5" };
+      case 'match': return { icon: Trophy, color: "bg-accent", label: "PARTIDO OFICIAL", border: "border-accent/20", light: "bg-accent/5" };
+      case 'match_league': return { icon: Trophy, color: "bg-amber-500", label: "PARTIDO DE LIGA", border: "border-amber-200", light: "bg-amber-50" };
+      case 'match_friendly': return { icon: Trophy, color: "bg-sky-500", label: "AMISTOSO", border: "border-sky-200", light: "bg-sky-50" };
       default: return { icon: CalendarIcon, color: "bg-slate-500", label: "EVENTO", border: "border-slate-200", light: "bg-slate-50" };
     }
   };
+
+  const isMatchType = (type: string) => ['match', 'match_league', 'match_friendly'].includes(type);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20">
@@ -203,7 +211,7 @@ export default function TeamEventsPage() {
                   
                   <div className="mt-6">
                     <h3 className="text-3xl font-black text-slate-900 leading-tight group-hover:text-primary transition-colors">{ev.title}</h3>
-                    {ev.type === 'match' && ev.opponent && (
+                    {isMatchType(ev.type) && ev.opponent && (
                       <div className="flex items-center gap-2 mt-3">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent">Rival:</span>
                         <Badge className="bg-accent/10 text-accent hover:bg-accent/15 border-none font-black text-xs px-3">{ev.opponent}</Badge>
@@ -258,7 +266,7 @@ export default function TeamEventsPage() {
                     className="flex items-center justify-between w-full px-8 py-5 group/link"
                   >
                     <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900">
-                      {ev.type === 'training' ? 'Ver Plan y Asistencia' : 'Gestionar Citación y Planilla'}
+                      {ev.type === 'training' ? 'Ver Plan y Asistencia' : isMatchType(ev.type) ? 'Gestionar Citación y Planilla' : 'Ver Detalles'}
                     </span>
                     <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover/link:translate-x-1", style.color)}>
                       <ChevronRight className="h-5 w-5" />
@@ -287,7 +295,9 @@ export default function TeamEventsPage() {
                   <SelectTrigger className="h-12 border-2"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="training">Entrenamiento</SelectItem>
-                    <SelectItem value="match">Partido Oficial / Amistoso</SelectItem>
+                    <SelectItem value="match_league">Partido de Liga</SelectItem>
+                    <SelectItem value="match_friendly">Amistoso</SelectItem>
+                    <SelectItem value="match">Partido Oficial</SelectItem>
                     <SelectItem value="social">Social / Evento</SelectItem>
                   </SelectContent>
                 </Select>
@@ -316,11 +326,21 @@ export default function TeamEventsPage() {
               </div>
             )}
 
-            {eventForm.type === 'match' && (
+            {isMatchType(eventForm.type) && (
               <div className="space-y-4 bg-accent/5 p-6 rounded-2xl border-2 border-accent/20">
                 <div className="space-y-2">
                   <Label className="font-black text-xs uppercase tracking-widest text-accent flex items-center gap-2"><Trophy className="h-3.5 w-3.5" /> Rival (VS)</Label>
                   <Input value={eventForm.opponent} onChange={e => setEventForm({...eventForm, opponent: e.target.value})} placeholder="Ej. C.D. Los Leones" className="h-12 border-2 border-accent/30 font-bold" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="font-black text-xs uppercase tracking-widest text-accent flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Equipo Local</Label>
+                    <Input value={eventForm.homeTeam} onChange={e => setEventForm({...eventForm, homeTeam: e.target.value})} placeholder="Ej. Plantel Principal" className="h-12 border-2 border-accent/30 font-bold" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-black text-xs uppercase tracking-widest text-accent flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Equipo Visitante</Label>
+                    <Input value={eventForm.awayTeam} onChange={e => setEventForm({...eventForm, awayTeam: e.target.value})} placeholder="Ej. Club Rival" className="h-12 border-2 border-accent/30 font-bold" />
+                  </div>
                 </div>
               </div>
             )}

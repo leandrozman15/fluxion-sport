@@ -17,11 +17,15 @@ import {
   MapPin,
   Building2,
   LayoutDashboard,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  BellRing
 } from "lucide-react";
 import Link from "next/link";
 import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, limit, orderBy, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, orderBy, doc, getDoc, updateDoc } from "firebase/firestore";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,6 +33,7 @@ import { SectionNav } from "@/components/layout/section-nav";
 import { LiveMatchesCard } from "@/components/dashboard/live-matches-card";
 import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 import { RecentResultsStrip } from "@/components/dashboard/recent-results-strip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function PlayerDashboardHub() {
   const { firestore, user } = useFirebase();
@@ -37,6 +42,8 @@ export default function PlayerDashboardHub() {
   const [nextEvent, setNextEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rank, setRank] = useState<number | null>(null);
+  const [myCallups, setMyCallups] = useState<any[]>([]);
+  const [rsvpPending, setRsvpPending] = useState<{ callupId: string; status: 'confirmed' | 'unavailable' } | null>(null);
 
   useEffect(() => {
     async function fetchPlayerData() {
@@ -58,6 +65,17 @@ export default function PlayerDashboardHub() {
 
         if (pData) {
           setPlayerInfo(pData);
+
+          // CONVOCATORIAS PUBLICADAS PARA ESTE JUGADOR
+          const playerId = user.uid;
+          const callupsSnap = await getDocs(query(
+            collection(firestore, "match_callups"),
+            where("playerId", "==", playerId),
+            where("published", "==", true)
+          ));
+          if (!callupsSnap.empty) {
+            setMyCallups(callupsSnap.docs.map(d => ({ ...d.data(), id: d.id })));
+          }
 
           // CARGAR CONTEXTO DE EQUIPO Y CLUB
           if (pData.clubId) {
@@ -88,6 +106,14 @@ export default function PlayerDashboardHub() {
     }
     fetchPlayerData();
   }, [user, firestore]);
+
+  const handleRSVP = async () => {
+    if (!firestore || !rsvpPending) return;
+    const { callupId, status: newStatus } = rsvpPending;
+    await updateDoc(doc(firestore, "match_callups", callupId), { status: newStatus });
+    setMyCallups(prev => prev.map(c => c.id === callupId ? { ...c, status: newStatus } : c));
+    setRsvpPending(null);
+  };
 
   const playerNav = [
     { title: "Inicio Hub", href: "/dashboard/player", icon: LayoutDashboard },
@@ -157,6 +183,96 @@ export default function PlayerDashboardHub() {
           teamName={playerInfo.teamName}
         />
         <SpecialEventsFeed clubId={playerInfo.clubId} />
+
+        {myCallups.length > 0 && (
+          <section className="space-y-4">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60 px-1 drop-shadow-md flex items-center gap-2">
+              <BellRing className="h-3.5 w-3.5" /> Mis Convocatorias
+            </h2>
+            <div className="space-y-3">
+              {myCallups.map(callup => (
+                <div key={callup.id} className="bg-white/95 backdrop-blur-md rounded-[2rem] shadow-xl overflow-hidden">
+                  <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-accent/10 p-3 rounded-2xl shrink-0">
+                        <Trophy className="h-6 w-6 text-accent" />
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-accent">Convocatoria</p>
+                        <p className="font-black text-base text-slate-900 leading-tight">{callup.playerName || 'Partido'}</p>
+                        {callup.status === 'confirmed' && (
+                          <span className="text-[10px] font-black uppercase tracking-widest text-green-600 flex items-center gap-1 mt-0.5">
+                            <CheckCircle2 className="h-3 w-3" /> Confirmada
+                          </span>
+                        )}
+                        {callup.status === 'unavailable' && (
+                          <span className="text-[10px] font-black uppercase tracking-widest text-red-500 flex items-center gap-1 mt-0.5">
+                            <XCircle className="h-3 w-3" /> No disponible
+                          </span>
+                        )}
+                        {callup.status === 'pending' && (
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">Pendiente de respuesta</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={() => setRsvpPending({ callupId: callup.id, status: 'confirmed' })}
+                        className={`h-11 px-5 font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all ${
+                          callup.status === 'confirmed'
+                            ? 'bg-green-500 text-white shadow-lg shadow-green-200 scale-105'
+                            : 'bg-green-50 text-green-700 hover:bg-green-500 hover:text-white border border-green-200'
+                        }`}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" /> Asistiré
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setRsvpPending({ callupId: callup.id, status: 'unavailable' })}
+                        className={`h-11 px-5 font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all ${
+                          callup.status === 'unavailable'
+                            ? 'bg-red-500 text-white shadow-lg shadow-red-200 scale-105'
+                            : 'bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200'
+                        }`}
+                      >
+                        <XCircle className="h-4 w-4 mr-1.5" /> No Asistiré
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <AlertDialog open={!!rsvpPending} onOpenChange={open => { if (!open) setRsvpPending(null); }}>
+          <AlertDialogContent className="max-w-sm bg-white border-none shadow-2xl rounded-[2rem]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl font-black text-slate-900 uppercase tracking-tighter">
+                {rsvpPending?.status === 'confirmed' ? '¿Confirmás tu asistencia?' : '¿No podrás asistir?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="font-bold text-slate-500">
+                {rsvpPending?.status === 'confirmed'
+                  ? 'Tu respuesta quedará registrada como Asistiré. Podés cambiarla si es necesario.'
+                  : 'Tu respuesta quedará registrada como No Asistiré. El cuerpo técnico será notificado.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel className="font-bold text-slate-500 rounded-xl">Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleRSVP}
+                className={`font-black uppercase text-[10px] tracking-widest h-12 px-8 rounded-xl ${
+                  rsvpPending?.status === 'confirmed'
+                    ? 'bg-green-500 hover:bg-green-600 text-white'
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
+              >
+                {rsvpPending?.status === 'confirmed' ? 'Sí, Asistiré' : 'Sí, No Asistiré'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <section className="space-y-4">
           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60 px-1 drop-shadow-md">Próximo Compromiso</h2>
