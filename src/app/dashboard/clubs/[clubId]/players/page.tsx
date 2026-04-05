@@ -66,6 +66,173 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+function PlayerFormFields({ values, onChange, divisions }: {
+  values: Record<string, any>;
+  onChange: (updated: Record<string, any>) => void;
+  divisions: any[];
+}) {
+  const set = (field: string, val: any) => onChange({ ...values, [field]: val });
+  return (
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 border-b pb-2">
+          <UserRound className="h-5 w-5 text-primary" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">1. Identidad Personal</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Nombre</Label>
+            <Input value={values.firstName || ""} onChange={e => set("firstName", e.target.value)} placeholder="Ej. Mateo" className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Apellido</Label>
+            <Input value={values.lastName || ""} onChange={e => set("lastName", e.target.value)} placeholder="Ej. González" className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">DNI / Documento</Label>
+            <Input value={values.dni || ""} onChange={e => set("dni", e.target.value)} placeholder="Número sin puntos" className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Fecha de Nacimiento</Label>
+            <Input type="date" value={values.birthDate || ""} onChange={e => set("birthDate", e.target.value)} className="h-12 border-2" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 border-b pb-2">
+          <Mail className="h-5 w-5 text-primary" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Categoría y Contacto</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Categoría / Rama</Label>
+            <Select value={values.divisionId || ""} onValueChange={v => set("divisionId", v)}>
+              <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Asignar Categoría..." /></SelectTrigger>
+              <SelectContent>
+                {divisions?.map(d => (
+                  <SelectItem key={d.id} value={d.id} className="font-bold">{d.name} ({d.sport?.toUpperCase()})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Email Particular</Label>
+            <Input type="email" value={values.email || ""} onChange={e => set("email", e.target.value)} placeholder="mateo@ejemplo.com" className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Teléfono Celular</Label>
+            <Input value={values.phone || ""} onChange={e => set("phone", e.target.value)} placeholder="+54..." className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Dirección Particular</Label>
+            <Input value={values.address || ""} onChange={e => set("address", e.target.value)} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 border-b pb-2">
+          <Stethoscope className="h-5 w-5 text-primary" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">3. Ficha Biométrica y Salud</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700 flex items-center gap-1"><Scale className="h-3 w-3" /> Peso (kg)</Label>
+            <Input type="number" value={values.weight || ""} onChange={e => set("weight", e.target.value)} className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700 flex items-center gap-1"><Ruler className="h-3 w-3" /> Altura (cm)</Label>
+            <Input type="number" value={values.height || ""} onChange={e => set("height", e.target.value)} className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Grupo Sanguíneo</Label>
+            <Select value={values.bloodType || ""} onValueChange={v => set("bloodType", v)}>
+              <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Elegir..." /></SelectTrigger>
+              <SelectContent>
+                {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t} className="font-bold">{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-orange-50 p-6 rounded-2xl border border-orange-100">
+          <div className="space-y-2">
+            <Label className="font-black text-orange-800 uppercase text-[10px]">Contacto de Emergencia</Label>
+            <Input value={values.emergencyContact || ""} onChange={e => set("emergencyContact", e.target.value)} placeholder="Nombre del familiar" className="bg-white border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-black text-orange-800 uppercase text-[10px]">Teléfono Emergencia</Label>
+            <Input value={values.emergencyPhone || ""} onChange={e => set("emergencyPhone", e.target.value)} placeholder="Número 24hs" className="bg-white border-2" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 border-b pb-2">
+          <Layers className="h-5 w-5 text-primary" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Información Técnica</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="font-black text-xs uppercase text-slate-400">Disciplina Principal</Label>
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
+              <span className="font-black text-slate-900">{values.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}</span>
+              <Switch 
+                checked={values.sport === 'rugby'} 
+                onCheckedChange={(v) => set("sport", v ? 'rugby' : 'hockey')} 
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Dorsal / Camiseta</Label>
+            <Input type="number" value={values.jerseyNumber || ""} onChange={e => set("jerseyNumber", e.target.value)} placeholder="N°" className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">Posición Preferida</Label>
+            <Input value={values.position || ""} onChange={e => set("position", e.target.value)} placeholder="Ej. Delantera, Volante..." className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700">URL Foto (Opcional)</Label>
+            <Input value={values.photoUrl || ""} onChange={e => set("photoUrl", e.target.value)} placeholder="https://..." className="h-12 border-2" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 border-b pb-2">
+          <TrendingUp className="h-5 w-5 text-primary" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">5. Historial Deportivo</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700 flex items-center gap-1"><Clock className="h-3 w-3" /> Fecha de ingreso al club</Label>
+            <Input type="date" value={values.joinedDate || ""} onChange={e => set("joinedDate", e.target.value)} className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700 flex items-center gap-1"><Trophy className="h-3 w-3" /> Partidos jugados</Label>
+            <Input type="number" min="0" value={values.matchesPlayed || ""} onChange={e => set("matchesPlayed", e.target.value)} placeholder="0" className="h-12 border-2" />
+          </div>
+          <div className="space-y-2">
+            <Label className="font-bold text-slate-700 flex items-center gap-1"><Activity className="h-3 w-3" /> % Asistencia promedio</Label>
+            <Input type="number" min="0" max="100" value={values.attendanceAvg || ""} onChange={e => set("attendanceAvg", e.target.value)} placeholder="0 – 100" className="h-12 border-2" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="font-bold text-slate-700 flex items-center gap-1"><FileText className="h-3 w-3" /> Notas internas</Label>
+          <Input value={values.notes || ""} onChange={e => set("notes", e.target.value)} placeholder="Observaciones del cuerpo técnico..." className="h-12 border-2" />
+        </div>
+        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
+          <div>
+            <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
+            <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
+          </div>
+          <Switch checked={values.parkingIncluded ?? false} onCheckedChange={v => set("parkingIncluded", v)} />
+        </div>
+      </div>
+    </>
+  );
+}
+
 function formatTimeInClub(dateStr?: string): string {
   if (!dateStr) return "–";
   const joined = new Date(dateStr);
@@ -267,161 +434,7 @@ export default function PlayersPage() {
                 </DialogHeader>
                 <ScrollArea className="flex-1 min-h-0">
                   <div className="p-8 space-y-10">
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 border-b pb-2">
-                        <UserRound className="h-5 w-5 text-primary" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">1. Identidad Personal</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Nombre</Label>
-                          <Input value={newPlayer.firstName} onChange={e => setNewPlayer({...newPlayer, firstName: e.target.value})} placeholder="Ej. Mateo" className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Apellido</Label>
-                          <Input value={newPlayer.lastName} onChange={e => setNewPlayer({...newPlayer, lastName: e.target.value})} placeholder="Ej. González" className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">DNI / Documento</Label>
-                          <Input value={newPlayer.dni} onChange={e => setNewPlayer({...newPlayer, dni: e.target.value})} placeholder="Número sin puntos" className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Fecha de Nacimiento</Label>
-                          <Input type="date" value={newPlayer.birthDate} onChange={e => setNewPlayer({...newPlayer, birthDate: e.target.value})} className="h-12 border-2" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 border-b pb-2">
-                        <Mail className="h-5 w-5 text-primary" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Categoría y Contacto</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Categoría / Rama</Label>
-                          <Select value={newPlayer.divisionId} onValueChange={v => setNewPlayer({...newPlayer, divisionId: v})}>
-                            <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Asignar Categoría..." /></SelectTrigger>
-                            <SelectContent>
-                              {divisions?.map(d => (
-                                <SelectItem key={d.id} value={d.id} className="font-bold">{d.name} ({d.sport?.toUpperCase()})</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Email Particular</Label>
-                          <Input type="email" value={newPlayer.email} onChange={e => setNewPlayer({...newPlayer, email: e.target.value})} placeholder="mateo@ejemplo.com" className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Teléfono Celular</Label>
-                          <Input value={newPlayer.phone} onChange={e => setNewPlayer({...newPlayer, phone: e.target.value})} placeholder="+54..." className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Dirección Particular</Label>
-                          <Input value={newPlayer.address} onChange={e => setNewPlayer({...newPlayer, address: e.target.value})} placeholder="Calle, Nro, Localidad" className="h-12 border-2" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 border-b pb-2">
-                        <Stethoscope className="h-5 w-5 text-primary" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">3. Ficha Biométrica y Salud</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Scale className="h-3 w-3" /> Peso (kg)</Label>
-                          <Input type="number" value={newPlayer.weight} onChange={e => setNewPlayer({...newPlayer, weight: e.target.value})} className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Ruler className="h-3 w-3" /> Altura (cm)</Label>
-                          <Input type="number" value={newPlayer.height} onChange={e => setNewPlayer({...newPlayer, height: e.target.value})} className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Grupo Sanguíneo</Label>
-                          <Select value={newPlayer.bloodType} onValueChange={v => setNewPlayer({...newPlayer, bloodType: v})}>
-                            <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Elegir..." /></SelectTrigger>
-                            <SelectContent>
-                              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t} className="font-bold">{t}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-orange-50 p-6 rounded-2xl border border-orange-100">
-                        <div className="space-y-2">
-                          <Label className="font-black text-orange-800 uppercase text-[10px]">Contacto de Emergencia</Label>
-                          <Input value={newPlayer.emergencyContact} onChange={e => setNewPlayer({...newPlayer, emergencyContact: e.target.value})} placeholder="Nombre del familiar" className="bg-white border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-black text-orange-800 uppercase text-[10px]">Teléfono Emergencia</Label>
-                          <Input value={newPlayer.emergencyPhone} onChange={e => setNewPlayer({...newPlayer, emergencyPhone: e.target.value})} placeholder="Número 24hs" className="bg-white border-2" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 border-b pb-2">
-                        <Layers className="h-5 w-5 text-primary" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Información Técnica</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label className="font-black text-xs uppercase text-slate-400">Disciplina Principal</Label>
-                          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
-                            <span className="font-black text-slate-900">{newPlayer.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}</span>
-                            <Switch 
-                              checked={newPlayer.sport === 'rugby'} 
-                              onCheckedChange={(v) => setNewPlayer({...newPlayer, sport: v ? 'rugby' : 'hockey'})} 
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Dorsal / Camiseta</Label>
-                          <Input type="number" value={newPlayer.jerseyNumber} onChange={e => setNewPlayer({...newPlayer, jerseyNumber: e.target.value})} placeholder="N°" className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">Posición Preferida</Label>
-                          <Input value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} placeholder="Ej. Delantera, Volante..." className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700">URL Foto (Opcional)</Label>
-                          <Input value={newPlayer.photoUrl} onChange={e => setNewPlayer({...newPlayer, photoUrl: e.target.value})} placeholder="https://..." className="h-12 border-2" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 border-b pb-2">
-                        <TrendingUp className="h-5 w-5 text-primary" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">5. Historial Deportivo</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Clock className="h-3 w-3" /> Fecha de ingreso al club</Label>
-                          <Input type="date" value={newPlayer.joinedDate} onChange={e => setNewPlayer({...newPlayer, joinedDate: e.target.value})} className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Trophy className="h-3 w-3" /> Partidos jugados</Label>
-                          <Input type="number" min="0" value={newPlayer.matchesPlayed} onChange={e => setNewPlayer({...newPlayer, matchesPlayed: e.target.value})} placeholder="0" className="h-12 border-2" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="font-bold text-slate-700 flex items-center gap-1"><Activity className="h-3 w-3" /> % Asistencia promedio</Label>
-                          <Input type="number" min="0" max="100" value={newPlayer.attendanceAvg} onChange={e => setNewPlayer({...newPlayer, attendanceAvg: e.target.value})} placeholder="0 – 100" className="h-12 border-2" />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="font-bold text-slate-700 flex items-center gap-1"><FileText className="h-3 w-3" /> Notas internas</Label>
-                        <Input value={newPlayer.notes} onChange={e => setNewPlayer({...newPlayer, notes: e.target.value})} placeholder="Observaciones del cuerpo técnico..." className="h-12 border-2" />
-                      </div>
-                      <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
-                        <div>
-                          <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
-                          <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
-                        </div>
-                        <Switch checked={newPlayer.parkingIncluded} onCheckedChange={v => setNewPlayer({...newPlayer, parkingIncluded: v})} />
-                      </div>
-                    </div>
+                    <PlayerFormFields values={newPlayer} onChange={(v) => setNewPlayer(v as typeof newPlayer)} divisions={divisions || []} />
 
                     <div className="space-y-6 bg-slate-50 -mx-8 p-8 border-y">
                       <div className="flex items-center justify-between">
@@ -590,161 +603,7 @@ export default function PlayersPage() {
           </DialogHeader>
           <ScrollArea className="flex-1 min-h-0">
             <div className="p-8 space-y-10">
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b pb-2">
-                  <UserRound className="h-5 w-5 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">1. Identidad Personal</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Nombre</Label>
-                    <Input value={editingPlayer?.firstName || ""} onChange={e => setEditingPlayer({...editingPlayer, firstName: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Apellido</Label>
-                    <Input value={editingPlayer?.lastName || ""} onChange={e => setEditingPlayer({...editingPlayer, lastName: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">DNI / Documento</Label>
-                    <Input value={editingPlayer?.dni || ""} onChange={e => setEditingPlayer({...editingPlayer, dni: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Fecha de Nacimiento</Label>
-                    <Input type="date" value={editingPlayer?.birthDate || ""} onChange={e => setEditingPlayer({...editingPlayer, birthDate: e.target.value})} className="h-12 border-2" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b pb-2">
-                  <Mail className="h-5 w-5 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">2. Categoría y Residencia</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Categoría / Rama</Label>
-                    <Select value={editingPlayer?.divisionId || ""} onValueChange={v => setEditingPlayer({...editingPlayer, divisionId: v})}>
-                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Asignar Categoría..." /></SelectTrigger>
-                      <SelectContent>
-                        {divisions?.map(d => (
-                          <SelectItem key={d.id} value={d.id} className="font-bold">{d.name} ({d.sport?.toUpperCase()})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Email Particular</Label>
-                    <Input type="email" value={editingPlayer?.email || ""} onChange={e => setEditingPlayer({...editingPlayer, email: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Teléfono Celular</Label>
-                    <Input value={editingPlayer?.phone || ""} onChange={e => setEditingPlayer({...editingPlayer, phone: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="col-span-full space-y-2">
-                    <Label className="font-bold text-slate-700">Dirección Particular</Label>
-                    <Input value={editingPlayer?.address || ""} onChange={e => setEditingPlayer({...editingPlayer, address: e.target.value})} className="h-12 border-2" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b pb-2">
-                  <Stethoscope className="h-5 w-5 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">3. Ficha Biométrica y Salud</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700 flex items-center gap-1"><Scale className="h-3 w-3" /> Peso (kg)</Label>
-                    <Input type="number" value={editingPlayer?.weight || ""} onChange={e => setEditingPlayer({...editingPlayer, weight: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700 flex items-center gap-1"><Ruler className="h-3 w-3" /> Altura (cm)</Label>
-                    <Input type="number" value={editingPlayer?.height || ""} onChange={e => setEditingPlayer({...editingPlayer, height: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Grupo Sanguíneo</Label>
-                    <Select value={editingPlayer?.bloodType || ""} onValueChange={v => setEditingPlayer({...editingPlayer, bloodType: v})}>
-                      <SelectTrigger className="h-12 border-2"><SelectValue placeholder="Elegir..." /></SelectTrigger>
-                      <SelectContent>
-                        {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <SelectItem key={t} value={t} className="font-bold">{t}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-orange-50 p-6 rounded-2xl border border-orange-100">
-                  <div className="space-y-2">
-                    <Label className="font-black text-orange-800 uppercase text-[10px]">Contacto de Emergencia</Label>
-                    <Input value={editingPlayer?.emergencyContact || ""} onChange={e => setEditingPlayer({...editingPlayer, emergencyContact: e.target.value})} className="bg-white border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-black text-orange-800 uppercase text-[10px]">Teléfono Emergencia</Label>
-                    <Input value={editingPlayer?.emergencyPhone || ""} onChange={e => setEditingPlayer({...editingPlayer, emergencyPhone: e.target.value})} className="bg-white border-2" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b pb-2">
-                  <Layers className="h-5 w-5 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Información Técnica</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="font-black text-xs uppercase text-slate-400">Disciplina Principal</Label>
-                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border">
-                      <span className="font-black text-slate-900">{editingPlayer?.sport === 'rugby' ? '🏉 RUGBY' : '🏑 HOCKEY'}</span>
-                      <Switch 
-                        checked={editingPlayer?.sport === 'rugby'} 
-                        onCheckedChange={(v) => setEditingPlayer({...editingPlayer, sport: v ? 'rugby' : 'hockey'})} 
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Dorsal / Camiseta</Label>
-                    <Input type="number" value={editingPlayer?.jerseyNumber || ""} onChange={e => setEditingPlayer({...editingPlayer, jerseyNumber: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">Posición Preferida</Label>
-                    <Input value={editingPlayer?.position || ""} onChange={e => setEditingPlayer({...editingPlayer, position: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700">URL Foto</Label>
-                    <Input value={editingPlayer?.photoUrl || ""} onChange={e => setEditingPlayer({...editingPlayer, photoUrl: e.target.value})} className="h-12 border-2" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b pb-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">5. Historial Deportivo</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700 flex items-center gap-1"><Clock className="h-3 w-3" /> Ingreso al club</Label>
-                    <Input type="date" value={editingPlayer?.joinedDate || ""} onChange={e => setEditingPlayer({...editingPlayer, joinedDate: e.target.value})} className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700 flex items-center gap-1"><Trophy className="h-3 w-3" /> Partidos jugados</Label>
-                    <Input type="number" min="0" value={editingPlayer?.matchesPlayed || ""} onChange={e => setEditingPlayer({...editingPlayer, matchesPlayed: e.target.value})} placeholder="0" className="h-12 border-2" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold text-slate-700 flex items-center gap-1"><Activity className="h-3 w-3" /> % Asistencia promedio</Label>
-                    <Input type="number" min="0" max="100" value={editingPlayer?.attendanceAvg || ""} onChange={e => setEditingPlayer({...editingPlayer, attendanceAvg: e.target.value})} placeholder="0 – 100" className="h-12 border-2" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold text-slate-700 flex items-center gap-1"><FileText className="h-3 w-3" /> Notas internas</Label>
-                  <Input value={editingPlayer?.notes || ""} onChange={e => setEditingPlayer({...editingPlayer, notes: e.target.value})} placeholder="Observaciones del cuerpo técnico..." className="h-12 border-2" />
-                </div>
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <div>
-                    <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
-                    <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
-                  </div>
-                  <Switch checked={editingPlayer?.parkingIncluded ?? false} onCheckedChange={v => setEditingPlayer({...editingPlayer, parkingIncluded: v})} />
-                </div>
-              </div>
+              <PlayerFormFields values={editingPlayer || {}} onChange={(v) => setEditingPlayer(v)} divisions={divisions || []} />
             </div>
           </ScrollArea>
           <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row justify-between gap-4 shrink-0">
