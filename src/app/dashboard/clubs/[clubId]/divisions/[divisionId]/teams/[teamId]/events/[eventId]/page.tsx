@@ -100,6 +100,16 @@ export default function EventAttendancePage() {
         role: "convoked", 
         status: "pending",
         published: event?.callupsPublished || false,
+        eventTitle: event?.title || "",
+        eventType: event?.type || "",
+        eventDate: event?.date || "",
+        eventLocation: event?.location || "",
+        eventAddress: event?.address || "",
+        eventOpponent: event?.opponent || "",
+        eventHomeTeam: event?.homeTeam || "",
+        eventAwayTeam: event?.awayTeam || "",
+        eventDepartureTime: event?.departureTime || "",
+        eventJersey: event?.jersey || "",
         createdAt: new Date().toISOString()
       });
       toast({ title: "Jugadora Citada", description: `${player.playerName} añadida a la convocatoria.` });
@@ -114,8 +124,22 @@ export default function EventAttendancePage() {
       callupsPublishedAt: new Date().toISOString()
     });
 
+    // Enrich each callup with event details so players see full info
+    const eventInfo = {
+      published: true,
+      eventTitle: event.title || "",
+      eventType: event.type || "",
+      eventDate: event.date || "",
+      eventLocation: event.location || "",
+      eventAddress: event.address || "",
+      eventOpponent: event.opponent || "",
+      eventHomeTeam: event.homeTeam || "",
+      eventAwayTeam: event.awayTeam || "",
+      eventDepartureTime: event.departureTime || "",
+      eventJersey: event.jersey || "",
+    };
     callups.forEach(c => {
-      updateDocumentNonBlocking(doc(db, "match_callups", c.id), { published: true });
+      updateDocumentNonBlocking(doc(db, "match_callups", c.id), eventInfo);
     });
 
     toast({ 

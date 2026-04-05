@@ -46,6 +46,7 @@ const INITIAL_EVENT_STATE = {
   opponent: "", 
   homeTeam: "",
   awayTeam: "",
+  jersey: "",
   description: "",
   duration: 90,
   objectives: "",
@@ -90,6 +91,7 @@ export default function TeamEventsPage() {
       opponent: ev.opponent || "",
       homeTeam: ev.homeTeam || "",
       awayTeam: ev.awayTeam || "",
+      jersey: ev.jersey || "",
       description: ev.description || "",
       duration: ev.duration || 90,
       objectives: ev.objectives || "",
@@ -341,6 +343,17 @@ export default function TeamEventsPage() {
                     <Label className="font-black text-xs uppercase tracking-widest text-accent flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Equipo Visitante</Label>
                     <Input value={eventForm.awayTeam} onChange={e => setEventForm({...eventForm, awayTeam: e.target.value})} placeholder="Ej. Club Rival" className="h-12 border-2 border-accent/30 font-bold" />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-accent flex items-center gap-2">🎽 Camiseta a llevar</Label>
+                  <Select value={eventForm.jersey || ""} onValueChange={v => setEventForm({...eventForm, jersey: v})}>
+                    <SelectTrigger className="h-12 border-2 border-accent/30 font-bold"><SelectValue placeholder="Seleccionar camiseta..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="titular" className="font-bold">🟢 Titular (principal)</SelectItem>
+                      <SelectItem value="suplente" className="font-bold">🔵 Suplente (alternativa)</SelectItem>
+                      <SelectItem value="ambas" className="font-bold">🟡 Llevar ambas</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}
