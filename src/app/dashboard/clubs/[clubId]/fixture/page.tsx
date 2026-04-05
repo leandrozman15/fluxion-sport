@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,7 +5,7 @@ import { useParams } from "next/navigation";
 import {
   Plus, Loader2, Trash2, ChevronLeft, ChevronRight,
   Trophy, Shield, ExternalLink, Bus, Pencil,
-  Table as TableIcon, CalendarDays, MapPinned,
+  Table as TableIcon, CalendarDays, MapPinned, Users, Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, getDocs, getDoc, deleteDoc, updateDoc } from "firebase/firestore";
@@ -21,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -32,25 +31,30 @@ const MATCH_INITIAL = {
 };
 
 const STANDING_INITIAL = {
-  teamName: "", opponentId: "",
-  played: 0, won: 0, drawn: 0, lost: 0,
-  goalsFor: 0, goalsAgainst: 0, points: 0,
+  teamName: "", opponentId: "", teamId: "", isInternal: false,
+  played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0,
 };
 
-export default function UnifiedFixturePage() {
+export default function TournamentsPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
   const { toast } = useToast();
 
-  const [loading, setLoading] = useState(true);
-  const [matchesLoading, setMatchesLoading] = useState(false);
-  const [standingsLoading, setStandingsLoading] = useState(false);
+  const [view, setView] = useState<"list" | "detail">("list");
+  const [selectedTournament, setSelectedTournament] = useState<any>(null);
 
+  const [loading, setLoading] = useState(true);
   const [clubData, setClubData] = useState<any>(null);
   const [divisions, setDivisions] = useState<any[]>([]);
-  const [selectedDivId, setSelectedDivId] = useState<string>("");
-  const [teamsInDiv, setTeamsInDiv] = useState<any[]>([]);
   const [opponents, setOpponents] = useState<any[]>([]);
+  const [tournaments, setTournaments] = useState<any[]>([]);
+
+  const [createDialog, setCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "", divisionId: "", selectedTeamIds: [] as string[] });
+  const [createFormTeams, setCreateFormTeams] = useState<any[]>([]);
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const [detailLoading, setDetailLoading] = useState(false);
   const [allMatches, setAllMatches] = useState<any[]>([]);
   const [standings, setStandings] = useState<any[]>([]);
 
@@ -61,97 +65,173 @@ export default function UnifiedFixturePage() {
   const [editingStanding, setEditingStanding] = useState<any>(null);
   const [standingForm, setStandingForm] = useState({ ...STANDING_INITIAL });
 
-  // ── Initial load: club, divisions, opponents ──────────────────────────────
   useEffect(() => {
     async function init() {
       if (!db) return;
       try {
-        const clubDoc = await getDoc(doc(db, "clubs", clubId));
+        const [clubDoc, divsSnap, oppsSnap, tournsSnap] = await Promise.all([
+          getDoc(doc(db, "clubs", clubId)),
+          getDocs(collection(db, "clubs", clubId, "divisions")),
+          getDocs(collection(db, "clubs", clubId, "opponents")),
+          getDocs(collection(db, "clubs", clubId, "tournaments")),
+        ]);
         if (clubDoc.exists()) setClubData({ ...clubDoc.data(), id: clubDoc.id });
-
-        const divsSnap = await getDocs(collection(db, "clubs", clubId, "divisions"));
-        const divs = divsSnap.docs.map(d => ({ ...d.data(), id: d.id }))
-          .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
-        setDivisions(divs);
-        if (divs.length > 0) setSelectedDivId(divs[0].id);
-
-        const oppsSnap = await getDocs(collection(db, "clubs", clubId, "opponents"));
-        setOpponents(oppsSnap.docs.map(d => ({ ...d.data(), id: d.id }))
-          .sort((a: any, b: any) => a.name.localeCompare(b.name)));
+        setDivisions(
+          divsSnap.docs.map(d => ({ ...d.data(), id: d.id }))
+            .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""))
+        );
+        setOpponents(
+          oppsSnap.docs.map(d => ({ ...d.data(), id: d.id }))
+            .sort((a: any, b: any) => a.name.localeCompare(b.name))
+        );
+        setTournaments(
+          tournsSnap.docs.map(d => ({ ...d.data(), id: d.id }))
+            .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        );
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     }
     init();
   }, [db, clubId]);
 
-  // ── Per-division load: teams, matches, standings ──────────────────────────
   useEffect(() => {
-    if (!selectedDivId || !db) return;
-    async function loadDivisionData() {
-      setMatchesLoading(true);
-      setStandingsLoading(true);
-      try {
-        const tSnap = await getDocs(collection(db, "clubs", clubId, "divisions", selectedDivId, "teams"));
-        const teams = tSnap.docs.map(d => ({ ...d.data(), id: d.id }));
-        setTeamsInDiv(teams);
+    if (!createForm.divisionId || !db) return;
+    getDocs(collection(db, "clubs", clubId, "divisions", createForm.divisionId, "teams"))
+      .then(snap => {
+        setCreateFormTeams(
+          snap.docs.map(d => ({ ...d.data(), id: d.id }))
+            .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""))
+        );
+        setCreateForm(prev => ({ ...prev, selectedTeamIds: [] }));
+      });
+  }, [db, clubId, createForm.divisionId]);
 
-        const matchTypes = ['match', 'match_league', 'match_friendly'];
-        const matchArrays = await Promise.all(
-          teams.map(async (team: any) => {
-            const evSnap = await getDocs(collection(db, "clubs", clubId, "divisions", selectedDivId, "teams", team.id, "events"));
+  useEffect(() => {
+    if (!selectedTournament || !db || view !== "detail") return;
+    setDetailLoading(true);
+    async function loadDetail() {
+      try {
+        const matchTypes = ["match", "match_league", "match_friendly"];
+        const teamMatches = await Promise.all(
+          (selectedTournament.teamIds || []).map(async (teamId: string) => {
+            const evSnap = await getDocs(
+              collection(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", teamId, "events")
+            );
             return evSnap.docs
-              .map(d => ({ ...d.data(), id: d.id, teamId: team.id, teamName: team.name }))
-              .filter((e: any) => matchTypes.includes(e.type));
+              .map(d => ({ ...d.data(), id: d.id, teamId, teamName: selectedTournament.teamNames?.[teamId] || teamId }))
+              .filter((e: any) => matchTypes.includes(e.type) && e.tournamentId === selectedTournament.id);
           })
         );
         setAllMatches(
-          matchArrays.flat().sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          teamMatches.flat().sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
         );
-        setMatchesLoading(false);
-
-        const stSnap = await getDocs(collection(db, "clubs", clubId, "divisions", selectedDivId, "standings"));
+        const stSnap = await getDocs(
+          collection(db, "clubs", clubId, "tournaments", selectedTournament.id, "standings")
+        );
         setStandings(
           stSnap.docs.map(d => ({ ...d.data(), id: d.id }))
             .sort((a: any, b: any) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst))
         );
-        setStandingsLoading(false);
-      } catch (e) { console.error(e); setMatchesLoading(false); setStandingsLoading(false); }
+      } catch (e) { console.error(e); }
+      finally { setDetailLoading(false); }
     }
-    loadDivisionData();
-  }, [db, clubId, selectedDivId]);
+    loadDetail();
+  }, [db, clubId, selectedTournament?.id, view]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleCreateTournament = async () => {
+    if (!createForm.name.trim() || !createForm.divisionId || createForm.selectedTeamIds.length === 0) {
+      toast({ variant: "destructive", title: "Faltan datos", description: "Completá nombre, categoría y al menos un equipo." });
+      return;
+    }
+    setCreateLoading(true);
+    try {
+      const tid = doc(collection(db, "clubs", clubId, "tournaments")).id;
+      const div = divisions.find(d => d.id === createForm.divisionId);
+      const selectedTeams = createFormTeams.filter(t => createForm.selectedTeamIds.includes(t.id));
+      const teamNames: Record<string, string> = {};
+      selectedTeams.forEach(t => { teamNames[t.id] = t.name; });
+      const tournament = {
+        id: tid,
+        name: createForm.name.trim(),
+        divisionId: createForm.divisionId,
+        divisionName: div?.name || "",
+        teamIds: selectedTeams.map(t => t.id),
+        teamNames,
+        createdAt: new Date().toISOString(),
+        status: "active",
+      };
+      await setDoc(doc(db, "clubs", clubId, "tournaments", tid), tournament);
+      await Promise.all(selectedTeams.map(async (team: any) => {
+        const stId = doc(collection(db, "clubs", clubId, "tournaments", tid, "standings")).id;
+        await setDoc(doc(db, "clubs", clubId, "tournaments", tid, "standings", stId), {
+          id: stId,
+          teamId: team.id,
+          teamName: team.name,
+          teamLogo: team.photoUrl || team.logoUrl || clubData?.logoUrl || "",
+          isInternal: true,
+          played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0,
+          createdAt: new Date().toISOString(),
+        });
+      }));
+      setTournaments(prev => [tournament, ...prev]);
+      setCreateDialog(false);
+      setCreateForm({ name: "", divisionId: "", selectedTeamIds: [] });
+      setCreateFormTeams([]);
+      toast({ title: "Torneo creado", description: `\${tournament.name} · \${selectedTeams.length} equipos` });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al crear el torneo" });
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const openTournament = (t: any) => {
+    setSelectedTournament(t);
+    setAllMatches([]);
+    setStandings([]);
+    setView("detail");
+  };
+
+  const handleDeleteTournament = async (tid: string, tname: string) => {
+    if (!confirm(`¿Eliminar el torneo "\${tname}"? Se borrarán sus datos de posiciones.`)) return;
+    await deleteDoc(doc(db, "clubs", clubId, "tournaments", tid));
+    setTournaments(prev => prev.filter(t => t.id !== tid));
+    toast({ variant: "destructive", title: "Torneo eliminado", description: tname });
+  };
+
   const handleCreateMatch = async () => {
     if (!newMatch.teamId || !newMatch.opponentId || !newMatch.date) {
       toast({ variant: "destructive", title: "Faltan datos", description: "Completá equipo, rival y fecha." });
       return;
     }
-    const selectedTeam = teamsInDiv.find(t => t.id === newMatch.teamId);
+    const teamName = selectedTournament.teamNames?.[newMatch.teamId] || newMatch.teamId;
     const isOwnClub = newMatch.opponentId === "__own_club__";
     const selectedOpp = isOwnClub ? clubData : opponents.find(o => o.id === newMatch.opponentId);
-    if (!selectedTeam || !selectedOpp) return;
-
+    if (!selectedOpp) return;
     try {
-      const matchId = doc(collection(db, "clubs", clubId, "divisions", selectedDivId, "teams", selectedTeam.id, "events")).id;
+      const matchId = doc(collection(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", newMatch.teamId, "events")).id;
       const data: any = {
         ...newMatch,
         id: matchId,
+        tournamentId: selectedTournament.id,
+        tournamentName: selectedTournament.name,
         opponent: selectedOpp.name,
         opponentId: isOwnClub ? clubId : selectedOpp.id,
         opponentLogo: selectedOpp.logoUrl || "",
         location: newMatch.isHome ? (clubData?.address || "Sede Propia") : (selectedOpp.city || selectedOpp.address || "Sede Rival"),
         address: newMatch.isHome ? (clubData?.address || "") : (selectedOpp.address || ""),
-        title: newMatch.title || `vs ${selectedOpp.name}`,
-        homeTeam: newMatch.isHome ? (clubData?.name || selectedTeam.name) : selectedOpp.name,
-        awayTeam: newMatch.isHome ? selectedOpp.name : (clubData?.name || selectedTeam.name),
+        title: newMatch.title || `vs \${selectedOpp.name}`,
+        homeTeam: newMatch.isHome ? (clubData?.name || teamName) : selectedOpp.name,
+        awayTeam: newMatch.isHome ? selectedOpp.name : (clubData?.name || teamName),
         status: "scheduled",
         createdAt: new Date().toISOString(),
       };
-      await setDoc(doc(db, "clubs", clubId, "divisions", selectedDivId, "teams", selectedTeam.id, "events", matchId), data);
+      await setDoc(doc(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", newMatch.teamId, "events", matchId), data);
       setAllMatches(prev =>
-        [...prev, { ...data, teamName: selectedTeam.name }].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        [...prev, { ...data, teamName }].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       );
-      toast({ title: "Partido Programado", description: `${data.homeTeam} vs ${data.awayTeam}` });
+      toast({ title: "Partido programado", description: `\${data.homeTeam} vs \${data.awayTeam}` });
       setMatchDialog(false);
       setNewMatch({ ...MATCH_INITIAL });
     } catch (e) {
@@ -162,7 +242,7 @@ export default function UnifiedFixturePage() {
 
   const handleDeleteMatch = async (match: any) => {
     if (!confirm("¿Eliminar este partido del fixture?")) return;
-    await deleteDoc(doc(db, "clubs", clubId, "divisions", selectedDivId, "teams", match.teamId, "events", match.id));
+    await deleteDoc(doc(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", match.teamId, "events", match.id));
     setAllMatches(prev => prev.filter(m => m.id !== match.id));
     toast({ variant: "destructive", title: "Partido eliminado" });
   };
@@ -170,7 +250,7 @@ export default function UnifiedFixturePage() {
   const handleOpenStandingEdit = (s: any) => {
     setEditingStanding(s);
     setStandingForm({
-      teamName: s.teamName || "", opponentId: s.opponentId || "",
+      teamName: s.teamName || "", opponentId: s.opponentId || "", teamId: s.teamId || "", isInternal: s.isInternal || false,
       played: s.played || 0, won: s.won || 0, drawn: s.drawn || 0, lost: s.lost || 0,
       goalsFor: s.goalsFor || 0, goalsAgainst: s.goalsAgainst || 0, points: s.points || 0,
     });
@@ -180,29 +260,31 @@ export default function UnifiedFixturePage() {
   const handleSaveStanding = async () => {
     let finalName = standingForm.teamName;
     let finalLogo = "";
-    if (standingForm.opponentId) {
+    if (editingStanding?.isInternal) {
+      finalName = editingStanding.teamName;
+      finalLogo = editingStanding.teamLogo || "";
+    } else if (standingForm.opponentId) {
       const opp = opponents.find(o => o.id === standingForm.opponentId);
       if (opp) { finalName = opp.name; finalLogo = opp.logoUrl || ""; }
     }
     if (!finalName) return;
-
     try {
       if (editingStanding) {
         const updated = { ...standingForm, teamName: finalName, teamLogo: finalLogo || editingStanding.teamLogo || "" };
-        await updateDoc(doc(db, "clubs", clubId, "divisions", selectedDivId, "standings", editingStanding.id), updated);
+        await updateDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "standings", editingStanding.id), updated);
         setStandings(prev =>
           prev.map(s => s.id === editingStanding.id ? { ...s, ...updated } : s)
             .sort((a, b) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst))
         );
         toast({ title: "Tabla actualizada", description: finalName });
       } else {
-        const stId = doc(collection(db, "clubs", clubId, "divisions", selectedDivId, "standings")).id;
-        const newSt = { ...standingForm, teamName: finalName, teamLogo: finalLogo, id: stId, createdAt: new Date().toISOString() };
-        await setDoc(doc(db, "clubs", clubId, "divisions", selectedDivId, "standings", stId), newSt);
+        const stId = doc(collection(db, "clubs", clubId, "tournaments", selectedTournament.id, "standings")).id;
+        const newSt = { ...standingForm, teamName: finalName, teamLogo: finalLogo, id: stId, isInternal: false, createdAt: new Date().toISOString() };
+        await setDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "standings", stId), newSt);
         setStandings(prev =>
           [...prev, newSt].sort((a, b) => b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst))
         );
-        toast({ title: "Equipo añadido", description: finalName });
+        toast({ title: "Club añadido", description: finalName });
       }
       setStandingDialog(false);
       setEditingStanding(null);
@@ -213,435 +295,635 @@ export default function UnifiedFixturePage() {
     }
   };
 
-  const handleDeleteStanding = (id: string) => {
-    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "divisions", selectedDivId, "standings", id));
+  const handleDeleteStanding = (id: string, isInternal: boolean) => {
+    if (isInternal && !confirm("Este equipo fue creado automáticamente. ¿Eliminar de la tabla?")) return;
+    deleteDocumentNonBlocking(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "standings", id));
     setStandings(prev => prev.filter(s => s.id !== id));
     toast({ variant: "destructive", title: "Equipo eliminado de la tabla" });
   };
 
   const matchTypeColor = (type: string) =>
-    type === 'match_league' ? 'bg-amber-500' : type === 'match_friendly' ? 'bg-sky-500' : 'bg-primary';
+    type === "match_league" ? "bg-amber-500" : type === "match_friendly" ? "bg-sky-500" : "bg-primary";
   const matchTypeLabel = (type: string) =>
-    type === 'match_league' ? 'Liga' : type === 'match_friendly' ? 'Amistoso' : 'Oficial';
+    type === "match_league" ? "Liga" : type === "match_friendly" ? "Amistoso" : "Oficial";
 
-  const selectedDiv = divisions.find(d => d.id === selectedDivId);
+  const tournamentTeams = selectedTournament
+    ? (selectedTournament.teamIds || []).map((id: string) => ({ id, name: selectedTournament.teamNames?.[id] || id }))
+    : [];
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-screen space-y-4">
       <Loader2 className="animate-spin text-white h-12 w-12" />
-      <p className="text-white font-black uppercase tracking-widest text-[10px]">Cargando Torneo...</p>
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Cargando Torneos...</p>
     </div>
   );
 
+  // ── DETAIL VIEW ────────────────────────────────────────────────────────────
+  if (view === "detail" && selectedTournament) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500 pb-20 px-4 md:px-0">
+        <header className="flex flex-col gap-4">
+          <button
+            onClick={() => { setView("list"); setSelectedTournament(null); }}
+            className="ambient-link group w-fit flex items-center gap-1"
+          >
+            <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver a Torneos
+          </button>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">{selectedTournament.name}</h1>
+                <Badge className="bg-white/20 text-white border-white/30 font-black uppercase text-[9px] tracking-widest">
+                  {selectedTournament.divisionName}
+                </Badge>
+              </div>
+              <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">
+                {selectedTournament.teamIds?.length || 0} equipos · Fixture y tabla de posiciones
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
+                <Link href={"/dashboard/clubs/" + clubId + "/opponents"}><Shield className="h-4 w-4 mr-2" /> Rivales</Link>
+              </Button>
+              <Button
+                className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-8 shadow-2xl"
+                onClick={() => { setNewMatch({ ...MATCH_INITIAL }); setMatchDialog(true); }}
+                disabled={!tournamentTeams.length}
+              >
+                <Plus className="h-5 w-5 mr-2" /> Nuevo Partido
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[9px] font-black uppercase tracking-widest text-white/50">Equipos:</span>
+          {tournamentTeams.map((t: any) => (
+            <Badge key={t.id} className="bg-white/15 text-white border-white/20 font-bold text-[10px]">{t.name}</Badge>
+          ))}
+        </div>
+
+        {detailLoading ? (
+          <div className="flex justify-center py-20"><Loader2 className="animate-spin text-white h-10 w-10" /></div>
+        ) : (
+          <Tabs defaultValue="fixture" className="w-full">
+            <TabsList className="bg-white/15 backdrop-blur-xl p-1 mb-6 border border-white/20 shadow-2xl inline-flex rounded-2xl h-14">
+              <TabsTrigger value="fixture" className="gap-2 h-12 px-8 font-black uppercase text-[10px] tracking-widest text-white data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">
+                <CalendarDays className="h-4 w-4" /> Fixture
+              </TabsTrigger>
+              <TabsTrigger value="standings" className="gap-2 h-12 px-8 font-black uppercase text-[10px] tracking-widest text-white data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">
+                <TableIcon className="h-4 w-4" /> Posiciones
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="fixture" className="animate-in fade-in duration-300">
+              {allMatches.length === 0 ? (
+                <div className="text-center py-32 border-2 border-dashed rounded-[2.5rem] bg-white/5 backdrop-blur-md">
+                  <CalendarDays className="h-16 w-16 mx-auto text-white mb-6 opacity-20" />
+                  <p className="text-white font-black uppercase tracking-[0.3em] text-sm">Sin partidos programados</p>
+                  <p className="text-white/60 text-xs mt-2 font-bold">Usá &quot;Nuevo Partido&quot; para armar el fixture.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {allMatches.map((match: any, idx: number) => {
+                    const date = new Date(match.date);
+                    const prev = allMatches[idx - 1];
+                    const newMonth = !prev || new Date(prev.date).getMonth() !== date.getMonth() || new Date(prev.date).getFullYear() !== date.getFullYear();
+                    return (
+                      <div key={match.id}>
+                        {newMonth && (
+                          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/50 px-1 pt-5 pb-2">
+                            {date.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+                          </p>
+                        )}
+                        <div className="bg-white/95 backdrop-blur-md rounded-[1.5rem] shadow-xl overflow-hidden">
+                          <div className={cn("h-1.5 w-full", matchTypeColor(match.type))} />
+                          <div className="p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              <div className="text-center bg-slate-50 rounded-2xl p-3 w-16 shrink-0 border border-slate-100">
+                                <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">{date.toLocaleDateString("es-AR", { month: "short" })}</p>
+                                <p className="text-2xl font-black text-slate-900 leading-none">{date.getDate()}</p>
+                                <p className="text-[9px] font-black text-primary">{date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}h</p>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                  <Badge className={cn("font-black text-[8px] tracking-widest px-2 py-0.5 border-none text-white", matchTypeColor(match.type))}>
+                                    {matchTypeLabel(match.type)}
+                                  </Badge>
+                                  <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-slate-200 text-slate-400">{match.teamName}</Badge>
+                                  {match.isHome
+                                    ? <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-green-200 text-green-600">Local</Badge>
+                                    : <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-slate-200 text-slate-500">Visitante</Badge>}
+                                </div>
+                                <h3 className="font-black text-base md:text-lg text-slate-900 leading-tight truncate">{match.title || ("vs " + match.opponent)}</h3>
+                                {match.location && (
+                                  <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5 flex-wrap">
+                                    <MapPinned className="h-3 w-3 shrink-0" /> {match.location}
+                                    {match.address && (
+                                      <a href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(match.address)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-0.5 ml-1">
+                                        <ExternalLink className="h-2.5 w-2.5" /> Mapa
+                                      </a>
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                              {match.scoreHome !== undefined && match.scoreAway !== undefined && (
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-3xl font-black text-slate-900 tabular-nums">{match.scoreHome}</span>
+                                  <span className="text-slate-300 font-black text-xl">-</span>
+                                  <span className="text-3xl font-black text-slate-900 tabular-nums">{match.scoreAway}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl text-slate-300 hover:text-destructive hover:bg-red-50" onClick={() => handleDeleteMatch(match)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                              <Button asChild variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl text-slate-300 hover:text-primary hover:bg-primary/5">
+                                <Link href={"/dashboard/clubs/" + clubId + "/divisions/" + selectedTournament.divisionId + "/teams/" + match.teamId + "/events/" + match.id}>
+                                  <ChevronRight className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="standings" className="animate-in fade-in duration-300">
+              <div className="flex justify-end mb-4">
+                <Button
+                  onClick={() => { setEditingStanding(null); setStandingForm({ ...STANDING_INITIAL }); setStandingDialog(true); }}
+                  className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-8 shadow-2xl"
+                >
+                  <Plus className="h-5 w-5 mr-2" /> Agregar Club
+                </Button>
+              </div>
+              <Card className="border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md rounded-[2rem]">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-none bg-slate-50 h-12">
+                        <TableHead className="w-12 text-center font-black uppercase text-[9px] tracking-widest text-slate-400 pl-4">#</TableHead>
+                        <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-400">Club</TableHead>
+                        <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-slate-400">PJ</TableHead>
+                        <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-green-600">G</TableHead>
+                        <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-orange-500">E</TableHead>
+                        <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-red-500">P</TableHead>
+                        <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-slate-400">GF</TableHead>
+                        <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-slate-400">GC</TableHead>
+                        <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-slate-400">DIF</TableHead>
+                        <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-primary">PTS</TableHead>
+                        <TableHead className="w-20 text-right pr-4"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {standings.map((s: any, i: number) => {
+                        const diff = (s.goalsFor || 0) - (s.goalsAgainst || 0);
+                        return (
+                          <TableRow key={s.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors h-16">
+                            <TableCell className="text-center pl-4">
+                              <div className={cn("h-7 w-7 rounded-full flex items-center justify-center mx-auto font-black text-xs",
+                                i === 0 ? "bg-yellow-500 text-white" : i < 4 ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-400"
+                              )}>{i + 1}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8 rounded-lg border bg-white shrink-0">
+                                  <AvatarImage src={s.teamLogo} className="object-contain p-0.5" />
+                                  <AvatarFallback className="bg-slate-50 text-[10px] text-slate-300 font-black">{s.teamName?.[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="font-black text-slate-900 text-sm">{s.teamName}</span>
+                                  {s.isInternal && <span className="text-[8px] font-bold text-primary uppercase tracking-wide">Nuestro equipo</span>}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center font-bold text-slate-500 text-sm">{s.played || 0}</TableCell>
+                            <TableCell className="text-center font-bold text-green-600 text-sm">{s.won || 0}</TableCell>
+                            <TableCell className="text-center font-bold text-orange-500 text-sm">{s.drawn || 0}</TableCell>
+                            <TableCell className="text-center font-bold text-red-500 text-sm">{s.lost || 0}</TableCell>
+                            <TableCell className="text-center font-bold text-slate-500 text-sm">{s.goalsFor || 0}</TableCell>
+                            <TableCell className="text-center font-bold text-slate-500 text-sm">{s.goalsAgainst || 0}</TableCell>
+                            <TableCell className="text-center text-sm">
+                              <span className={cn("font-black", diff > 0 ? "text-green-600" : diff < 0 ? "text-red-500" : "text-slate-400")}>
+                                {diff > 0 ? ("+" + diff) : diff}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge className="bg-primary text-white font-black text-base px-3 border-none shadow-sm min-w-[2.5rem] justify-center">{s.points || 0}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right pr-4">
+                              <div className="flex items-center gap-1 justify-end">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/5" onClick={() => handleOpenStandingEdit(s)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-slate-300 hover:text-destructive hover:bg-red-50" onClick={() => handleDeleteStanding(s.id, s.isInternal)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {standings.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={11} className="text-center py-28 text-slate-300 font-black uppercase tracking-widest text-xs">
+                            Sin equipos en la tabla
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {/* MATCH DIALOG */}
+        <Dialog open={matchDialog} onOpenChange={setMatchDialog}>
+          <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black text-slate-900">Programar Encuentro</DialogTitle>
+              <DialogDescription className="font-bold text-slate-500">
+                Partido para el torneo <span className="text-primary">{selectedTournament.name}</span>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-5 py-4 max-h-[65vh] overflow-y-auto pr-1">
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Tipo de Partido</Label>
+                <Select value={newMatch.type} onValueChange={v => setNewMatch({ ...newMatch, type: v })}>
+                  <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="match_league" className="font-bold">Partido de Liga</SelectItem>
+                    <SelectItem value="match_friendly" className="font-bold">Amistoso</SelectItem>
+                    <SelectItem value="match" className="font-bold">Partido Oficial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Condición</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setNewMatch({ ...newMatch, isHome: true })}
+                    className={cn("h-12 rounded-xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
+                      newMatch.isHome ? "bg-primary text-white border-primary shadow-lg" : "border-slate-200 text-slate-400 hover:border-primary/40")}>
+                    Local
+                  </button>
+                  <button type="button" onClick={() => setNewMatch({ ...newMatch, isHome: false })}
+                    className={cn("h-12 rounded-xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
+                      !newMatch.isHome ? "bg-slate-800 text-white border-slate-800 shadow-lg" : "border-slate-200 text-slate-400 hover:border-slate-400")}>
+                    Visitante
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Equipo (del torneo)</Label>
+                <Select value={newMatch.teamId} onValueChange={v => setNewMatch({ ...newMatch, teamId: v })}>
+                  <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar equipo..." /></SelectTrigger>
+                  <SelectContent>
+                    {tournamentTeams.map((t: any) => (
+                      <SelectItem key={t.id} value={t.id} className="font-bold">{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival</Label>
+                <Select value={newMatch.opponentId} onValueChange={v => setNewMatch({ ...newMatch, opponentId: v })}>
+                  <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir rival..." /></SelectTrigger>
+                  <SelectContent>
+                    {clubData && (
+                      <SelectItem value="__own_club__" className="font-bold">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={clubData.logoUrl} className="object-contain" /><AvatarFallback className="text-[8px]">H</AvatarFallback></Avatar>
+                          {clubData.name}
+                        </div>
+                      </SelectItem>
+                    )}
+                    {opponents.map(o => (
+                      <SelectItem key={o.id} value={o.id} className="font-bold">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={o.logoUrl} className="object-contain" /></Avatar>
+                          {o.name}{o.city ? (" · " + o.city) : ""}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {opponents.length === 0 && (
+                  <p className="text-[10px] text-destructive font-black uppercase">
+                    Debés cargar rivales primero.{" "}
+                    <Link href={"/dashboard/clubs/" + clubId + "/opponents"} className="underline">Ir a Rivales</Link>
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Fecha y Hora</Label>
+                <Input type="datetime-local" value={newMatch.date} onChange={e => setNewMatch({ ...newMatch, date: e.target.value })} className="h-12 border-2 font-bold" />
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <Bus className="h-3.5 w-3.5" /> Salida del Micro <span className="text-slate-300 normal-case font-medium">(opcional)</span>
+                </Label>
+                <Input type="time" value={newMatch.departureTime} onChange={e => setNewMatch({ ...newMatch, departureTime: e.target.value })} className="h-12 border-2 font-bold" />
+              </div>
+            </div>
+            <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t gap-2">
+              <Button variant="ghost" onClick={() => setMatchDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
+              <Button onClick={handleCreateMatch} disabled={!newMatch.teamId || !newMatch.opponentId || !newMatch.date} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
+                Confirmar en Fixture
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* STANDING DIALOG */}
+        <Dialog open={standingDialog} onOpenChange={open => { if (!open) { setStandingDialog(false); setEditingStanding(null); } }}>
+          <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black text-slate-900">
+                {editingStanding ? ("Editar: " + editingStanding.teamName) : "Agregar Club a Tabla"}
+              </DialogTitle>
+              <DialogDescription className="font-bold text-slate-500">
+                {editingStanding?.isInternal ? "Editá las estadísticas del equipo." : "Seleccioná un club rival para vincular su escudo."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-5 py-4 max-h-[65vh] overflow-y-auto pr-1">
+              {editingStanding?.isInternal ? (
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-3">
+                  <p className="font-black text-sm text-primary">{editingStanding.teamName}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Equipo interno del torneo. Solo editás estadísticas.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club (Base de Rivales)</Label>
+                    <Select value={standingForm.opponentId} onValueChange={v => setStandingForm({ ...standingForm, opponentId: v })}>
+                      <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir club..." /></SelectTrigger>
+                      <SelectContent>
+                        {opponents.map(o => (
+                          <SelectItem key={o.id} value={o.id} className="font-bold">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={o.logoUrl} className="object-contain" /></Avatar>
+                              {o.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="relative py-1">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                    <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-2 text-slate-400 font-black">O nombre manual</span></div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Club</Label>
+                    <Input value={standingForm.teamName} onChange={e => setStandingForm({ ...standingForm, teamName: e.target.value })} placeholder="Ej. Lomas Athletic..." className="h-12 border-2 font-bold" />
+                  </div>
+                </>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">PJ</Label>
+                  <Input type="number" min={0} value={standingForm.played} onChange={e => setStandingForm({ ...standingForm, played: +e.target.value || 0 })} className="h-11 border-2 text-center font-bold" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="font-black text-xs uppercase tracking-widest text-primary">PTS</Label>
+                  <Input type="number" min={0} value={standingForm.points} onChange={e => setStandingForm({ ...standingForm, points: +e.target.value || 0 })} className="h-11 border-2 text-center font-black bg-primary/5 border-primary/30" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[{ key: "won", label: "G", color: "text-green-600" }, { key: "drawn", label: "E", color: "text-orange-500" }, { key: "lost", label: "P", color: "text-red-500" }].map(({ key, label, color }) => (
+                  <div key={key} className="space-y-1">
+                    <Label className={cn("font-black text-xs uppercase tracking-widest", color)}>{label}</Label>
+                    <Input type="number" min={0} value={(standingForm as any)[key]} onChange={e => setStandingForm({ ...standingForm, [key]: +e.target.value || 0 })} className="h-10 border-2 text-center font-bold" />
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">GF</Label>
+                  <Input type="number" min={0} value={standingForm.goalsFor} onChange={e => setStandingForm({ ...standingForm, goalsFor: +e.target.value || 0 })} className="h-10 border-2 text-center font-bold" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">GC</Label>
+                  <Input type="number" min={0} value={standingForm.goalsAgainst} onChange={e => setStandingForm({ ...standingForm, goalsAgainst: +e.target.value || 0 })} className="h-10 border-2 text-center font-bold" />
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t gap-2">
+              <Button variant="ghost" onClick={() => setStandingDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
+              <Button
+                onClick={handleSaveStanding}
+                disabled={!editingStanding?.isInternal && !standingForm.teamName && !standingForm.opponentId}
+                className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20"
+              >
+                {editingStanding ? "Guardar Cambios" : "Agregar a Tabla"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // ── LIST VIEW ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20 px-4 md:px-0">
-      {/* ── Header ── */}
       <header className="flex flex-col gap-4">
         <Link href="/dashboard/coordinator" className="ambient-link group w-fit">
           <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Volver al dashboard
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Torneo & Fixture</h1>
+            <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Torneos</h1>
             <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">
-              {selectedDiv?.name ? `${selectedDiv.name} · ` : ""}Fixture, posiciones y programación de partidos.
+              Creá torneos, armá el fixture y gestioná las posiciones.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
-              <Link href={`/dashboard/clubs/${clubId}/opponents`}><Shield className="h-4 w-4 mr-2" /> Rivales</Link>
-            </Button>
-            <Button
-              className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-8 shadow-2xl"
-              onClick={() => { setNewMatch({ ...MATCH_INITIAL }); setMatchDialog(true); }}
-              disabled={!selectedDivId || teamsInDiv.length === 0}
-            >
-              <Plus className="h-5 w-5 mr-2" /> Nuevo Partido
-            </Button>
-          </div>
+          <Button
+            className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-8 shadow-2xl"
+            onClick={() => setCreateDialog(true)}
+          >
+            <Plus className="h-5 w-5 mr-2" /> Crear Torneo
+          </Button>
         </div>
       </header>
 
-      {/* ── Division Selector ── */}
-      {divisions.length > 0 && (
-        <ScrollArea className="w-full whitespace-nowrap bg-white/10 p-1.5 rounded-2xl border border-white/20 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-black text-white/50 uppercase pl-3 shrink-0">Categoría:</span>
-            {divisions.map((div: any) => (
-              <button
-                key={div.id}
-                onClick={() => setSelectedDivId(div.id)}
-                className={cn(
-                  "h-9 px-5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shrink-0",
-                  selectedDivId === div.id ? "bg-white text-primary shadow-xl" : "text-white hover:bg-white/10"
-                )}
-              >
-                {div.name}
-              </button>
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" className="h-1" />
-        </ScrollArea>
+      {tournaments.length === 0 ? (
+        <div className="text-center py-40 border-2 border-dashed rounded-[2.5rem] bg-white/5 backdrop-blur-md">
+          <Trophy className="h-20 w-20 mx-auto text-white mb-6 opacity-20" />
+          <p className="text-white font-black uppercase tracking-[0.3em] text-sm">Sin torneos creados</p>
+          <p className="text-white/60 text-xs mt-2 font-bold max-w-xs mx-auto">
+            Creá tu primer torneo para organizar el fixture y la tabla de posiciones.
+          </p>
+          <Button
+            className="mt-8 bg-white text-primary hover:bg-slate-50 font-black uppercase text-[10px] tracking-widest h-12 px-8 shadow-2xl"
+            onClick={() => setCreateDialog(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" /> Crear Primer Torneo
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {tournaments.map(t => (
+            <div
+              key={t.id}
+              onClick={() => openTournament(t)}
+              className="group relative bg-white/95 backdrop-blur-md rounded-[2rem] shadow-xl p-6 cursor-pointer hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+            >
+              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary to-primary/50 rounded-t-[2rem]" />
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <Badge className="bg-primary/10 text-primary border-none font-black text-[9px] uppercase tracking-widest">{t.divisionName}</Badge>
+                    <Badge className={cn("border-none font-black text-[9px] uppercase tracking-widest",
+                      t.status === "active" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500")}>
+                      {t.status === "active" ? "Activo" : "Finalizado"}
+                    </Badge>
+                  </div>
+                  <h2 className="text-xl font-black text-slate-900 leading-tight truncate">{t.name}</h2>
+                  <div className="flex items-center gap-3 mt-3 text-slate-400">
+                    <span className="flex items-center gap-1 text-[10px] font-bold">
+                      <Users className="h-3 w-3" /> {t.teamIds?.length || 0} equipos
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] font-bold">
+                      <Calendar className="h-3 w-3" /> {new Date(t.createdAt).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {Object.values(t.teamNames || {}).slice(0, 4).map((name: any) => (
+                      <Badge key={name} variant="outline" className="font-bold text-[9px] border-slate-200 text-slate-400">{name}</Badge>
+                    ))}
+                    {Object.keys(t.teamNames || {}).length > 4 && (
+                      <Badge variant="outline" className="font-bold text-[9px] border-slate-200 text-slate-400">
+                        +{Object.keys(t.teamNames || {}).length - 4}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <Button
+                    variant="ghost" size="sm"
+                    className="h-8 w-8 p-0 rounded-xl text-slate-200 hover:text-destructive hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={e => { e.stopPropagation(); handleDeleteTournament(t.id, t.name); }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-primary transition-colors mt-auto" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      {/* ── Main Tabs ── */}
-      <Tabs defaultValue="fixture" className="w-full">
-        <TabsList className="bg-white/15 backdrop-blur-xl p-1 mb-6 border border-white/20 shadow-2xl inline-flex rounded-2xl h-14">
-          <TabsTrigger value="fixture" className="gap-2 h-12 px-8 font-black uppercase text-[10px] tracking-widest text-white data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">
-            <CalendarDays className="h-4 w-4" /> Fixture
-          </TabsTrigger>
-          <TabsTrigger value="standings" className="gap-2 h-12 px-8 font-black uppercase text-[10px] tracking-widest text-white data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">
-            <TableIcon className="h-4 w-4" /> Posiciones
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ══════════════ FIXTURE TAB ══════════════ */}
-        <TabsContent value="fixture" className="animate-in fade-in duration-300">
-          {matchesLoading ? (
-            <div className="flex justify-center py-20"><Loader2 className="animate-spin text-white h-10 w-10" /></div>
-          ) : allMatches.length === 0 ? (
-            <div className="text-center py-32 border-2 border-dashed rounded-[2.5rem] bg-white/5 backdrop-blur-md">
-              <CalendarDays className="h-16 w-16 mx-auto text-white mb-6 opacity-20" />
-              <p className="text-white font-black uppercase tracking-[0.3em] text-sm">Sin partidos programados</p>
-              <p className="text-white/60 text-xs mt-2 font-bold">Usá "Nuevo Partido" para armar el fixture de {selectedDiv?.name}.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {allMatches.map((match: any, idx: number) => {
-                const date = new Date(match.date);
-                const prev = allMatches[idx - 1];
-                const newMonth = !prev || new Date(prev.date).getMonth() !== date.getMonth() || new Date(prev.date).getFullYear() !== date.getFullYear();
-                return (
-                  <div key={match.id}>
-                    {newMonth && (
-                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/50 px-1 pt-5 pb-2">
-                        {date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
-                      </p>
-                    )}
-                    <div className="bg-white/95 backdrop-blur-md rounded-[1.5rem] shadow-xl overflow-hidden">
-                      <div className={cn("h-1.5 w-full", matchTypeColor(match.type))} />
-                      <div className="p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        {/* Date block */}
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                          <div className="text-center bg-slate-50 rounded-2xl p-3 w-16 shrink-0 border border-slate-100">
-                            <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">{date.toLocaleDateString('es-AR', { month: 'short' })}</p>
-                            <p className="text-2xl font-black text-slate-900 leading-none">{date.getDate()}</p>
-                            <p className="text-[9px] font-black text-primary">{date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}h</p>
-                          </div>
-                          {/* Match info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                              <Badge className={cn("font-black text-[8px] tracking-widest px-2 py-0.5 border-none text-white", matchTypeColor(match.type))}>
-                                {matchTypeLabel(match.type)}
-                              </Badge>
-                              <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-slate-200 text-slate-400">{match.teamName}</Badge>
-                              {match.isHome
-                                ? <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-green-200 text-green-600">🏠 Local</Badge>
-                                : <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-slate-200 text-slate-500">✈️ Visitante</Badge>}
-                            </div>
-                            <h3 className="font-black text-base md:text-lg text-slate-900 leading-tight truncate">{match.title || `vs ${match.opponent}`}</h3>
-                            {match.location && (
-                              <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5 flex-wrap">
-                                <MapPinned className="h-3 w-3 shrink-0" /> {match.location}
-                                {match.address && (
-                                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.address)}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-0.5 ml-1">
-                                    <ExternalLink className="h-2.5 w-2.5" /> Mapa
-                                  </a>
-                                )}
-                              </p>
-                            )}
-                          </div>
-                          {/* Score if recorded */}
-                          {match.scoreHome !== undefined && match.scoreAway !== undefined && (
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-3xl font-black text-slate-900 tabular-nums">{match.scoreHome}</span>
-                              <span className="text-slate-300 font-black text-xl">-</span>
-                              <span className="text-3xl font-black text-slate-900 tabular-nums">{match.scoreAway}</span>
-                            </div>
-                          )}
-                        </div>
-                        {/* Actions */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl text-slate-300 hover:text-destructive hover:bg-red-50" onClick={() => handleDeleteMatch(match)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          <Button asChild variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl text-slate-300 hover:text-primary hover:bg-primary/5">
-                            <Link href={`/dashboard/clubs/${clubId}/divisions/${selectedDivId}/teams/${match.teamId}/events/${match.id}`}>
-                              <ChevronRight className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ══════════════ STANDINGS TAB ══════════════ */}
-        <TabsContent value="standings" className="animate-in fade-in duration-300">
-          <div className="flex justify-end mb-4">
-            <Button
-              onClick={() => { setEditingStanding(null); setStandingForm({ ...STANDING_INITIAL }); setStandingDialog(true); }}
-              className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-8 shadow-2xl"
-            >
-              <Plus className="h-5 w-5 mr-2" /> Agregar Club
-            </Button>
-          </div>
-          <Card className="border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md rounded-[2rem]">
-            {standingsLoading ? (
-              <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary h-10 w-10" /></div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-none bg-slate-50 h-12">
-                      <TableHead className="w-12 text-center font-black uppercase text-[9px] tracking-widest text-slate-400 pl-4">#</TableHead>
-                      <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-400">Club</TableHead>
-                      <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-slate-400">PJ</TableHead>
-                      <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-green-600">G</TableHead>
-                      <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-orange-500">E</TableHead>
-                      <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-red-500">P</TableHead>
-                      <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-slate-400">GF</TableHead>
-                      <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-slate-400">GC</TableHead>
-                      <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-slate-400">DIF</TableHead>
-                      <TableHead className="text-center font-black uppercase text-[9px] tracking-widest text-primary">PTS</TableHead>
-                      <TableHead className="w-20 text-right pr-4"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {standings.map((s: any, i: number) => {
-                      const diff = (s.goalsFor || 0) - (s.goalsAgainst || 0);
-                      return (
-                        <TableRow key={s.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors h-16">
-                          <TableCell className="text-center pl-4">
-                            <div className={cn("h-7 w-7 rounded-full flex items-center justify-center mx-auto font-black text-xs",
-                              i === 0 ? "bg-yellow-500 text-white" : i < 4 ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-400"
-                            )}>{i + 1}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8 rounded-lg border bg-white shrink-0">
-                                <AvatarImage src={s.teamLogo} className="object-contain p-0.5" />
-                                <AvatarFallback className="bg-slate-50 text-[10px] text-slate-300 font-black">{s.teamName?.[0]}</AvatarFallback>
-                              </Avatar>
-                              <span className="font-black text-slate-900 text-sm">{s.teamName}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center font-bold text-slate-500 text-sm">{s.played || 0}</TableCell>
-                          <TableCell className="text-center font-bold text-green-600 text-sm">{s.won || 0}</TableCell>
-                          <TableCell className="text-center font-bold text-orange-500 text-sm">{s.drawn || 0}</TableCell>
-                          <TableCell className="text-center font-bold text-red-500 text-sm">{s.lost || 0}</TableCell>
-                          <TableCell className="text-center font-bold text-slate-500 text-sm">{s.goalsFor || 0}</TableCell>
-                          <TableCell className="text-center font-bold text-slate-500 text-sm">{s.goalsAgainst || 0}</TableCell>
-                          <TableCell className="text-center text-sm">
-                            <span className={cn("font-black", diff > 0 ? "text-green-600" : diff < 0 ? "text-red-500" : "text-slate-400")}>
-                              {diff > 0 ? `+${diff}` : diff}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge className="bg-primary text-white font-black text-base px-3 border-none shadow-sm min-w-[2.5rem] justify-center">{s.points || 0}</Badge>
-                          </TableCell>
-                          <TableCell className="text-right pr-4">
-                            <div className="flex items-center gap-1 justify-end">
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/5" onClick={() => handleOpenStandingEdit(s)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-slate-300 hover:text-destructive hover:bg-red-50" onClick={() => handleDeleteStanding(s.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {standings.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={11} className="text-center py-28 text-slate-300 font-black uppercase tracking-widest text-xs">
-                          Sin equipos en la tabla de {selectedDiv?.name || "esta categoría"}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* ══════════════ NEW MATCH DIALOG ══════════════ */}
-      <Dialog open={matchDialog} onOpenChange={setMatchDialog}>
+      {/* CREATE TOURNAMENT DIALOG */}
+      <Dialog open={createDialog} onOpenChange={open => {
+        if (!open) { setCreateDialog(false); setCreateForm({ name: "", divisionId: "", selectedTeamIds: [] }); setCreateFormTeams([]); }
+      }}>
         <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black text-slate-900">Programar Encuentro</DialogTitle>
+            <DialogTitle className="text-2xl font-black text-slate-900">Crear Torneo</DialogTitle>
             <DialogDescription className="font-bold text-slate-500">
-              Seleccioná un rival para cargar escudo y sede automáticamente.
+              Definí nombre, categoría y equipos participantes.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-5 py-4 max-h-[65vh] overflow-y-auto pr-1 custom-scrollbar">
-            {/* Match type */}
+          <div className="space-y-5 py-4 max-h-[65vh] overflow-y-auto pr-1">
             <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Tipo de Partido</Label>
-              <Select value={newMatch.type} onValueChange={v => setNewMatch({ ...newMatch, type: v })}>
-                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="match_league" className="font-bold">Partido de Liga</SelectItem>
-                  <SelectItem value="match_friendly" className="font-bold">Amistoso</SelectItem>
-                  <SelectItem value="match" className="font-bold">Partido Oficial</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Torneo</Label>
+              <Input
+                value={createForm.name}
+                onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ej. Torneo Apertura 2026..."
+                className="h-12 border-2 font-bold text-slate-900 placeholder:font-normal"
+              />
             </div>
-            {/* Home / Away */}
             <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Condición</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setNewMatch({ ...newMatch, isHome: true })}
-                  className={cn("h-12 rounded-xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
-                    newMatch.isHome ? "bg-primary text-white border-primary shadow-lg" : "border-slate-200 text-slate-400 hover:border-primary/40")}>
-                  🏠 Local
-                </button>
-                <button type="button" onClick={() => setNewMatch({ ...newMatch, isHome: false })}
-                  className={cn("h-12 rounded-xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
-                    !newMatch.isHome ? "bg-slate-800 text-white border-slate-800 shadow-lg" : "border-slate-200 text-slate-400 hover:border-slate-400")}>
-                  ✈️ Visitante
-                </button>
-              </div>
-            </div>
-            {/* Team */}
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Equipo</Label>
-              <Select value={newMatch.teamId} onValueChange={v => setNewMatch({ ...newMatch, teamId: v })}>
-                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar equipo..." /></SelectTrigger>
+              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Categoría</Label>
+              <Select
+                value={createForm.divisionId}
+                onValueChange={v => setCreateForm(prev => ({ ...prev, divisionId: v, selectedTeamIds: [] }))}
+              >
+                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar categoría..." /></SelectTrigger>
                 <SelectContent>
-                  {teamsInDiv.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id} className="font-bold">{t.name}</SelectItem>
+                  {divisions.map(d => (
+                    <SelectItem key={d.id} value={d.id} className="font-bold">{d.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {/* Opponent */}
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival</Label>
-              <Select value={newMatch.opponentId} onValueChange={v => setNewMatch({ ...newMatch, opponentId: v })}>
-                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir rival..." /></SelectTrigger>
-                <SelectContent>
-                  {clubData && (
-                    <SelectItem value="__own_club__" className="font-bold">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={clubData.logoUrl} className="object-contain" /><AvatarFallback className="text-[8px]">🏠</AvatarFallback></Avatar>
-                        {clubData.name} <span className="text-[9px] text-slate-400 ml-1">(nuestro club)</span>
-                      </div>
-                    </SelectItem>
+            {createForm.divisionId && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Equipos Participantes</Label>
+                  {createFormTeams.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCreateForm(prev => ({
+                        ...prev,
+                        selectedTeamIds: prev.selectedTeamIds.length === createFormTeams.length
+                          ? []
+                          : createFormTeams.map(t => t.id),
+                      }))}
+                      className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
+                    >
+                      {createForm.selectedTeamIds.length === createFormTeams.length ? "Desmarcar todo" : "Marcar todo"}
+                    </button>
                   )}
-                  {opponents.map(o => (
-                    <SelectItem key={o.id} value={o.id} className="font-bold">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={o.logoUrl} className="object-contain" /></Avatar>
-                        {o.name}{o.city ? ` · ${o.city}` : ''}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {opponents.length === 0 && (
-                <p className="text-[10px] text-destructive font-black uppercase">
-                  Debés cargar rivales primero.{" "}
-                  <Link href={`/dashboard/clubs/${clubId}/opponents`} className="underline">Ir a Rivales →</Link>
-                </p>
-              )}
-            </div>
-            {/* Date */}
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Fecha y Hora</Label>
-              <Input type="datetime-local" value={newMatch.date} onChange={e => setNewMatch({ ...newMatch, date: e.target.value })} className="h-12 border-2 font-bold" />
-            </div>
-            {/* Departure */}
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                <Bus className="h-3.5 w-3.5" /> Salida del Micro <span className="text-slate-300 normal-case font-medium">(opcional)</span>
-              </Label>
-              <Input type="time" value={newMatch.departureTime} onChange={e => setNewMatch({ ...newMatch, departureTime: e.target.value })} className="h-12 border-2 font-bold" />
-            </div>
-          </div>
-          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t gap-2">
-            <Button variant="ghost" onClick={() => setMatchDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
-            <Button onClick={handleCreateMatch} disabled={!newMatch.teamId || !newMatch.opponentId || !newMatch.date} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
-              Confirmar en Fixture
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ══════════════ STANDING DIALOG ══════════════ */}
-      <Dialog open={standingDialog} onOpenChange={open => { if (!open) { setStandingDialog(false); setEditingStanding(null); } }}>
-        <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black text-slate-900">
-              {editingStanding ? `Editar: ${editingStanding.teamName}` : "Agregar Club a Tabla"}
-            </DialogTitle>
-            <DialogDescription className="font-bold text-slate-500">Seleccioná un club rival para vincular su escudo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-5 py-4 max-h-[65vh] overflow-y-auto pr-1 custom-scrollbar">
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club (Base de Rivales)</Label>
-              <Select value={standingForm.opponentId} onValueChange={v => setStandingForm({ ...standingForm, opponentId: v })}>
-                <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir club..." /></SelectTrigger>
-                <SelectContent>
-                  {opponents.map(o => (
-                    <SelectItem key={o.id} value={o.id} className="font-bold">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={o.logoUrl} className="object-contain" /></Avatar>
-                        {o.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="relative py-1">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-              <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-2 text-slate-400 font-black">O nombre manual</span></div>
-            </div>
-            <div className="space-y-2">
-              <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Club</Label>
-              <Input value={standingForm.teamName} onChange={e => setStandingForm({ ...standingForm, teamName: e.target.value })} placeholder="Ej. Lomas Athletic..." className="h-12 border-2 font-bold" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">PJ</Label>
-                <Input type="number" value={standingForm.played} onChange={e => setStandingForm({ ...standingForm, played: +e.target.value || 0 })} className="h-11 border-2 text-center font-bold" />
-              </div>
-              <div className="space-y-1">
-                <Label className="font-black text-xs uppercase tracking-widest text-primary">PTS</Label>
-                <Input type="number" value={standingForm.points} onChange={e => setStandingForm({ ...standingForm, points: +e.target.value || 0 })} className="h-11 border-2 text-center font-black bg-primary/5 border-primary/30" />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[{ key: 'won', label: 'G', color: 'text-green-600' }, { key: 'drawn', label: 'E', color: 'text-orange-500' }, { key: 'lost', label: 'P', color: 'text-red-500' }].map(({ key, label, color }) => (
-                <div key={key} className="space-y-1">
-                  <Label className={cn("font-black text-xs uppercase tracking-widest", color)}>{label}</Label>
-                  <Input type="number" value={(standingForm as any)[key]} onChange={e => setStandingForm({ ...standingForm, [key]: +e.target.value || 0 })} className="h-10 border-2 text-center font-bold" />
                 </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">GF</Label>
-                <Input type="number" value={standingForm.goalsFor} onChange={e => setStandingForm({ ...standingForm, goalsFor: +e.target.value || 0 })} className="h-10 border-2 text-center font-bold" />
+                {createFormTeams.length === 0 ? (
+                  <p className="text-[10px] font-bold text-slate-400 text-center py-6 border-2 border-dashed rounded-xl">
+                    No hay equipos en esta categoría.
+                  </p>
+                ) : (
+                  <div className="space-y-2 border-2 border-slate-100 rounded-2xl p-3">
+                    {createFormTeams.map(team => {
+                      const checked = createForm.selectedTeamIds.includes(team.id);
+                      return (
+                        <div
+                          key={team.id}
+                          onClick={() => setCreateForm(prev => ({
+                            ...prev,
+                            selectedTeamIds: checked
+                              ? prev.selectedTeamIds.filter(id => id !== team.id)
+                              : [...prev.selectedTeamIds, team.id],
+                          }))}
+                          className={cn(
+                            "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all select-none",
+                            checked ? "bg-primary/10 border border-primary/30" : "hover:bg-slate-50 border border-transparent"
+                          )}
+                        >
+                          <Checkbox checked={checked} className="pointer-events-none" />
+                          <span className="font-bold text-sm text-slate-700">{team.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {createForm.selectedTeamIds.length > 0 && (
+                  <p className="text-[10px] font-black text-primary uppercase tracking-widest text-right">
+                    {createForm.selectedTeamIds.length} equipo{createForm.selectedTeamIds.length !== 1 ? "s" : ""} seleccionado{createForm.selectedTeamIds.length !== 1 ? "s" : ""}
+                  </p>
+                )}
               </div>
-              <div className="space-y-1">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">GC</Label>
-                <Input type="number" value={standingForm.goalsAgainst} onChange={e => setStandingForm({ ...standingForm, goalsAgainst: +e.target.value || 0 })} className="h-10 border-2 text-center font-bold" />
-              </div>
-            </div>
+            )}
           </div>
           <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t gap-2">
-            <Button variant="ghost" onClick={() => setStandingDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
-            <Button onClick={handleSaveStanding} disabled={!standingForm.teamName && !standingForm.opponentId} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
-              {editingStanding ? "Guardar Cambios" : "Agregar a Tabla"}
+            <Button variant="ghost" onClick={() => setCreateDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
+            <Button
+              onClick={handleCreateTournament}
+              disabled={createLoading || !createForm.name.trim() || !createForm.divisionId || createForm.selectedTeamIds.length === 0}
+              className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20"
+            >
+              {createLoading
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <><Trophy className="h-4 w-4 mr-2" /> Crear Torneo</>}
             </Button>
           </DialogFooter>
         </DialogContent>
