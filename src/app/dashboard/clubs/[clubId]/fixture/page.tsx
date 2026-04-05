@@ -50,9 +50,10 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
 
   const [createDialog, setCreateDialog] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: "", divisionId: "", selectedTeamIds: [] as string[], vueltas: 1 as 1 | 2 });
-  const [createFormTeams, setCreateFormTeams] = useState<any[]>([]);
+  const [createForm, setCreateForm] = useState({ name: "", divisionId: "", participants: [] as { id: string; divLabel: string }[], vueltas: 1 as 1 | 2 });
   const [createLoading, setCreateLoading] = useState(false);
+
+  const [divisionTeams, setDivisionTeams] = useState<any[]>([]);
 
   const [detailLoading, setDetailLoading] = useState(false);
   const [allMatches, setAllMatches] = useState<any[]>([]);
@@ -94,17 +95,7 @@ export default function TournamentsPage() {
     init();
   }, [db, clubId]);
 
-  useEffect(() => {
-    if (!createForm.divisionId || !db) return;
-    getDocs(collection(db, "clubs", clubId, "divisions", createForm.divisionId, "teams"))
-      .then(snap => {
-        setCreateFormTeams(
-          snap.docs.map(d => ({ ...d.data(), id: d.id }))
-            .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""))
-        );
-        setCreateForm(prev => ({ ...prev, selectedTeamIds: [] }));
-      });
-  }, [db, clubId, createForm.divisionId]);
+
 
   useEffect(() => {
     if (!selectedTournament || !db || view !== "detail") return;
@@ -112,13 +103,19 @@ export default function TournamentsPage() {
     async function loadDetail() {
       try {
         const matchTypes = ["match", "match_league", "match_friendly"];
+        const divTeamsSnap = await getDocs(
+          collection(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams")
+        );
+        const divTeams = divTeamsSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+        setDivisionTeams(divTeams.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")));
+
         const teamMatches = await Promise.all(
-          (selectedTournament.teamIds || []).map(async (teamId: string) => {
+          divTeams.map(async (team: any) => {
             const evSnap = await getDocs(
-              collection(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", teamId, "events")
+              collection(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", team.id, "events")
             );
             return evSnap.docs
-              .map(d => ({ ...d.data(), id: d.id, teamId, teamName: selectedTournament.teamNames?.[teamId] || teamId }))
+              .map(d => ({ ...d.data(), id: d.id, teamId: team.id, teamName: (team as any).name || team.id }))
               .filter((e: any) => matchTypes.includes(e.type) && e.tournamentId === selectedTournament.id);
           })
         );
@@ -139,18 +136,23 @@ export default function TournamentsPage() {
   }, [db, clubId, selectedTournament?.id, view]);
 
   const handleCreateTournament = async () => {
-    if (!createForm.name.trim() || !createForm.divisionId || createForm.selectedTeamIds.length === 0) {
-      toast({ variant: "destructive", title: "Faltan datos", description: "Completá nombre, categoría y al menos un equipo." });
+    if (!createForm.name.trim() || !createForm.divisionId || createForm.participants.length < 2) {
+      toast({ variant: "destructive", title: "Faltan datos", description: "Completá nombre, categoría y seleccioná al menos 2 equipos." });
       return;
     }
     setCreateLoading(true);
     try {
       const tid = doc(collection(db, "clubs", clubId, "tournaments")).id;
       const div = divisions.find(d => d.id === createForm.divisionId);
-      const selectedTeams = createFormTeams.filter(t => createForm.selectedTeamIds.includes(t.id));
+      const resolvedParticipants = createForm.participants.map(p => {
+        const opp = opponents.find(o => o.id === p.id);
+        return { id: p.id, divLabel: p.divLabel, name: opp?.name || p.id, logoUrl: opp?.logoUrl || "" };
+      });
       const teamNames: Record<string, string> = {};
-      selectedTeams.forEach(t => { teamNames[t.id] = t.name; });
-      const n = selectedTeams.length;
+      resolvedParticipants.forEach(p => {
+        teamNames[p.id] = p.name + (p.divLabel ? ` · Div. ${p.divLabel}` : "");
+      });
+      const n = resolvedParticipants.length;
       const roundsPerVuelta = n % 2 === 0 ? n - 1 : n;
       const matchesPerVuelta = Math.floor(n * (n - 1) / 2);
       const tournament = {
@@ -158,7 +160,8 @@ export default function TournamentsPage() {
         name: createForm.name.trim(),
         divisionId: createForm.divisionId,
         divisionName: div?.name || "",
-        teamIds: selectedTeams.map(t => t.id),
+        participants: resolvedParticipants,
+        teamIds: resolvedParticipants.map(p => p.id),
         teamNames,
         vueltas: createForm.vueltas,
         totalRounds: roundsPerVuelta * createForm.vueltas,
@@ -167,23 +170,23 @@ export default function TournamentsPage() {
         status: "active",
       };
       await setDoc(doc(db, "clubs", clubId, "tournaments", tid), tournament);
-      await Promise.all(selectedTeams.map(async (team: any) => {
+      await Promise.all(resolvedParticipants.map(async (p) => {
         const stId = doc(collection(db, "clubs", clubId, "tournaments", tid, "standings")).id;
         await setDoc(doc(db, "clubs", clubId, "tournaments", tid, "standings", stId), {
           id: stId,
-          teamId: team.id,
-          teamName: team.name,
-          teamLogo: team.photoUrl || team.logoUrl || clubData?.logoUrl || "",
-          isInternal: true,
+          teamId: p.id,
+          teamName: teamNames[p.id],
+          teamLogo: p.logoUrl,
+          divLabel: p.divLabel,
+          isInternal: false,
           played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0,
           createdAt: new Date().toISOString(),
         });
       }));
       setTournaments(prev => [tournament, ...prev]);
       setCreateDialog(false);
-      setCreateForm({ name: "", divisionId: "", selectedTeamIds: [], vueltas: 1 });
-      setCreateFormTeams([]);
-      toast({ title: "Torneo creado", description: `${tournament.name} · ${selectedTeams.length} equipos` });
+      setCreateForm({ name: "", divisionId: "", participants: [], vueltas: 1 });
+      toast({ title: "Torneo creado", description: `${tournament.name} · ${resolvedParticipants.length} equipos` });
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Error al crear el torneo" });
@@ -313,9 +316,8 @@ export default function TournamentsPage() {
   const matchTypeLabel = (type: string) =>
     type === "match_league" ? "Liga" : type === "match_friendly" ? "Amistoso" : "Oficial";
 
-  const tournamentTeams = selectedTournament
-    ? (selectedTournament.teamIds || []).map((id: string) => ({ id, name: selectedTournament.teamNames?.[id] || id }))
-    : [];
+  const tournamentParticipants = selectedTournament?.participants || [];
+  const tournamentTeams = divisionTeams;
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-screen space-y-4">
@@ -364,8 +366,10 @@ export default function TournamentsPage() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[9px] font-black uppercase tracking-widest text-white/50">Equipos:</span>
-          {tournamentTeams.map((t: any) => (
-            <Badge key={t.id} className="bg-white/15 text-white border-white/20 font-bold text-[10px]">{t.name}</Badge>
+          {tournamentParticipants.map((p: any) => (
+            <Badge key={p.id} className="bg-white/15 text-white border-white/20 font-bold text-[10px]">
+              {p.name}{p.divLabel ? ` · Div. ${p.divLabel}` : ""}
+            </Badge>
           ))}
         </div>
 
@@ -831,7 +835,7 @@ export default function TournamentsPage() {
 
       {/* CREATE TOURNAMENT DIALOG */}
       <Dialog open={createDialog} onOpenChange={open => {
-        if (!open) { setCreateDialog(false); setCreateForm({ name: "", divisionId: "", selectedTeamIds: [], vueltas: 1 }); setCreateFormTeams([]); }
+        if (!open) { setCreateDialog(false); setCreateForm({ name: "", divisionId: "", participants: [], vueltas: 1 }); }
       }}>
         <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
           <DialogHeader>
@@ -896,93 +900,124 @@ export default function TournamentsPage() {
                 </button>
               </div>
             </div>
-            {createForm.divisionId && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Equipos Participantes</Label>
-                  {createFormTeams.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setCreateForm(prev => ({
-                        ...prev,
-                        selectedTeamIds: prev.selectedTeamIds.length === createFormTeams.length
-                          ? []
-                          : createFormTeams.map(t => t.id),
-                      }))}
-                      className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
-                    >
-                      {createForm.selectedTeamIds.length === createFormTeams.length ? "Desmarcar todo" : "Marcar todo"}
-                    </button>
-                  )}
-                </div>
-                {createFormTeams.length === 0 ? (
-                  <p className="text-[10px] font-bold text-slate-400 text-center py-6 border-2 border-dashed rounded-xl">
-                    No hay equipos en esta categoría.
-                  </p>
-                ) : (
-                  <div className="space-y-2 border-2 border-slate-100 rounded-2xl p-3">
-                    {createFormTeams.map(team => {
-                      const checked = createForm.selectedTeamIds.includes(team.id);
-                      return (
-                        <div
-                          key={team.id}
-                          onClick={() => setCreateForm(prev => ({
-                            ...prev,
-                            selectedTeamIds: checked
-                              ? prev.selectedTeamIds.filter(id => id !== team.id)
-                              : [...prev.selectedTeamIds, team.id],
-                          }))}
-                          className={cn(
-                            "flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all select-none",
-                            checked ? "bg-primary/10 border border-primary/30" : "hover:bg-slate-50 border border-transparent"
-                          )}
-                        >
-                          <Checkbox checked={checked} className="pointer-events-none" />
-                          <span className="font-bold text-sm text-slate-700">{team.name}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                {createForm.selectedTeamIds.length >= 2 && (() => {
-                  const n = createForm.selectedTeamIds.length;
-                  const rounds = (n % 2 === 0 ? n - 1 : n) * createForm.vueltas;
-                  const matches = Math.floor(n * (n - 1) / 2) * createForm.vueltas;
-                  return (
-                    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-around gap-2 mt-1">
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-primary">{n}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Equipos</p>
-                      </div>
-                      <div className="h-8 w-px bg-slate-200" />
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-primary">{rounds}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fechas</p>
-                      </div>
-                      <div className="h-8 w-px bg-slate-200" />
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-primary">{matches}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Partidos</p>
-                      </div>
-                      <div className="h-8 w-px bg-slate-200" />
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-primary">{createForm.vueltas}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{createForm.vueltas === 1 ? "Vuelta" : "Vueltas"}</p>
-                      </div>
-                    </div>
-                  );
-                })()}
-                {createForm.selectedTeamIds.length === 1 && (
-                  <p className="text-[10px] font-bold text-slate-400 text-center">Seleccioná al menos 2 equipos para calcular el fixture.</p>
+            {/* Clubs participantes (rivals) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Clubes Participantes</Label>
+                {opponents.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCreateForm(prev => ({
+                      ...prev,
+                      participants: prev.participants.length === opponents.length
+                        ? []
+                        : opponents.map(o => ({ id: o.id, divLabel: prev.participants.find(p => p.id === o.id)?.divLabel || "" })),
+                    }))}
+                    className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
+                  >
+                    {createForm.participants.length === opponents.length ? "Desmarcar todo" : "Marcar todo"}
+                  </button>
                 )}
               </div>
-            )}
+              {opponents.length === 0 ? (
+                <p className="text-[10px] font-bold text-slate-400 text-center py-6 border-2 border-dashed rounded-xl">
+                  No hay rivales cargados.{" "}
+                  <Link href={`/dashboard/clubs/${clubId}/opponents`} className="text-primary underline">Cargar rivales →</Link>
+                </p>
+              ) : (
+                <div className="space-y-1.5 border-2 border-slate-100 rounded-2xl p-3 max-h-56 overflow-y-auto">
+                  {opponents.map((opp: any) => {
+                    const participant = createForm.participants.find(p => p.id === opp.id);
+                    const checked = !!participant;
+                    return (
+                      <div key={opp.id} className={cn(
+                        "flex items-center gap-2 p-2.5 rounded-xl transition-all",
+                        checked ? "bg-primary/10 border border-primary/30" : "border border-transparent hover:bg-slate-50"
+                      )}>
+                        {/* Checkbox + logo + name */}
+                        <div
+                          className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer select-none"
+                          onClick={() => setCreateForm(prev => {
+                            const already = prev.participants.find(p => p.id === opp.id);
+                            return {
+                              ...prev,
+                              participants: already
+                                ? prev.participants.filter(p => p.id !== opp.id)
+                                : [...prev.participants, { id: opp.id, divLabel: "" }],
+                            };
+                          })}
+                        >
+                          <Checkbox checked={checked} className="pointer-events-none shrink-0" />
+                          <Avatar className="h-7 w-7 rounded-lg border bg-white shrink-0">
+                            <AvatarImage src={opp.logoUrl} className="object-contain p-0.5" />
+                            <AvatarFallback className="text-[9px] font-black text-slate-300">{opp.name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <span className="font-bold text-sm text-slate-700 truncate">{opp.name}</span>
+                        </div>
+                        {/* Div label input (only when checked) */}
+                        {checked && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[9px] font-black uppercase text-slate-400">División</span>
+                            <Input
+                              value={participant?.divLabel || ""}
+                              onChange={e => {
+                                const val = e.target.value.toUpperCase().slice(0, 3);
+                                setCreateForm(prev => ({
+                                  ...prev,
+                                  participants: prev.participants.map(p =>
+                                    p.id === opp.id ? { ...p, divLabel: val } : p
+                                  ),
+                                }));
+                              }}
+                              placeholder="A"
+                              className="h-8 w-14 border-2 text-center font-black text-sm p-0"
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {createForm.participants.length >= 2 && (() => {
+                const n = createForm.participants.length;
+                const rounds = (n % 2 === 0 ? n - 1 : n) * createForm.vueltas;
+                const matches = Math.floor(n * (n - 1) / 2) * createForm.vueltas;
+                return (
+                  <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-around gap-2 mt-1">
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-primary">{n}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Equipos</p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-200" />
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-primary">{rounds}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fechas</p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-200" />
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-primary">{matches}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Partidos</p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-200" />
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-primary">{createForm.vueltas}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{createForm.vueltas === 1 ? "Vuelta" : "Vueltas"}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+              {createForm.participants.length === 1 && (
+                <p className="text-[10px] font-bold text-slate-400 text-center">Seleccioná al menos 2 equipos para calcular el fixture.</p>
+              )}
+            </div>
           </div>
           <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t gap-2">
             <Button variant="ghost" onClick={() => setCreateDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
             <Button
               onClick={handleCreateTournament}
-              disabled={createLoading || !createForm.name.trim() || !createForm.divisionId || createForm.selectedTeamIds.length === 0}
+              disabled={createLoading || !createForm.name.trim() || !createForm.divisionId || createForm.participants.length < 2}
               className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20"
             >
               {createLoading
