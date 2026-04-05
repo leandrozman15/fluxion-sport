@@ -136,14 +136,36 @@ export default function DashboardRedirectPage() {
           }
         }
 
-        // 3. REDIRECCIÓN BASADA EN ROL VERIFICADO
+        // 3. REDIRECCIÓN BASADA EN ROL VERIFICADO (MULTI-ROL)
         if (finalProfile) {
-          const role = finalProfile.role || 'player';
-          
-          if (role === 'admin' || role === 'fed_admin') return router.replace('/dashboard/superadmin');
-          if (role === 'club_admin') return router.replace(`/dashboard/clubs/${finalProfile.clubId}`);
-          if (role === 'coordinator') return router.replace('/dashboard/coordinator');
-          if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(role)) return router.replace('/dashboard/coach');
+          // Detectar todos los roles del usuario
+          const allRoles: string[] = [];
+          if (finalProfile.roles && Array.isArray(finalProfile.roles) && finalProfile.roles.length > 0) {
+            allRoles.push(...finalProfile.roles);
+          } else if (finalProfile.role) {
+            allRoles.push(finalProfile.role);
+          }
+
+          // Verificar si también es jugador
+          if (!allRoles.includes("player")) {
+            const playerCheck = await getDoc(doc(firestore, "all_players_index", user.uid));
+            if (playerCheck.exists()) allRoles.push("player");
+          }
+
+          // Determinar rol activo (prioridad: guardado > primero detectado)
+          const storageKey = `fluxion_active_role_${user.uid}`;
+          const savedRole = typeof window !== "undefined" ? localStorage.getItem(storageKey) : null;
+          const targetRole = (savedRole && allRoles.includes(savedRole)) ? savedRole : allRoles[0] || "player";
+
+          // Guardar rol activo
+          if (typeof window !== "undefined") {
+            localStorage.setItem(storageKey, targetRole);
+          }
+
+          if (targetRole === 'admin' || targetRole === 'fed_admin') return router.replace('/dashboard/superadmin');
+          if (targetRole === 'club_admin') return router.replace(`/dashboard/clubs/${finalProfile.clubId}`);
+          if (targetRole === 'coordinator') return router.replace('/dashboard/coordinator');
+          if (['coach', 'coach_lvl1', 'coach_lvl2'].includes(targetRole)) return router.replace('/dashboard/coach');
           
           return router.replace('/dashboard/player');
         }

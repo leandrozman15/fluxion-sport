@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Loader2,
@@ -66,15 +66,30 @@ export default function NewPlayerPage() {
   const [form, setForm] = useState(initialForm);
   const set = (field: string, val: any) => setForm(prev => ({ ...prev, [field]: val }));
 
+  const [alsoStaff, setAlsoStaff] = useState(false);
+  const [staffRole, setStaffRole] = useState("coach_lvl2");
+  const [staffSpecialty, setStaffSpecialty] = useState("");
+
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club } = useDoc(clubRef);
 
   const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
   const { data: divisions } = useCollection(divisionsQuery);
 
+  // Si se activa "también es staff", forzar login habilitado
+  useEffect(() => {
+    if (alsoStaff && !form.enableLogin) {
+      set("enableLogin", true);
+    }
+  }, [alsoStaff]);
+
   const handleCreate = async () => {
     if (!form.firstName || !form.lastName || !form.dni) {
       toast({ variant: "destructive", title: "Faltan datos", description: "Nombre, apellido y DNI son obligatorios." });
+      return;
+    }
+    if (alsoStaff && (!form.email || !form.password || form.password.length < 6)) {
+      toast({ variant: "destructive", title: "Faltan datos", description: "Para rol de staff se necesita email y clave (min 6 caracteres)." });
       return;
     }
 
@@ -83,11 +98,13 @@ export default function NewPlayerPage() {
       const normalizedEmail = form.email.toLowerCase().trim();
       let playerId: string;
 
-      if (form.enableLogin && normalizedEmail && form.password) {
+      if ((form.enableLogin || alsoStaff) && normalizedEmail && form.password) {
         playerId = await createUserWithSecondaryApp(normalizedEmail, form.password);
       } else {
         playerId = doc(collection(db, "clubs", clubId, "players")).id;
       }
+
+      const roles = alsoStaff ? [staffRole, "player"] : ["player"];
 
       const playerDoc = doc(db, "clubs", clubId, "players", playerId);
       const { password: _pw, enableLogin: _el, ...playerDataClean } = form;
@@ -97,12 +114,13 @@ export default function NewPlayerPage() {
         email: normalizedEmail,
         clubId: clubId,
         role: "player",
+        roles: roles,
         createdAt: new Date().toISOString(),
       };
 
       await setDoc(playerDoc, pData);
 
-      if (form.enableLogin && normalizedEmail) {
+      if ((form.enableLogin || alsoStaff) && normalizedEmail) {
         await setDoc(doc(db, "all_players_index", playerId), {
           id: playerId,
           firstName: form.firstName,
@@ -113,8 +131,40 @@ export default function NewPlayerPage() {
           clubName: club?.name || "Club",
           sport: form.sport,
           role: "player",
+          roles: roles,
           createdAt: new Date().toISOString(),
         });
+      }
+
+      // Si también es staff, crear documento en users
+      if (alsoStaff) {
+        const fullName = `${form.firstName} ${form.lastName}`.trim();
+        await setDoc(doc(db, "users", playerId), {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          name: fullName,
+          email: normalizedEmail,
+          phone: form.phone,
+          dni: form.dni,
+          birthDate: form.birthDate,
+          address: form.address,
+          photoUrl: form.photoUrl || "",
+          bloodType: form.bloodType,
+          emergencyContact: form.emergencyContact,
+          emergencyPhone: form.emergencyPhone,
+          sport: form.sport,
+          parkingIncluded: form.parkingIncluded,
+          role: staffRole,
+          roles: roles,
+          specialty: staffSpecialty,
+          id: playerId,
+          uid: playerId,
+          clubId: clubId,
+          requiresPasswordChange: true,
+          createdAt: new Date().toISOString(),
+        });
+        toast({ title: "Jugador + Staff Registrado", description: "Ficha deportiva y rol de staff creados correctamente." });
+      } else if (form.enableLogin && normalizedEmail) {
         toast({ title: "Jugador Registrado", description: "Ficha y acceso al app generados correctamente." });
       } else {
         toast({ title: "Jugador Registrado", description: "Ficha oficial generada con éxito." });
@@ -316,6 +366,39 @@ export default function NewPlayerPage() {
             </div>
           </div>
 
+          {/* Multi-Rol: También es Staff */}
+          <div className="space-y-6 bg-orange-50 -mx-8 p-8 border-y border-orange-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-orange-800 flex items-center gap-2">
+                  <Layers className="h-5 w-5" /> También es Staff Técnico
+                </h3>
+                <p className="text-xs text-orange-600 font-bold">Esta persona también tiene un rol dentro del cuerpo técnico o administrativo.</p>
+              </div>
+              <Switch checked={alsoStaff} onCheckedChange={v => setAlsoStaff(v)} />
+            </div>
+            {alsoStaff && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <Label className="font-bold text-orange-800">Rol en el Club</Label>
+                  <Select value={staffRole} onValueChange={v => setStaffRole(v)}>
+                    <SelectTrigger className="h-12 border-2 bg-white font-bold"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Jefe de Rama)</SelectItem>
+                      <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
+                      <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
+                      <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-orange-800">Especialidad / Cargo</Label>
+                  <Input value={staffSpecialty} onChange={e => setStaffSpecialty(e.target.value)} placeholder="Ej. Preparador Físico, DT…" className="h-12 border-2 bg-white font-bold" />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Acceso App */}
           <div className="space-y-6 bg-slate-50 -mx-8 p-8 border-y">
             <div className="flex items-center justify-between">
@@ -325,9 +408,9 @@ export default function NewPlayerPage() {
                 </h3>
                 <p className="text-xs text-slate-500 font-bold">Habilita al socio para ver su carnet y estadísticas.</p>
               </div>
-              <Switch checked={form.enableLogin} onCheckedChange={v => set("enableLogin", v)} />
+              <Switch checked={form.enableLogin || alsoStaff} onCheckedChange={v => { if (!alsoStaff) set("enableLogin", v); }} />
             </div>
-            {form.enableLogin && (
+            {(form.enableLogin || alsoStaff) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2">
                 <div className="space-y-2">
                   <Label className="font-bold text-slate-700">Usuario (Email)</Label>

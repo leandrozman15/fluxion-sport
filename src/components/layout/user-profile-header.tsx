@@ -2,59 +2,18 @@
 "use client";
 
 import { useFirebase } from "@/firebase";
-import { useState, useEffect } from "react";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { useActiveRole } from "@/contexts/active-role-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, Shield, UserCheck, UserCircle, Settings, ShieldCheck, Loader2 } from "lucide-react";
+import { LogOut, Shield, UserCheck, UserCircle, Settings, ShieldCheck, Loader2, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export function UserProfileHeader() {
-  const { user, firestore, auth } = useFirebase();
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, auth } = useFirebase();
+  const { roles, activeRole, switchRole, loading, profile, getRoleLabel } = useActiveRole();
   const router = useRouter();
-
-  useEffect(() => {
-    if (!user || !firestore) return;
-    
-    async function fetchIdentity() {
-      setLoading(true);
-      try {
-        const email = user.email?.toLowerCase().trim() || "";
-        let data = null;
-
-        // BUSCAR POR UID PRIMERO (Identidad soldada)
-        const staffByUid = await getDoc(doc(firestore, "users", user.uid));
-        if (staffByUid.exists()) {
-          data = staffByUid.data();
-        } else {
-          const playerByUid = await getDoc(doc(firestore, "all_players_index", user.uid));
-          if (playerByUid.exists()) data = { ...playerByUid.data(), role: 'player' };
-        }
-
-        // SI NO EXISTE VÍNCULO POR UID, BUSCAR POR EMAIL
-        if (!data && email) {
-          const qS = await getDocs(query(collection(firestore, "users"), where("email", "==", email)));
-          if (!qS.empty) {
-            data = qS.docs[0].data();
-          } else {
-            const qP = await getDocs(query(collection(firestore, "all_players_index"), where("email", "==", email)));
-            if (!qP.empty) data = { ...qP.docs[0].data(), role: 'player' };
-          }
-        }
-
-        setProfile(data);
-      } catch (e) {
-        console.error("Profile Header Error:", e);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchIdentity();
-  }, [user, firestore]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -63,11 +22,12 @@ export function UserProfileHeader() {
 
   if (!user) return null;
 
+  const displayRole = activeRole || profile?.role || "player";
+
   const display = (() => {
     if (loading) return { label: "Validando...", icon: Loader2, color: "text-slate-400", bg: "bg-slate-50" };
     
-    const role = profile?.role || "player";
-    switch(role) {
+    switch(displayRole) {
       case 'admin': 
       case 'club_admin':
         return { label: "Director Club", icon: Shield, color: "text-primary", bg: "bg-primary/5" };
@@ -100,10 +60,34 @@ export function UserProfileHeader() {
           <span className="text-[11px] font-black text-slate-900 leading-none truncate max-w-[150px]">
             {displayName}
           </span>
-          <span className={cn("text-[9px] uppercase font-black tracking-widest mt-1 flex items-center gap-1", display.color)}>
-            <display.icon className={cn("h-2.5 w-2.5", loading && "animate-spin")} />
-            {display.label}
-          </span>
+          {roles.length > 1 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className={cn("text-[9px] uppercase font-black tracking-widest mt-1 flex items-center gap-1 hover:opacity-70 transition-opacity cursor-pointer", display.color)}>
+                  <display.icon className="h-2.5 w-2.5" />
+                  {getRoleLabel(displayRole)}
+                  <ChevronDown className="h-2 w-2 ml-0.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[180px]">
+                {roles.map(r => (
+                  <DropdownMenuItem
+                    key={r}
+                    onClick={() => switchRole(r)}
+                    className={cn("font-bold text-xs cursor-pointer", r === activeRole && "bg-primary/5 text-primary")}
+                  >
+                    {getRoleLabel(r)}
+                    {r === activeRole && <span className="ml-auto text-[10px] text-primary">●</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <span className={cn("text-[9px] uppercase font-black tracking-widest mt-1 flex items-center gap-1", display.color)}>
+              <display.icon className={cn("h-2.5 w-2.5", loading && "animate-spin")} />
+              {display.label}
+            </span>
+          )}
         </div>
         
         <div className="h-6 w-px bg-slate-200 mx-1" />

@@ -254,6 +254,9 @@ export default function PlayersPage() {
   const { toast } = useToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<any>(null);
+  const [editAlsoStaff, setEditAlsoStaff] = useState(false);
+  const [editStaffRole, setEditStaffRole] = useState("coach_lvl2");
+  const [editStaffSpecialty, setEditStaffSpecialty] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
@@ -274,11 +277,11 @@ export default function PlayersPage() {
 
   const handleUpdatePlayer = async () => {
     if (!editingPlayer) return;
+    const roles = editAlsoStaff ? [editStaffRole, "player"].filter((v, i, a) => a.indexOf(v) === i) : ["player"];
     const playerDoc = doc(db, "clubs", clubId, "players", editingPlayer.id);
     const { password: _pw, enableLogin: _el, ...editDataClean } = editingPlayer;
-    updateDocumentNonBlocking(playerDoc, { ...editDataClean, clubId: clubId, role: "player" });
+    updateDocumentNonBlocking(playerDoc, { ...editDataClean, clubId: clubId, role: "player", roles: roles });
     
-    // Usamos setDocumentNonBlocking con merge para asegurar que el índice global exista
     const indexDoc = doc(db, "all_players_index", editingPlayer.id);
     setDocumentNonBlocking(indexDoc, {
       id: editingPlayer.id,
@@ -289,8 +292,31 @@ export default function PlayersPage() {
       divisionId: editingPlayer.divisionId,
       clubName: club?.name || "Club",
       sport: editingPlayer.sport,
-      role: "player"
+      role: "player",
+      roles: roles,
     }, { merge: true });
+
+    // Si también es staff, crear/actualizar documento en users
+    if (editAlsoStaff) {
+      const fullName = `${editingPlayer.firstName || ''} ${editingPlayer.lastName || ''}`.trim();
+      setDocumentNonBlocking(doc(db, "users", editingPlayer.id), {
+        firstName: editingPlayer.firstName || "",
+        lastName: editingPlayer.lastName || "",
+        name: fullName,
+        email: (editingPlayer.email || "").toLowerCase().trim(),
+        phone: editingPlayer.phone || "",
+        dni: editingPlayer.dni || "",
+        birthDate: editingPlayer.birthDate || "",
+        photoUrl: editingPlayer.photoUrl || "",
+        sport: editingPlayer.sport || "hockey",
+        role: editStaffRole,
+        roles: roles,
+        specialty: editStaffSpecialty,
+        id: editingPlayer.id,
+        uid: editingPlayer.id,
+        clubId: clubId,
+      }, { merge: true });
+    }
 
     setIsEditOpen(false);
     toast({ title: "Legajo Actualizado" });
@@ -401,7 +427,7 @@ export default function PlayersPage() {
                       <span className="text-xs font-bold text-slate-700">{player.position || "Sin definir"}</span>
                     </div>
                     
-                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); setIsEditOpen(true); }}>
+                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-slate-400 hover:text-primary rounded-xl" onClick={() => { setEditingPlayer(player); const hasStaff = player.roles?.some((r: string) => r !== "player") || false; setEditAlsoStaff(hasStaff); setEditStaffRole(player.roles?.find((r: string) => r !== "player") || "coach_lvl2"); setEditStaffSpecialty(""); setIsEditOpen(true); }}>
                       <Pencil className="h-5 w-5" />
                     </Button>
 
@@ -466,6 +492,39 @@ export default function PlayersPage() {
           <ScrollArea className="flex-1 min-h-0">
             <div className="p-8 space-y-10">
               <PlayerFormFields values={editingPlayer || {}} onChange={(v) => setEditingPlayer(v)} divisions={divisions || []} />
+
+              {/* Multi-Rol: También es Staff */}
+              <div className="space-y-6 bg-orange-50 p-6 rounded-2xl border border-orange-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-orange-800 flex items-center gap-2">
+                      <Layers className="h-4 w-4" /> También es Staff Técnico
+                    </h3>
+                    <p className="text-[10px] text-orange-600 font-bold">Esta persona también tiene un rol en el cuerpo técnico o administrativo.</p>
+                  </div>
+                  <Switch checked={editAlsoStaff} onCheckedChange={v => setEditAlsoStaff(v)} />
+                </div>
+                {editAlsoStaff && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                    <div className="space-y-2">
+                      <Label className="font-bold text-orange-800 text-xs">Rol en el Club</Label>
+                      <Select value={editStaffRole} onValueChange={v => setEditStaffRole(v)}>
+                        <SelectTrigger className="h-10 border-2 bg-white font-bold text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="coach_lvl1" className="font-bold">Entrenador Nivel 1 (Jefe de Rama)</SelectItem>
+                          <SelectItem value="coach_lvl2" className="font-bold">Entrenador Nivel 2 (Plantel)</SelectItem>
+                          <SelectItem value="coordinator" className="font-bold">Coordinador de Rama</SelectItem>
+                          <SelectItem value="club_admin" className="font-bold">Administrador del Club</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold text-orange-800 text-xs">Especialidad / Cargo</Label>
+                      <Input value={editStaffSpecialty} onChange={e => setEditStaffSpecialty(e.target.value)} placeholder="Ej. Preparador Físico, DT…" className="h-10 border-2 bg-white font-bold text-xs" />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </ScrollArea>
           <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row justify-between gap-4 shrink-0">

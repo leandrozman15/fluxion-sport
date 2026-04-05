@@ -12,8 +12,8 @@ import {
   Phone,
   UserPlus,
 } from "lucide-react";
-import { doc, setDoc } from "firebase/firestore";
-import { useFirestore, useDoc, useMemoFirebase, useFirebase, createUserWithSecondaryApp } from "@/firebase";
+import { collection, doc, setDoc } from "firebase/firestore";
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useFirebase, createUserWithSecondaryApp } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,8 +53,16 @@ export default function NewStaffPage() {
   const [form, setForm] = useState(initialForm);
   const set = (field: string, val: any) => setForm(prev => ({ ...prev, [field]: val }));
 
+  const [alsoPlayer, setAlsoPlayer] = useState(false);
+  const [playerDivisionId, setPlayerDivisionId] = useState("");
+  const [playerPosition, setPlayerPosition] = useState("");
+  const [playerJerseyNumber, setPlayerJerseyNumber] = useState("");
+
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club } = useDoc(clubRef);
+
+  const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
+  const { data: divisions } = useCollection(divisionsQuery);
 
   const handleCreate = async () => {
     if (!form.email || !form.password || !form.firstName || !form.lastName || !form.dni) {
@@ -70,6 +78,7 @@ export default function NewStaffPage() {
 
       const fullName = `${form.firstName} ${form.lastName}`.trim();
       const { password: _pw, ...dataWithoutPassword } = form;
+      const roles = alsoPlayer ? [form.role, "player"] : [form.role];
       await setDoc(doc(db, "users", newUid), {
         ...dataWithoutPassword,
         name: fullName,
@@ -77,9 +86,51 @@ export default function NewStaffPage() {
         id: newUid,
         uid: newUid,
         clubId: clubId,
+        roles: roles,
         requiresPasswordChange: true,
         createdAt: new Date().toISOString(),
       });
+
+      // Si también es jugador/a, crear documentos de jugador
+      if (alsoPlayer) {
+        const playerData = {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: normalizedEmail,
+          phone: form.phone,
+          dni: form.dni,
+          birthDate: form.birthDate,
+          address: form.address,
+          photoUrl: form.photoUrl,
+          bloodType: form.bloodType,
+          emergencyContact: form.emergencyContact,
+          emergencyPhone: form.emergencyPhone,
+          sport: form.sport,
+          parkingIncluded: form.parkingIncluded,
+          divisionId: playerDivisionId,
+          position: playerPosition,
+          jerseyNumber: playerJerseyNumber,
+          id: newUid,
+          clubId: clubId,
+          role: "player",
+          roles: roles,
+          createdAt: new Date().toISOString(),
+        };
+        await setDoc(doc(db, "clubs", clubId, "players", newUid), playerData);
+        await setDoc(doc(db, "all_players_index", newUid), {
+          id: newUid,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: normalizedEmail,
+          clubId: clubId,
+          divisionId: playerDivisionId,
+          clubName: club?.name || "Club",
+          sport: form.sport,
+          role: "player",
+          roles: roles,
+          createdAt: new Date().toISOString(),
+        });
+      }
 
       toast({
         title: "Miembro Registrado",
@@ -264,6 +315,42 @@ export default function NewStaffPage() {
               <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
             </div>
             <Switch checked={form.parkingIncluded} onCheckedChange={v => set("parkingIncluded", v)} />
+          </div>
+
+          {/* Multi-Rol: También es Jugador/a */}
+          <div className="space-y-6 bg-green-50 -mx-8 p-8 border-y border-green-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-green-800 flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5" /> También es Jugador/a
+                </h3>
+                <p className="text-xs text-green-600 font-bold">Esta persona también juega en una categoría del club.</p>
+              </div>
+              <Switch checked={alsoPlayer} onCheckedChange={v => setAlsoPlayer(v)} />
+            </div>
+            {alsoPlayer && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <Label className="font-bold text-green-800">Categoría / Rama</Label>
+                  <Select value={playerDivisionId} onValueChange={v => setPlayerDivisionId(v)}>
+                    <SelectTrigger className="h-12 border-2 bg-white font-bold"><SelectValue placeholder="Asignar Categoría..." /></SelectTrigger>
+                    <SelectContent>
+                      {divisions?.map((d: any) => (
+                        <SelectItem key={d.id} value={d.id} className="font-bold">{d.name} ({d.sport?.toUpperCase()})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-green-800">Posición</Label>
+                  <Input value={playerPosition} onChange={e => setPlayerPosition(e.target.value)} placeholder="Ej. Delantera..." className="h-12 border-2 bg-white" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-green-800">Dorsal / Camiseta</Label>
+                  <Input type="number" value={playerJerseyNumber} onChange={e => setPlayerJerseyNumber(e.target.value)} placeholder="N°" className="h-12 border-2 bg-white" />
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
 

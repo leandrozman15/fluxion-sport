@@ -41,7 +41,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { SectionNav } from "@/components/layout/section-nav";
 import { useClubPageNav } from "@/hooks/use-club-page-nav";
 import { useToast } from "@/hooks/use-toast";
@@ -66,6 +66,10 @@ export default function ClubCoachesPage() {
   const { toast } = useToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingCoach, setEditingCoach] = useState<any>(null);
+  const [editAlsoPlayer, setEditAlsoPlayer] = useState(false);
+  const [editPlayerDivisionId, setEditPlayerDivisionId] = useState("");
+  const [editPlayerPosition, setEditPlayerPosition] = useState("");
+  const [editPlayerJerseyNumber, setEditPlayerJerseyNumber] = useState("");
 
   const clubRef = useMemoFirebase(() => doc(db, "clubs", clubId), [db, clubId]);
   const { data: club, isLoading: clubLoading } = useDoc(clubRef);
@@ -83,6 +87,9 @@ export default function ClubCoachesPage() {
   );
   const { data: coaches, isLoading: coachesLoading } = useCollection(coachesQuery);
 
+  const divisionsQuery = useMemoFirebase(() => collection(db, "clubs", clubId, "divisions"), [db, clubId]);
+  const { data: divisions } = useCollection(divisionsQuery);
+
   const activeNav = useClubPageNav(clubId);
 
 
@@ -92,12 +99,49 @@ export default function ClubCoachesPage() {
     const coachDoc = doc(db, "users", editingCoach.id);
     const updatedName = `${editingCoach.firstName || ''} ${editingCoach.lastName || ''}`.trim() || editingCoach.name || '';
     const { password: _pw, ...editDataWithoutPassword } = editingCoach;
+    const roles = editAlsoPlayer ? [editingCoach.role, "player"].filter((v, i, a) => a.indexOf(v) === i) : [editingCoach.role];
     updateDocumentNonBlocking(coachDoc, { 
       ...editDataWithoutPassword,
       name: updatedName,
       clubId: clubId,
+      roles: roles,
       email: editingCoach.email.toLowerCase().trim() 
     });
+
+    // Si también es jugador, crear/actualizar documentos de jugador
+    if (editAlsoPlayer) {
+      const playerData = {
+        firstName: editingCoach.firstName,
+        lastName: editingCoach.lastName,
+        email: editingCoach.email.toLowerCase().trim(),
+        phone: editingCoach.phone || "",
+        dni: editingCoach.dni || "",
+        birthDate: editingCoach.birthDate || "",
+        photoUrl: editingCoach.photoUrl || "",
+        sport: editingCoach.sport || "hockey",
+        divisionId: editPlayerDivisionId,
+        position: editPlayerPosition,
+        jerseyNumber: editPlayerJerseyNumber,
+        id: editingCoach.id,
+        clubId: clubId,
+        role: "player",
+        roles: roles,
+      };
+      setDocumentNonBlocking(doc(db, "clubs", clubId, "players", editingCoach.id), playerData, { merge: true });
+      setDocumentNonBlocking(doc(db, "all_players_index", editingCoach.id), {
+        id: editingCoach.id,
+        firstName: editingCoach.firstName,
+        lastName: editingCoach.lastName,
+        email: editingCoach.email.toLowerCase().trim(),
+        clubId: clubId,
+        divisionId: editPlayerDivisionId,
+        clubName: club?.name || "Club",
+        sport: editingCoach.sport || "hockey",
+        role: "player",
+        roles: roles,
+      }, { merge: true });
+    }
+
     setIsEditOpen(false);
     toast({ title: "Perfil Actualizado" });
   };
@@ -193,7 +237,7 @@ export default function ClubCoachesPage() {
                     </div>
 
                     <div className="p-6 md:border-l flex items-center justify-end gap-3 bg-slate-50/50">
-                      <Button variant="ghost" size="sm" className="h-11 w-11 p-0 hover:bg-primary/5 rounded-xl border border-transparent hover:border-primary/10" onClick={() => { const c = { ...coach }; if (!c.firstName && c.name) { const parts = c.name.trim().split(' '); c.firstName = parts[0] || ''; c.lastName = parts.slice(1).join(' ') || ''; } setEditingCoach(c); setIsEditOpen(true); }}>
+                      <Button variant="ghost" size="sm" className="h-11 w-11 p-0 hover:bg-primary/5 rounded-xl border border-transparent hover:border-primary/10" onClick={() => { const c = { ...coach }; if (!c.firstName && c.name) { const parts = c.name.trim().split(' '); c.firstName = parts[0] || ''; c.lastName = parts.slice(1).join(' ') || ''; } setEditingCoach(c); const hasPlayer = c.roles?.includes("player") || false; setEditAlsoPlayer(hasPlayer); setEditPlayerDivisionId(""); setEditPlayerPosition(""); setEditPlayerJerseyNumber(""); setIsEditOpen(true); }}>
                         <Pencil className="h-5 w-5 text-slate-400 hover:text-primary" />
                       </Button>
                       
@@ -365,6 +409,42 @@ export default function ClubCoachesPage() {
                   <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
                 </div>
                 <Switch checked={editingCoach?.parkingIncluded ?? false} onCheckedChange={v => setEditingCoach({...editingCoach, parkingIncluded: v})} />
+              </div>
+
+              {/* Multi-Rol: También es Jugador/a */}
+              <div className="space-y-6 bg-green-50 p-6 mx-6 mb-4 rounded-2xl border border-green-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-green-800 flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4" /> También es Jugador/a
+                    </h3>
+                    <p className="text-[10px] text-green-600 font-bold">Esta persona también juega en una categoría del club.</p>
+                  </div>
+                  <Switch checked={editAlsoPlayer} onCheckedChange={v => setEditAlsoPlayer(v)} />
+                </div>
+                {editAlsoPlayer && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-2">
+                    <div className="space-y-2">
+                      <Label className="font-bold text-green-800 text-xs">Categoría / Rama</Label>
+                      <Select value={editPlayerDivisionId} onValueChange={v => setEditPlayerDivisionId(v)}>
+                        <SelectTrigger className="h-10 border-2 bg-white font-bold text-xs"><SelectValue placeholder="Asignar..." /></SelectTrigger>
+                        <SelectContent>
+                          {divisions?.map((d: any) => (
+                            <SelectItem key={d.id} value={d.id} className="font-bold">{d.name} ({d.sport?.toUpperCase()})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold text-green-800 text-xs">Posición</Label>
+                      <Input value={editPlayerPosition} onChange={e => setEditPlayerPosition(e.target.value)} placeholder="Ej. Delantera..." className="h-10 border-2 bg-white text-xs" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold text-green-800 text-xs">Dorsal</Label>
+                      <Input type="number" value={editPlayerJerseyNumber} onChange={e => setEditPlayerJerseyNumber(e.target.value)} placeholder="N°" className="h-10 border-2 bg-white text-xs" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </ScrollArea>

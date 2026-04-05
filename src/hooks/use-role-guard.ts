@@ -28,8 +28,9 @@ export function useRoleGuard(allowedRoles: string[]) {
         // Check staff profile
         const staffSnap = await getDoc(doc(firestore, "users", user.uid));
         if (staffSnap.exists()) {
-          const role = staffSnap.data().role || "";
-          if (allowedRoles.includes(role)) {
+          const data = staffSnap.data();
+          const userRoles = data.roles && Array.isArray(data.roles) ? data.roles : [data.role].filter(Boolean);
+          if (userRoles.some((r: string) => allowedRoles.includes(r))) {
             setState({ authorized: true, loading: false });
             return;
           }
