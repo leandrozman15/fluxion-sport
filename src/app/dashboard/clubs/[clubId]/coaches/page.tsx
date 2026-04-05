@@ -222,6 +222,7 @@ export default function ClubCoachesPage() {
                 </DialogDescription>
               </DialogHeader>
               <ScrollArea className="flex-1 min-h-0">
+                <div className="p-8 space-y-10">
 
                   {/* 1. Identidad Personal */}
                   <div className="space-y-6">
@@ -362,6 +363,7 @@ export default function ClubCoachesPage() {
                     </div>
                     <Switch checked={newCoach.parkingIncluded} onCheckedChange={v => setNewCoach({...newCoach, parkingIncluded: v})} />
                   </div>
+                </div>
               </ScrollArea>
               <DialogFooter className="bg-slate-50 p-8 border-t flex flex-col sm:flex-row gap-4 shrink-0">
                 <Button variant="ghost" onClick={() => setIsCreateOpen(false)} className="font-bold text-slate-500 h-14">Cancelar</Button>
