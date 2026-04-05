@@ -46,7 +46,7 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
 
   const [createDialog, setCreateDialog] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: "", divisionId: "", subcategoryId: "", participants: [] as { id: string; divLabel: string }[], vueltas: 1 as 1 | 2 });
+  const [createForm, setCreateForm] = useState({ name: "", divisionId: "", subcategoryId: "", categoryOptionId: "", participants: [] as { id: string; divLabel: string }[], vueltas: 1 as 1 | 2 });
   const [createLoading, setCreateLoading] = useState(false);
 
   // Flat list: divisions + their subcategories for the selector
@@ -89,16 +89,27 @@ export default function TournamentsPage() {
         const divsArr = divsSnap.docs.map(d => ({ ...d.data(), id: d.id })).sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
         setDivisions(divsArr);
 
-        // Load subcategories for each division to build the flat selector
+        // Load subcategories AND teams for each division to build the flat selector
         const options: { id: string; label: string; divisionId: string; subcategoryId: string }[] = [];
         await Promise.all(divsArr.map(async (div: any) => {
           try {
+            // First try real subcategories collection
             const subcatSnap = await getDocs(collection(db, "clubs", clubId, "divisions", div.id, "subcategories"));
             if (!subcatSnap.empty) {
               subcatSnap.docs
                 .sort((a, b) => (a.data().name || "").localeCompare(b.data().name || ""))
                 .forEach(s => {
                   options.push({ id: `${div.id}__${s.id}`, label: `${div.name} ${s.data().name || s.id}`, divisionId: div.id, subcategoryId: s.id });
+                });
+              return;
+            }
+            // Fallback: load teams (planteles/subcategorías created from division page)
+            const teamsSnap = await getDocs(collection(db, "clubs", clubId, "divisions", div.id, "teams"));
+            if (!teamsSnap.empty) {
+              teamsSnap.docs
+                .sort((a, b) => (a.data().name || "").localeCompare(b.data().name || ""))
+                .forEach(t => {
+                  options.push({ id: `${div.id}__t_${t.id}`, label: `${div.name} ${t.data().name || t.id}`, divisionId: div.id, subcategoryId: "" });
                 });
             } else {
               options.push({ id: `${div.id}__`, label: div.name, divisionId: div.id, subcategoryId: "" });
@@ -165,7 +176,7 @@ export default function TournamentsPage() {
     setCreateLoading(true);
     try {
       const tid = doc(collection(db, "clubs", clubId, "tournaments")).id;
-      const selectedOpt = divisionOptions.find(o => o.divisionId === createForm.divisionId && o.subcategoryId === createForm.subcategoryId);
+      const selectedOpt = divisionOptions.find(o => o.id === createForm.categoryOptionId);
       const div = divisions.find(d => d.id === createForm.divisionId);
       const resolvedParticipants = createForm.participants.map(p => {
         if (p.id === clubId) {
@@ -224,7 +235,7 @@ export default function TournamentsPage() {
       }));
       setTournaments(prev => [tournament, ...prev]);
       setCreateDialog(false);
-      setCreateForm({ name: "", divisionId: "", subcategoryId: "", participants: [], vueltas: 1 });
+      setCreateForm({ name: "", divisionId: "", subcategoryId: "", categoryOptionId: "", participants: [], vueltas: 1 });
       toast({ title: "Torneo creado", description: `${tournament.name} · ${resolvedParticipants.length} equipos` });
     } catch (e) {
       console.error(e);
@@ -1071,7 +1082,7 @@ export default function TournamentsPage() {
 
       {/* CREATE TOURNAMENT DIALOG */}
       <Dialog open={createDialog} onOpenChange={open => {
-        if (!open) { setCreateDialog(false); setCreateForm({ name: "", divisionId: "", subcategoryId: "", participants: [], vueltas: 1 }); }
+        if (!open) { setCreateDialog(false); setCreateForm({ name: "", divisionId: "", subcategoryId: "", categoryOptionId: "", participants: [], vueltas: 1 }); }
       }}>
         <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
           <DialogHeader>
@@ -1093,10 +1104,10 @@ export default function TournamentsPage() {
             <div className="space-y-2">
               <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Categoría</Label>
               <Select
-                value={createForm.divisionId ? `${createForm.divisionId}__${createForm.subcategoryId}` : ""}
+                value={createForm.categoryOptionId}
                 onValueChange={v => {
                   const opt = divisionOptions.find(o => o.id === v);
-                  setCreateForm(prev => ({ ...prev, divisionId: opt?.divisionId || "", subcategoryId: opt?.subcategoryId || "", participants: [] }));
+                  setCreateForm(prev => ({ ...prev, divisionId: opt?.divisionId || "", subcategoryId: opt?.subcategoryId || "", categoryOptionId: v, participants: [] }));
                 }}
               >
                 <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar categoría..." /></SelectTrigger>
