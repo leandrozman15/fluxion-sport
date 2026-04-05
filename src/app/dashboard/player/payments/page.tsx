@@ -8,8 +8,6 @@ import {
   CheckCircle2, 
   Clock, 
   AlertCircle,
-  TrendingUp,
-  TrendingDown,
   LayoutDashboard,
   ShieldCheck,
   Star,
@@ -22,7 +20,6 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
 import { SectionNav } from "@/components/layout/section-nav";
 
 const MONTHS = [
@@ -87,8 +84,7 @@ export default function PlayerPaymentsView() {
     </div>
   );
 
-  const totalDebt = payments?.filter(p => p.status !== 'paid').reduce((acc, p) => acc + (p.amount || 0), 0) || 0;
-  const totalPaid = payments?.filter(p => p.status === 'paid').reduce((acc, p) => acc + (p.amount || 0), 0) || 0;
+
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-500">
@@ -99,43 +95,6 @@ export default function PlayerPaymentsView() {
           <h1 className="text-4xl font-black font-headline text-white drop-shadow-md">Mis Mensualidades</h1>
           <p className="text-white/80 font-bold uppercase tracking-widest text-[10px] mt-1">Estado de cuenta y control de pagos institucionales.</p>
         </header>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-red-500 rounded-2xl overflow-hidden">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Deuda Pendiente</CardTitle>
-              <TrendingDown className="h-5 w-5 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-black text-red-700">${totalDebt.toLocaleString()}</div>
-              <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Cuotas a regularizar</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white border-none shadow-xl border-l-8 border-l-green-500 rounded-2xl overflow-hidden">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Abonado</CardTitle>
-              <TrendingUp className="h-5 w-5 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-black text-green-700">${totalPaid.toLocaleString()}</div>
-              <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Suma de cuotas pagas</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-primary text-primary-foreground border-none shadow-xl rounded-2xl overflow-hidden">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-widest opacity-80">Estado Anual</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-               <div className="flex justify-between text-[10px] font-black uppercase">
-                 <span className="opacity-70">Progreso</span>
-                 <span>{totalDebt === 0 && totalPaid > 0 ? "Al día" : "En proceso"}</span>
-               </div>
-               <Progress value={totalDebt === 0 && totalPaid > 0 ? 100 : (totalPaid / (totalPaid + totalDebt || 1)) * 100} className="h-2 bg-white/20" />
-            </CardContent>
-          </Card>
-        </div>
 
         <Card className="border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-md rounded-[2rem]">
           <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 px-8">
