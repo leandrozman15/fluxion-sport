@@ -142,7 +142,7 @@ export default function EventAttendancePage() {
 
   if (eventLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
-  const isMatch = event?.type === 'match';
+  const isMatch = ['match', 'match_league', 'match_friendly'].includes(event?.type || '');
   const isTraining = event?.type === 'training';
 
   const filteredRoster = roster?.filter(p => 
@@ -159,7 +159,9 @@ export default function EventAttendancePage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-3xl font-bold font-headline text-white drop-shadow-md">{event?.title}</h1>
-              <Badge variant={isTraining ? "secondary" : "default"} className="bg-white text-primary border-none shadow-sm">{event?.type?.toUpperCase()}</Badge>
+              <Badge variant={isTraining ? "secondary" : "default"} className="bg-white text-primary border-none shadow-sm">
+                {{ match: 'PARTIDO OFICIAL', match_league: 'PARTIDO DE LIGA', match_friendly: 'AMISTOSO', training: 'ENTRENAMIENTO', social: 'EVENTO' }[event?.type ?? ''] ?? event?.type?.toUpperCase()}
+              </Badge>
             </div>
             <div className="flex items-center flex-wrap gap-x-6 gap-y-2 mt-2 text-white/80">
               <span className="flex items-center gap-1.5 text-sm font-bold drop-shadow-md">
