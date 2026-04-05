@@ -23,6 +23,13 @@ import {
   BarChart3,
   Crown,
   Stethoscope,
+  Plus,
+  Clock,
+  MapPin,
+  Repeat,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,6 +42,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SectionNav } from "@/components/layout/section-nav";
@@ -49,6 +57,10 @@ import { SpecialEventsFeed } from "@/components/dashboard/special-events-feed";
 import { RecentResultsStrip } from "@/components/dashboard/recent-results-strip";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleGuard } from "@/hooks/use-role-guard";
+
+const DAY_NAMES: Record<number, string> = { 0: "Domingo", 1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado" };
+const DAY_NAMES_SHORT: Record<number, string> = { 0: "DOM", 1: "LUN", 2: "MAR", 3: "MIÉ", 4: "JUE", 5: "VIE", 6: "SÁB" };
+const localDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 export default function CoachDashboard() {
   const { authorized, loading: guardLoading } = useRoleGuard(['coach', 'coach_lvl1', 'coach_lvl2']);
@@ -65,6 +77,23 @@ export default function CoachDashboard() {
   const [playerAggStats, setPlayerAggStats] = useState<any[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
   const [injuryDialog, setInjuryDialog] = useState<{ open: boolean; member: any | null; description: string; inactivityDays: string }>({ open: false, member: null, description: "", inactivityDays: "" });
+
+  const [weekStart, setWeekStart] = useState<Date>(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const mon = new Date(now);
+    mon.setDate(now.getDate() + diff);
+    mon.setHours(0, 0, 0, 0);
+    return mon;
+  });
+  const [weekEvents, setWeekEvents] = useState<any[]>([]);
+  const [weekTournamentMatches, setWeekTournamentMatches] = useState<any[]>([]);
+  const [scheduleDialog, setScheduleDialog] = useState(false);
+  const [scheduleEntries, setScheduleEntries] = useState<{day: number; startTime: string; endTime: string}[]>([]);
+  const [newEntry, setNewEntry] = useState({ day: 1, startTime: "17:00", endTime: "18:30" });
+  const [generatingSchedule, setGeneratingSchedule] = useState(false);
+  const [weekRefresh, setWeekRefresh] = useState(0);
 
   useEffect(() => {
     async function fetchAllMyTeams() {
@@ -186,6 +215,46 @@ export default function CoachDashboard() {
   }, [firestore, selectedTeam, todayEvent]);
   const { data: attendanceList } = useCollection(attendanceQuery);
 
+  // Fetch weekly events + tournament matches
+  useEffect(() => {
+    async function fetchWeekData() {
+      if (!selectedTeam || !firestore) return;
+      const endDate = new Date(weekStart);
+      endDate.setDate(weekStart.getDate() + 6);
+      const startStr = localDateStr(weekStart);
+      const endStr = localDateStr(endDate);
+      try {
+        const evSnap = await getDocs(
+          collection(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id, "events")
+        );
+        const weekEvts = evSnap.docs
+          .map(d => ({ ...d.data(), id: d.id }))
+          .filter((e: any) => { const ed = e.date?.split('T')[0]; return ed && ed >= startStr && ed <= endStr; })
+          .sort((a: any, b: any) => (a.date || "").localeCompare(b.date || ""));
+        setWeekEvents(weekEvts);
+
+        const tournsSnap = await getDocs(query(
+          collection(firestore, "clubs", selectedTeam.clubId, "tournaments"),
+          where("divisionId", "==", selectedTeam.divisionId)
+        ));
+        const allMatches: any[] = [];
+        for (const tDoc of tournsSnap.docs) {
+          const tData = tDoc.data();
+          const mSnap = await getDocs(collection(firestore, "clubs", selectedTeam.clubId, "tournaments", tDoc.id, "matches"));
+          mSnap.docs.forEach(mDoc => {
+            const m = mDoc.data();
+            const md = m.date?.split('T')[0];
+            if (md && md >= startStr && md <= endStr && m.homeParticipantName) {
+              allMatches.push({ ...m, id: mDoc.id, tournamentName: tData.name, tournamentId: tDoc.id });
+            }
+          });
+        }
+        setWeekTournamentMatches(allMatches.sort((a, b) => (a.date || "").localeCompare(b.date || "")));
+      } catch (e) { console.error(e); }
+    }
+    fetchWeekData();
+  }, [selectedTeam, firestore, weekStart, weekRefresh]);
+
   const handleToggleAttendance = async (playerId: string, playerName: string, currentStatus: string) => {
     if (!todayEvent || !selectedTeam) return;
     const nextStatus = currentStatus === 'going' ? 'not_going' : currentStatus === 'not_going' ? 'unknown' : 'going';
@@ -209,6 +278,99 @@ export default function CoachDashboard() {
     updateDocumentNonBlocking(assignmentRef, injuryData);
     toast({ title: injuryDialog.description.trim() ? "Lesión registrada" : "Lesión eliminada", description: injuryDialog.member.playerName });
     setInjuryDialog({ open: false, member: null, description: "", inactivityDays: "" });
+  };
+
+  const handleOpenScheduleDialog = () => {
+    setScheduleEntries(selectedTeam?.trainingSchedule || []);
+    setScheduleDialog(true);
+  };
+
+  const addScheduleEntry = () => {
+    if (!newEntry.startTime || !newEntry.endTime) return;
+    setScheduleEntries(prev => [...prev, { day: newEntry.day, startTime: newEntry.startTime, endTime: newEntry.endTime }]);
+  };
+
+  const removeScheduleEntry = (idx: number) => {
+    setScheduleEntries(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!selectedTeam || !firestore || scheduleEntries.length === 0) return;
+    setGeneratingSchedule(true);
+    try {
+      const teamRef = doc(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id);
+      await setDoc(teamRef, { trainingSchedule: scheduleEntries }, { merge: true });
+      selectedTeam.trainingSchedule = scheduleEntries;
+
+      const eventsRef = collection(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id, "events");
+      const existingSnap = await getDocs(query(eventsRef, where("type", "==", "training")));
+      const existingDates = new Set(existingSnap.docs.map(d => d.data().date?.split('T')[0]));
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const batch: any[] = [];
+
+      for (let daysFwd = 0; daysFwd < 12 * 7; daysFwd++) {
+        const candidate = new Date(today);
+        candidate.setDate(today.getDate() + daysFwd);
+        const candidateDay = candidate.getDay();
+        for (const entry of scheduleEntries) {
+          if (entry.day === candidateDay) {
+            const dateStr = localDateStr(candidate);
+            if (existingDates.has(dateStr)) continue;
+            const [sH, sM] = entry.startTime.split(':').map(Number);
+            const [eH, eM] = entry.endTime.split(':').map(Number);
+            const dur = (eH * 60 + eM) - (sH * 60 + sM);
+            const eventId = doc(eventsRef).id;
+            batch.push({
+              id: eventId, title: "Entrenamiento", type: "training",
+              date: `${dateStr}T${entry.startTime}`, location: "", address: "",
+              duration: dur > 0 ? dur : 90, objectives: "", description: "",
+              status: "scheduled", createdAt: new Date().toISOString(), autoGenerated: true,
+            });
+            existingDates.add(dateStr);
+          }
+        }
+      }
+
+      await Promise.all(batch.map(ev => setDoc(doc(eventsRef, ev.id), ev)));
+      toast({ title: "Entrenamientos programados", description: `${batch.length} sesiones generadas para las próximas 12 semanas.` });
+      setScheduleDialog(false);
+      setWeekRefresh(r => r + 1);
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error", description: "No se pudieron generar los entrenamientos." });
+    } finally {
+      setGeneratingSchedule(false);
+    }
+  };
+
+  const handleCreateEventFromMatch = async (match: any) => {
+    if (!selectedTeam || !firestore) return;
+    const eventsRef = collection(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id, "events");
+    const eventId = doc(eventsRef).id;
+    const newEvent = {
+      id: eventId,
+      title: `${match.homeParticipantName} vs ${match.awayParticipantName}`,
+      type: "match_league",
+      date: match.date || "",
+      location: "", address: "",
+      opponent: "",
+      homeTeam: match.homeParticipantName || "",
+      awayTeam: match.awayParticipantName || "",
+      jersey: "",
+      description: `Fecha ${match.round} • ${match.tournamentName}`,
+      duration: 90, objectives: "",
+      status: "scheduled",
+      departureTime: match.busDepartureTime || "",
+      tournamentMatchId: match.id,
+      tournamentId: match.tournamentId,
+      createdAt: new Date().toISOString(),
+    };
+    await setDoc(doc(eventsRef, eventId), newEvent);
+    setWeekEvents(prev => [...prev, newEvent].sort((a: any, b: any) => (a.date || "").localeCompare(b.date || "")));
+    toast({ title: "Evento creado", description: "Ahora podés convocar jugadoras" });
+    router.push(`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events/${eventId}`);
   };
 
   const coachNav = [
@@ -317,6 +479,89 @@ export default function CoachDashboard() {
             </div>
           </div>
         </header>
+
+        {/* WEEKLY COMMITMENTS */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60 px-1 drop-shadow-md">Compromisos de la Semana</h2>
+            <div className="flex items-center gap-1">
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10" onClick={() => setWeekStart(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d; })}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-[9px] font-black text-white uppercase tracking-widest min-w-[160px] text-center">
+                {weekStart.getDate()} – {(() => { const end = new Date(weekStart); end.setDate(weekStart.getDate() + 6); return `${end.getDate()} ${end.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })}`; })()}
+              </span>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10" onClick={() => setWeekStart(prev => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d; })}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <Card className="border-none bg-white/95 backdrop-blur-md rounded-[2rem] shadow-2xl overflow-hidden">
+            <CardContent className="p-0">
+              {[0,1,2,3,4,5,6].map(offset => {
+                const day = new Date(weekStart);
+                day.setDate(weekStart.getDate() + offset);
+                const dayStr = localDateStr(day);
+                const dayEvts = weekEvents.filter((e: any) => e.date?.startsWith(dayStr));
+                const dayMatches = weekTournamentMatches.filter((m: any) => {
+                  const md = m.date?.split('T')[0];
+                  return md === dayStr && !dayEvts.some((e: any) => e.tournamentMatchId === m.id);
+                });
+                const todayStr = localDateStr(new Date());
+                const isToday = dayStr === todayStr;
+                const isEmpty = dayEvts.length === 0 && dayMatches.length === 0;
+
+                return (
+                  <div key={offset} className={cn("flex gap-3 md:gap-5 py-3 px-4 md:px-6 border-b last:border-0 transition-colors", isToday && "bg-primary/5")}>
+                    <div className="w-12 md:w-16 shrink-0 text-center pt-1">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">{DAY_NAMES_SHORT[day.getDay()]}</p>
+                      <p className={cn("text-xl md:text-2xl font-black", isToday ? "text-primary" : isEmpty ? "text-slate-200" : "text-slate-900")}>{day.getDate()}</p>
+                    </div>
+                    <div className="flex-1 space-y-2 py-1">
+                      {isEmpty && <p className="text-[10px] text-slate-300 font-bold py-1">—</p>}
+                      {dayEvts.map((ev: any) => (
+                        <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events/${ev.id}`} key={ev.id} className="block">
+                          <div className={cn("flex items-center gap-3 p-2.5 md:p-3 rounded-xl border transition-all hover:shadow-md",
+                            ev.type === 'training' ? "border-primary/20 bg-primary/5" : "border-accent/20 bg-accent/5")}>
+                            {ev.type === 'training' ? <Activity className="h-4 w-4 text-primary shrink-0" /> : <Trophy className="h-4 w-4 text-accent shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black text-slate-900 truncate">{ev.title}</p>
+                              <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold">
+                                <Clock className="h-3 w-3" />
+                                {new Date(ev.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
+                                {ev.duration > 0 && <span>· {ev.duration} min</span>}
+                                {ev.location && <><MapPin className="h-3 w-3 ml-1" /><span className="truncate">{ev.location}</span></>}
+                              </div>
+                            </div>
+                            {ev.callupsPublished && <Badge className="bg-green-100 text-green-700 text-[7px] font-black shrink-0 border-none">Convocados</Badge>}
+                          </div>
+                        </Link>
+                      ))}
+                      {dayMatches.map((m: any) => (
+                        <div key={m.id} className="flex items-center gap-3 p-2.5 md:p-3 rounded-xl border border-amber-200 bg-amber-50">
+                          <Trophy className="h-4 w-4 text-amber-600 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black text-slate-900 truncate">{m.homeParticipantName} vs {m.awayParticipantName}</p>
+                            <p className="text-[9px] text-amber-600 font-bold">Fecha {m.round} · {m.tournamentName}</p>
+                          </div>
+                          <Button size="sm" onClick={() => handleCreateEventFromMatch(m)} className="h-7 px-3 text-[8px] font-black uppercase tracking-widest shrink-0 bg-accent hover:bg-accent/90">
+                            Convocar
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          <Button variant="outline" onClick={handleOpenScheduleDialog}
+            className="w-full h-12 border-white/20 text-white bg-white/10 hover:bg-white/20 font-black uppercase text-[10px] tracking-widest gap-2 rounded-2xl backdrop-blur-md">
+            <Repeat className="h-4 w-4" /> Programar Entrenamientos Recurrentes
+          </Button>
+        </section>
 
         <LiveMatchesCard clubId={selectedTeam.clubId} />
         <RecentResultsStrip 
@@ -556,6 +801,71 @@ export default function CoachDashboard() {
               )}
               <Button onClick={handleSaveInjury} className="font-black uppercase text-[10px] tracking-widest h-12 px-8 flex-1">
                 Guardar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Training Schedule Dialog */}
+        <Dialog open={scheduleDialog} onOpenChange={setScheduleDialog}>
+          <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem] p-0 overflow-hidden">
+            <DialogHeader className="bg-primary p-6 text-primary-foreground shrink-0">
+              <DialogTitle className="text-xl font-black flex items-center gap-2">
+                <Repeat className="h-6 w-6" /> Entrenamientos Recurrentes
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-6 space-y-6">
+              {scheduleEntries.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Horarios actuales</p>
+                  {scheduleEntries.map((entry, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-primary/5 rounded-xl border border-primary/10">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-primary text-primary-foreground text-[9px] font-black border-none">{DAY_NAMES[entry.day]}</Badge>
+                        <span className="text-sm font-bold text-slate-700">{entry.startTime} – {entry.endTime} hs</span>
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeScheduleEntry(i)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="space-y-3 border-t pt-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Agregar día de entrenamiento</p>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-[9px] font-bold text-slate-400">Día</Label>
+                    <Select value={String(newEntry.day)} onValueChange={v => setNewEntry(prev => ({...prev, day: Number(v)}))}>
+                      <SelectTrigger className="h-10 border-2 font-bold"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1,2,3,4,5,6,0].map(d => (
+                          <SelectItem key={d} value={String(d)} className="font-bold">{DAY_NAMES[d]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <Label className="text-[9px] font-bold text-slate-400">Desde</Label>
+                    <Input type="time" value={newEntry.startTime} onChange={e => setNewEntry(prev => ({...prev, startTime: e.target.value}))} className="h-10 border-2 font-bold" />
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <Label className="text-[9px] font-bold text-slate-400">Hasta</Label>
+                    <Input type="time" value={newEntry.endTime} onChange={e => setNewEntry(prev => ({...prev, endTime: e.target.value}))} className="h-10 border-2 font-bold" />
+                  </div>
+                  <Button onClick={addScheduleEntry} size="icon" className="h-10 w-10 shrink-0">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-500 font-bold bg-blue-50 p-3 rounded-xl border border-blue-100">
+                💡 Se generarán automáticamente las sesiones de entrenamiento para las próximas 12 semanas en el calendario del equipo.
+              </p>
+            </div>
+            <DialogFooter className="bg-slate-50 p-6 border-t gap-3 flex-col sm:flex-row shrink-0">
+              <Button variant="ghost" onClick={() => setScheduleDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
+              <Button onClick={handleSaveSchedule} disabled={generatingSchedule || scheduleEntries.length === 0} className="flex-1 font-black uppercase text-[10px] tracking-widest h-12 gap-2">
+                {generatingSchedule ? <Loader2 className="animate-spin h-4 w-4" /> : <><Repeat className="h-4 w-4" /> Guardar y Generar</>}
               </Button>
             </DialogFooter>
           </DialogContent>
