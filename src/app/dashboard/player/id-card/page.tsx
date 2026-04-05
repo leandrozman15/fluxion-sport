@@ -109,7 +109,7 @@ export default function GenericIdCardPage() {
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-white h-12 w-12" /></div>;
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-[100dvh] bg-transparent animate-in fade-in duration-500 px-0 md:px-4 py-0 md:py-8">
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950 md:relative md:inset-auto md:z-auto md:overflow-visible md:bg-transparent md:min-h-[100dvh] flex flex-col items-center justify-center animate-in fade-in duration-500 px-0 md:px-4 py-0 md:py-8">
 
       {/* X button — floating on mobile, inline above card on desktop */}
       <button
