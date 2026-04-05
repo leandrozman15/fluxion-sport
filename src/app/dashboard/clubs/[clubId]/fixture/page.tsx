@@ -31,36 +31,6 @@ const STANDING_INITIAL = {
   played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0,
 };
 
-function generateRoundRobin(
-  participants: { id: string; name: string; logoUrl?: string }[],
-  vueltas: 1 | 2
-) {
-  let teams: { id: string; name: string; logoUrl?: string }[] = [...participants];
-  if (teams.length % 2 !== 0) teams.push({ id: "__bye__", name: "Libre" });
-  const n = teams.length;
-  const roundsPerVuelta = n - 1;
-  const result: { round: number; home: typeof teams[0]; away: typeof teams[0] }[] = [];
-  const rotation = [...teams.slice(1)];
-  for (let r = 0; r < roundsPerVuelta; r++) {
-    const current = [teams[0], ...rotation];
-    for (let i = 0; i < n / 2; i++) {
-      const home = current[i];
-      const away = current[n - 1 - i];
-      if (home.id !== "__bye__" && away.id !== "__bye__") {
-        result.push({ round: r + 1, home, away });
-      }
-    }
-    rotation.unshift(rotation.pop()!);
-  }
-  if (vueltas === 2) {
-    const vuelta1 = result.slice();
-    for (const m of vuelta1) {
-      result.push({ round: m.round + roundsPerVuelta, home: m.away, away: m.home });
-    }
-  }
-  return result;
-}
-
 export default function TournamentsPage() {
   const { clubId } = useParams() as { clubId: string };
   const db = useFirestore();
@@ -85,9 +55,7 @@ export default function TournamentsPage() {
   const [allMatches, setAllMatches] = useState<any[]>([]);
   const [standings, setStandings] = useState<any[]>([]);
 
-  const [matchEditDialog, setMatchEditDialog] = useState(false);
-  const [editingMatch, setEditingMatch] = useState<any>(null);
-  const [matchEditForm, setMatchEditForm] = useState({ date: "", status: "scheduled", notes: "" });
+  const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
 
   const [standingDialog, setStandingDialog] = useState(false);
   const [editingStanding, setEditingStanding] = useState<any>(null);
@@ -166,6 +134,9 @@ export default function TournamentsPage() {
       const tid = doc(collection(db, "clubs", clubId, "tournaments")).id;
       const div = divisions.find(d => d.id === createForm.divisionId);
       const resolvedParticipants = createForm.participants.map(p => {
+        if (p.id === clubId) {
+          return { id: clubId, divLabel: p.divLabel, name: clubData?.name || "Mi Club", logoUrl: clubData?.logoUrl || "" };
+        }
         const opp = opponents.find(o => o.id === p.id);
         return { id: p.id, divLabel: p.divLabel, name: opp?.name || p.id, logoUrl: opp?.logoUrl || "" };
       });
@@ -174,8 +145,7 @@ export default function TournamentsPage() {
         teamNames[p.id] = p.name + (p.divLabel ? ` · Div. ${p.divLabel}` : "");
       });
       const n = resolvedParticipants.length;
-      const roundsPerVuelta = n % 2 === 0 ? n - 1 : n;
-      const matchesPerVuelta = Math.floor(n * (n - 1) / 2);
+      const totalRoundsCount = (n - 1) * createForm.vueltas;
       const tournament = {
         id: tid,
         name: createForm.name.trim(),
@@ -185,8 +155,8 @@ export default function TournamentsPage() {
         teamIds: resolvedParticipants.map(p => p.id),
         teamNames,
         vueltas: createForm.vueltas,
-        totalRounds: roundsPerVuelta * createForm.vueltas,
-        totalMatches: matchesPerVuelta * createForm.vueltas,
+        totalRounds: totalRoundsCount,
+        totalMatches: totalRoundsCount,
         createdAt: new Date().toISOString(),
         status: "active",
       };
@@ -199,26 +169,21 @@ export default function TournamentsPage() {
           teamName: teamNames[p.id],
           teamLogo: p.logoUrl,
           divLabel: p.divLabel,
-          isInternal: false,
+          isInternal: p.id === clubId,
           played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0,
           createdAt: new Date().toISOString(),
         });
       }));
-      // Generate round-robin fixture
-      const pairings = generateRoundRobin(resolvedParticipants, createForm.vueltas);
-      await Promise.all(pairings.map(async (pairing) => {
+      // Generate empty match slots (one per round, filled manually)
+      await Promise.all(Array.from({ length: totalRoundsCount }, async (_, i) => {
         const matchId = doc(collection(db, "clubs", clubId, "tournaments", tid, "matches")).id;
         await setDoc(doc(db, "clubs", clubId, "tournaments", tid, "matches", matchId), {
           id: matchId,
-          round: pairing.round,
-          homeParticipantId: pairing.home.id,
-          awayParticipantId: pairing.away.id,
-          homeParticipantName: teamNames[pairing.home.id] || pairing.home.name,
-          awayParticipantName: teamNames[pairing.away.id] || pairing.away.name,
-          homeParticipantLogo: (pairing.home as any).logoUrl || "",
-          awayParticipantLogo: (pairing.away as any).logoUrl || "",
-          date: "",
-          status: "scheduled",
+          round: i + 1,
+          homeParticipantId: "", awayParticipantId: "",
+          homeParticipantName: "", awayParticipantName: "",
+          homeParticipantLogo: "", awayParticipantLogo: "",
+          date: "", status: "scheduled", notes: "",
           createdAt: new Date().toISOString(),
         });
       }));
@@ -248,41 +213,44 @@ export default function TournamentsPage() {
     toast({ variant: "destructive", title: "Torneo eliminado", description: tname });
   };
 
-  const handleOpenMatchEdit = (match: any) => {
-    setEditingMatch(match);
-    setMatchEditForm({ date: match.date || "", status: match.status || "scheduled", notes: match.notes || "" });
-    setMatchEditDialog(true);
+  const handleMatchFieldChange = (matchId: string, field: string, value: string) => {
+    setAllMatches(prev => prev.map(m => m.id === matchId ? { ...m, [field]: value } : m));
   };
 
-  const handleSaveMatchEdit = async () => {
-    if (!editingMatch || !db) return;
-    const updates: any = { date: matchEditForm.date, status: matchEditForm.status, notes: matchEditForm.notes };
+  const handleSaveMatchInline = async (match: any) => {
+    if (!db) return;
+    setSavingMatchId(match.id);
+    const parts: any[] = selectedTournament?.participants || [];
+    const homePart = parts.find((p: any) => p.id === match.homeParticipantId);
+    const awayPart = parts.find((p: any) => p.id === match.awayParticipantId);
+    const updates: any = {
+      homeParticipantId: match.homeParticipantId || "",
+      awayParticipantId: match.awayParticipantId || "",
+      homeParticipantName: homePart ? (homePart.name + (homePart.divLabel ? ` · Div. ${homePart.divLabel}` : "")) : "",
+      awayParticipantName: awayPart ? (awayPart.name + (awayPart.divLabel ? ` · Div. ${awayPart.divLabel}` : "")) : "",
+      homeParticipantLogo: homePart?.logoUrl || "",
+      awayParticipantLogo: awayPart?.logoUrl || "",
+      date: match.date || "",
+      status: match.status || "scheduled",
+      notes: match.notes || "",
+    };
     try {
-      await updateDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches", editingMatch.id), updates);
-      setAllMatches(prev => prev.map(m => m.id === editingMatch.id ? { ...m, ...updates } : m));
-      setMatchEditDialog(false);
-      setEditingMatch(null);
-      toast({ title: "Partido actualizado" });
+      await updateDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches", match.id), updates);
+      setAllMatches(prev => prev.map(m => m.id === match.id ? { ...m, ...updates } : m));
+      toast({ title: `Fecha ${match.round} guardada` });
     } catch (e) {
       console.error(e);
-      toast({ variant: "destructive", title: "Error al actualizar" });
+      toast({ variant: "destructive", title: "Error al guardar" });
+    } finally {
+      setSavingMatchId(null);
     }
   };
 
   const handleDeleteTournamentMatch = async (matchId: string) => {
-    if (!confirm("¿Eliminar este partido del fixture?")) return;
+    if (!confirm("¿Eliminar esta fecha del fixture?")) return;
     await deleteDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches", matchId));
     setAllMatches(prev => prev.filter(m => m.id !== matchId));
-    toast({ variant: "destructive", title: "Partido eliminado" });
-  };
-
-  const handleToggleSuspend = async (match: any) => {
-    const newStatus = match.status === "suspended" ? "scheduled" : "suspended";
-    try {
-      await updateDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches", match.id), { status: newStatus });
-      setAllMatches(prev => prev.map(m => m.id === match.id ? { ...m, status: newStatus } : m));
-      toast({ title: newStatus === "suspended" ? "Partido suspendido" : "Partido reactivado" });
-    } catch (e) { console.error(e); }
+    toast({ variant: "destructive", title: "Fecha eliminada" });
   };
 
   const handleOpenStandingEdit = (s: any) => {
@@ -413,7 +381,7 @@ export default function TournamentsPage() {
                 <div className="text-center py-32 border-2 border-dashed rounded-[2.5rem] bg-white/5 backdrop-blur-md">
                   <CalendarDays className="h-16 w-16 mx-auto text-white mb-6 opacity-20" />
                   <p className="text-white font-black uppercase tracking-[0.3em] text-sm">Sin fixture generado</p>
-                  <p className="text-white/60 text-xs mt-2 font-bold">Creá un nuevo torneo para generar el fixture automáticamente.</p>
+                  <p className="text-white/60 text-xs mt-2 font-bold">Creá un torneo para generar las fechas automáticamente.</p>
                 </div>
               ) : (() => {
                 const matchesByRound: Record<number, any[]> = {};
@@ -422,107 +390,167 @@ export default function TournamentsPage() {
                   matchesByRound[m.round].push(m);
                 });
                 const rounds = Object.keys(matchesByRound).map(Number).sort((a, b) => a - b);
-                const statusConfig: Record<string, { label: string; barColor: string; badgeClass: string }> = {
-                  scheduled: { label: "Programado", barColor: "bg-primary", badgeClass: "bg-emerald-100 text-emerald-700" },
-                  suspended: { label: "Suspendido", barColor: "bg-red-500", badgeClass: "bg-red-100 text-red-600" },
-                  rescheduled: { label: "Reprogramado", barColor: "bg-amber-500", badgeClass: "bg-amber-100 text-amber-700" },
-                  played: { label: "Jugado", barColor: "bg-slate-400", badgeClass: "bg-slate-100 text-slate-500" },
-                };
+                const barColor = (status: string) =>
+                  status === "free" ? "bg-slate-300" : status === "suspended" ? "bg-red-500" : status === "rescheduled" ? "bg-amber-500" : "bg-primary";
                 return (
-                  <div className="space-y-10">
+                  <div className="space-y-8">
                     {rounds.map((round) => (
                       <div key={round}>
-                        <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center gap-3 mb-3">
                           <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/70 shrink-0">Fecha {round}</span>
                           <div className="flex-1 h-px bg-white/20" />
                         </div>
                         <div className="space-y-3">
-                          {matchesByRound[round].map((match: any) => {
-                            const sc = statusConfig[match.status || "scheduled"] || statusConfig.scheduled;
-                            const matchDate = match.date ? new Date(match.date) : null;
-                            return (
-                              <div key={match.id} className="bg-white/95 backdrop-blur-md rounded-[1.5rem] shadow-xl overflow-hidden">
-                                <div className={cn("h-1.5 w-full", sc.barColor)} />
-                                <div className="p-4 md:p-5 space-y-3">
-                                  {/* Teams row */}
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                                      <Avatar className="h-10 w-10 rounded-xl border bg-white shrink-0 shadow-sm">
-                                        <AvatarImage src={match.homeParticipantLogo} className="object-contain p-0.5" />
-                                        <AvatarFallback className="text-[10px] font-black text-slate-300">{match.homeParticipantName?.[0]}</AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-black text-sm text-slate-900 truncate leading-tight">{match.homeParticipantName}</p>
-                                        <p className="text-[9px] font-black uppercase text-primary tracking-wide">Local</p>
-                                      </div>
+                          {matchesByRound[round].map((match: any) => (
+                            <div key={match.id} className="bg-white/95 backdrop-blur-md rounded-[1.5rem] shadow-xl overflow-hidden">
+                              <div className={cn("h-1.5 w-full", barColor(match.status))} />
+                              {match.status === "free" ? (
+                                <div className="p-4 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <Badge className="bg-slate-100 text-slate-500 border-none font-black text-xs uppercase tracking-widest px-3">Fecha Libre</Badge>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button variant="ghost" size="sm"
+                                      onClick={() => handleMatchFieldChange(match.id, "status", "scheduled")}
+                                      className="h-8 px-3 rounded-xl text-primary hover:bg-primary/5 font-black text-[9px] uppercase tracking-wide gap-1"
+                                    >
+                                      <RotateCcw className="h-3 w-3" /> Activar
+                                    </Button>
+                                    <Button variant="ghost" size="sm"
+                                      onClick={() => handleDeleteTournamentMatch(match.id)}
+                                      className="h-8 w-8 p-0 rounded-xl text-slate-200 hover:text-destructive hover:bg-red-50"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="p-4 space-y-3">
+                                  {/* Teams selectors */}
+                                  <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
+                                    <div className="space-y-1">
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-primary">Local</p>
+                                      <Select
+                                        value={match.homeParticipantId || ""}
+                                        onValueChange={v => handleMatchFieldChange(match.id, "homeParticipantId", v)}
+                                      >
+                                        <SelectTrigger className="h-11 border-2 font-bold text-sm">
+                                          <SelectValue placeholder="Elegir..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {tournamentParticipants.map((p: any) => (
+                                            <SelectItem key={p.id} value={p.id} className="font-bold">
+                                              <div className="flex items-center gap-2">
+                                                <Avatar className="h-5 w-5 rounded-none shrink-0">
+                                                  <AvatarImage src={p.logoUrl} className="object-contain" />
+                                                  <AvatarFallback className="text-[8px]">{p.name?.[0]}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col leading-tight">
+                                                  <span>{p.name}</span>
+                                                  {p.divLabel && <span className="text-[9px] text-slate-400 font-bold">Div. {p.divLabel}</span>}
+                                                </div>
+                                              </div>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
                                     </div>
-                                    <span className="font-black text-slate-300 text-base px-2 shrink-0">vs</span>
-                                    <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
-                                      <div className="flex-1 min-w-0 text-right">
-                                        <p className="font-black text-sm text-slate-900 truncate leading-tight">{match.awayParticipantName}</p>
-                                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-wide">Visitante</p>
-                                      </div>
-                                      <Avatar className="h-10 w-10 rounded-xl border bg-white shrink-0 shadow-sm">
-                                        <AvatarImage src={match.awayParticipantLogo} className="object-contain p-0.5" />
-                                        <AvatarFallback className="text-[10px] font-black text-slate-300">{match.awayParticipantName?.[0]}</AvatarFallback>
-                                      </Avatar>
+                                    <div className="flex items-center justify-center pt-6 shrink-0">
+                                      <span className="font-black text-slate-300 text-xs uppercase tracking-widest">VS</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 text-right">Visitante</p>
+                                      <Select
+                                        value={match.awayParticipantId || ""}
+                                        onValueChange={v => handleMatchFieldChange(match.id, "awayParticipantId", v)}
+                                      >
+                                        <SelectTrigger className="h-11 border-2 font-bold text-sm">
+                                          <SelectValue placeholder="Elegir..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {tournamentParticipants.map((p: any) => (
+                                            <SelectItem key={p.id} value={p.id} className="font-bold">
+                                              <div className="flex items-center gap-2">
+                                                <Avatar className="h-5 w-5 rounded-none shrink-0">
+                                                  <AvatarImage src={p.logoUrl} className="object-contain" />
+                                                  <AvatarFallback className="text-[8px]">{p.name?.[0]}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col leading-tight">
+                                                  <span>{p.name}</span>
+                                                  {p.divLabel && <span className="text-[9px] text-slate-400 font-bold">Div. {p.divLabel}</span>}
+                                                </div>
+                                              </div>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
                                     </div>
                                   </div>
-                                  {/* Date / status / actions row */}
-                                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <Clock className="h-3.5 w-3.5 text-slate-300 shrink-0" />
-                                      {matchDate ? (
-                                        <span className="text-xs font-bold text-slate-600">
-                                          {matchDate.toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" })}
-                                          {" · "}{matchDate.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}h
-                                        </span>
-                                      ) : (
-                                        <span className="text-xs font-bold text-slate-300">Sin fecha</span>
+                                  {/* Date + status */}
+                                  <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-slate-100">
+                                    <Clock className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                                    <Input
+                                      type="datetime-local"
+                                      value={match.date || ""}
+                                      onChange={e => handleMatchFieldChange(match.id, "date", e.target.value)}
+                                      className="h-9 border-2 font-bold text-xs flex-1 min-w-[180px]"
+                                    />
+                                    <button
+                                      type="button"
+                                      title={match.status === "suspended" ? "Reactivar" : "Suspender"}
+                                      onClick={() => handleMatchFieldChange(match.id, "status", match.status === "suspended" ? "scheduled" : "suspended")}
+                                      className={cn(
+                                        "h-9 px-3 rounded-xl border-2 font-black text-[9px] uppercase tracking-wide flex items-center gap-1 transition-all",
+                                        match.status === "suspended"
+                                          ? "bg-red-500 text-white border-red-500"
+                                          : "border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-400"
                                       )}
-                                      <span className={cn("text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full", sc.badgeClass)}>
-                                        {sc.label}
-                                      </span>
-                                      {match.notes && (
-                                        <span className="text-[10px] text-slate-400 font-bold italic">· {match.notes}</span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-1 shrink-0">
+                                    >
+                                      <Ban className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                  {/* Notes (visible when suspended/rescheduled) */}
+                                  {(match.status === "suspended" || match.status === "rescheduled") && (
+                                    <Input
+                                      value={match.notes || ""}
+                                      onChange={e => handleMatchFieldChange(match.id, "notes", e.target.value)}
+                                      placeholder="Observaciones (ej. Lluvia, campo en mal estado…)"
+                                      className="h-9 border-2 font-bold text-xs"
+                                    />
+                                  )}
+                                  {/* Actions */}
+                                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMatchFieldChange(match.id, "status", "free")}
+                                      className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
+                                    >
+                                      Marcar como Fecha Libre
+                                    </button>
+                                    <div className="flex items-center gap-1">
                                       <Button
                                         variant="ghost" size="sm"
-                                        className="h-8 w-8 p-0 rounded-xl text-slate-300 hover:text-primary hover:bg-primary/5"
-                                        title="Editar fecha y estado"
-                                        onClick={() => handleOpenMatchEdit(match)}
-                                      >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost" size="sm"
-                                        title={match.status === "suspended" ? "Reactivar partido" : "Suspender partido"}
-                                        className={cn("h-8 w-8 p-0 rounded-xl",
-                                          match.status === "suspended"
-                                            ? "text-amber-500 hover:bg-amber-50"
-                                            : "text-slate-300 hover:text-red-500 hover:bg-red-50"
-                                        )}
-                                        onClick={() => handleToggleSuspend(match)}
-                                      >
-                                        {match.status === "suspended"
-                                          ? <RotateCcw className="h-3.5 w-3.5" />
-                                          : <Ban className="h-3.5 w-3.5" />}
-                                      </Button>
-                                      <Button
-                                        variant="ghost" size="sm"
-                                        className="h-8 w-8 p-0 rounded-xl text-slate-200 hover:text-destructive hover:bg-red-50"
                                         onClick={() => handleDeleteTournamentMatch(match.id)}
+                                        className="h-8 w-8 p-0 rounded-xl text-slate-200 hover:text-destructive hover:bg-red-50"
                                       >
                                         <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleSaveMatchInline(match)}
+                                        disabled={savingMatchId === match.id}
+                                        className="h-8 px-4 font-black uppercase text-[9px] tracking-widest rounded-xl shadow-none"
+                                      >
+                                        {savingMatchId === match.id
+                                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                                          : "Guardar"}
                                       </Button>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ))}
@@ -621,83 +649,6 @@ export default function TournamentsPage() {
             </TabsContent>
           </Tabs>
         )}
-
-        {/* MATCH EDIT DIALOG */}
-        <Dialog open={matchEditDialog} onOpenChange={open => { if (!open) { setMatchEditDialog(false); setEditingMatch(null); } }}>
-          <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-black text-slate-900 leading-snug">
-                {editingMatch?.homeParticipantName} vs {editingMatch?.awayParticipantName}
-              </DialogTitle>
-              <DialogDescription className="font-bold text-slate-500">
-                Fecha {editingMatch?.round} · {selectedTournament.name}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-5 py-4">
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">
-                  Fecha y Hora <span className="text-slate-300 normal-case font-normal">(opcional)</span>
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={matchEditForm.date}
-                  onChange={e => setMatchEditForm({ ...matchEditForm, date: e.target.value })}
-                  className="h-12 border-2 font-bold"
-                />
-                {matchEditForm.date && (
-                  <button
-                    type="button"
-                    onClick={() => setMatchEditForm({ ...matchEditForm, date: "" })}
-                    className="text-[10px] text-slate-400 hover:text-destructive font-black uppercase underline"
-                  >
-                    Quitar fecha
-                  </button>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Estado del Partido</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { value: "scheduled", label: "Programado", active: "bg-emerald-500 text-white border-emerald-500 shadow-lg" },
-                    { value: "suspended", label: "Suspendido", active: "bg-red-500 text-white border-red-500 shadow-lg" },
-                    { value: "rescheduled", label: "Reprogramado", active: "bg-amber-500 text-white border-amber-500 shadow-lg" },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setMatchEditForm({ ...matchEditForm, status: opt.value })}
-                      className={cn(
-                        "h-12 rounded-xl border-2 font-black text-[9px] uppercase tracking-wider transition-all",
-                        matchEditForm.status === opt.value ? opt.active : "border-slate-200 text-slate-400 hover:border-slate-300"
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {(matchEditForm.status === "rescheduled" || matchEditForm.status === "suspended") && (
-                <div className="space-y-2">
-                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">
-                    Observaciones <span className="text-slate-300 normal-case font-normal">(opcional)</span>
-                  </Label>
-                  <Input
-                    value={matchEditForm.notes}
-                    onChange={e => setMatchEditForm({ ...matchEditForm, notes: e.target.value })}
-                    placeholder="Ej. Lluvia, campo en mal estado..."
-                    className="h-12 border-2 font-bold"
-                  />
-                </div>
-              )}
-            </div>
-            <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t gap-2">
-              <Button variant="ghost" onClick={() => setMatchEditDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
-              <Button onClick={handleSaveMatchEdit} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
-                Guardar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* STANDING DIALOG */}
         <Dialog open={standingDialog} onOpenChange={open => { if (!open) { setStandingDialog(false); setEditingStanding(null); } }}>
@@ -947,90 +898,140 @@ export default function TournamentsPage() {
                 </button>
               </div>
             </div>
-            {/* Clubs participantes (rivals) */}
+            {/* Clubs participantes */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Clubes Participantes</Label>
-                {opponents.length > 0 && (
+                {(clubData || opponents.length > 0) && (
                   <button
                     type="button"
-                    onClick={() => setCreateForm(prev => ({
-                      ...prev,
-                      participants: prev.participants.length === opponents.length
-                        ? []
-                        : opponents.map(o => ({ id: o.id, divLabel: prev.participants.find(p => p.id === o.id)?.divLabel || "" })),
-                    }))}
+                    onClick={() => {
+                      const allItems = [
+                        ...(clubData ? [{ id: clubId }] : []),
+                        ...opponents.map((o: any) => ({ id: o.id })),
+                      ];
+                      const allSelected = createForm.participants.length >= allItems.length;
+                      setCreateForm(prev => ({
+                        ...prev,
+                        participants: allSelected
+                          ? []
+                          : allItems.map(item => ({ id: item.id, divLabel: prev.participants.find(p => p.id === item.id)?.divLabel || "" })),
+                      }));
+                    }}
                     className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline"
                   >
-                    {createForm.participants.length === opponents.length ? "Desmarcar todo" : "Marcar todo"}
+                    {createForm.participants.length >= (opponents.length + (clubData ? 1 : 0)) ? "Desmarcar todo" : "Marcar todo"}
                   </button>
                 )}
               </div>
-              {opponents.length === 0 ? (
-                <p className="text-[10px] font-bold text-slate-400 text-center py-6 border-2 border-dashed rounded-xl">
-                  No hay rivales cargados.{" "}
-                  <Link href={`/dashboard/clubs/${clubId}/opponents`} className="text-primary underline">Cargar rivales →</Link>
-                </p>
-              ) : (
-                <div className="space-y-1.5 border-2 border-slate-100 rounded-2xl p-3 max-h-56 overflow-y-auto">
-                  {opponents.map((opp: any) => {
-                    const participant = createForm.participants.find(p => p.id === opp.id);
-                    const checked = !!participant;
-                    return (
-                      <div key={opp.id} className={cn(
-                        "flex items-center gap-2 p-2.5 rounded-xl transition-all",
-                        checked ? "bg-primary/10 border border-primary/30" : "border border-transparent hover:bg-slate-50"
-                      )}>
-                        {/* Checkbox + logo + name */}
-                        <div
-                          className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer select-none"
-                          onClick={() => setCreateForm(prev => {
-                            const already = prev.participants.find(p => p.id === opp.id);
-                            return {
-                              ...prev,
-                              participants: already
-                                ? prev.participants.filter(p => p.id !== opp.id)
-                                : [...prev.participants, { id: opp.id, divLabel: "" }],
-                            };
-                          })}
-                        >
-                          <Checkbox checked={checked} className="pointer-events-none shrink-0" />
-                          <Avatar className="h-7 w-7 rounded-lg border bg-white shrink-0">
-                            <AvatarImage src={opp.logoUrl} className="object-contain p-0.5" />
-                            <AvatarFallback className="text-[9px] font-black text-slate-300">{opp.name?.[0]}</AvatarFallback>
-                          </Avatar>
-                          <span className="font-bold text-sm text-slate-700 truncate">{opp.name}</span>
+              <div className="space-y-1.5 border-2 border-slate-100 rounded-2xl p-3 max-h-60 overflow-y-auto">
+                {/* Own club */}
+                {clubData && (() => {
+                  const participant = createForm.participants.find(p => p.id === clubId);
+                  const checked = !!participant;
+                  return (
+                    <div className={cn(
+                      "flex items-center gap-2 p-2.5 rounded-xl transition-all",
+                      checked ? "bg-primary/10 border border-primary/30" : "border border-transparent hover:bg-slate-50"
+                    )}>
+                      <div
+                        className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer select-none"
+                        onClick={() => setCreateForm(prev => {
+                          const already = prev.participants.find(p => p.id === clubId);
+                          return {
+                            ...prev,
+                            participants: already
+                              ? prev.participants.filter(p => p.id !== clubId)
+                              : [...prev.participants, { id: clubId, divLabel: "" }],
+                          };
+                        })}
+                      >
+                        <Checkbox checked={checked} className="pointer-events-none shrink-0" />
+                        <Avatar className="h-7 w-7 rounded-lg border bg-white shrink-0">
+                          <AvatarImage src={clubData.logoUrl} className="object-contain p-0.5" />
+                          <AvatarFallback className="text-[9px] font-black text-slate-300">{clubData.name?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-sm text-slate-700 truncate">{clubData.name}</span>
+                          <span className="text-[9px] font-black text-primary uppercase tracking-wide">Nuestro Club</span>
                         </div>
-                        {/* Div label input (only when checked) */}
-                        {checked && (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[9px] font-black uppercase text-slate-400">División</span>
-                            <Input
-                              value={participant?.divLabel || ""}
-                              onChange={e => {
-                                const val = e.target.value.toUpperCase().slice(0, 3);
-                                setCreateForm(prev => ({
-                                  ...prev,
-                                  participants: prev.participants.map(p =>
-                                    p.id === opp.id ? { ...p, divLabel: val } : p
-                                  ),
-                                }));
-                              }}
-                              placeholder="A"
-                              className="h-8 w-14 border-2 text-center font-black text-sm p-0"
-                              onClick={e => e.stopPropagation()}
-                            />
-                          </div>
-                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      {checked && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[9px] font-black uppercase text-slate-400">Div.</span>
+                          <Input
+                            value={participant?.divLabel || ""}
+                            onChange={e => {
+                              const val = e.target.value.toUpperCase().slice(0, 3);
+                              setCreateForm(prev => ({ ...prev, participants: prev.participants.map(p => p.id === clubId ? { ...p, divLabel: val } : p) }));
+                            }}
+                            placeholder="A"
+                            className="h-8 w-14 border-2 text-center font-black text-sm p-0"
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {/* Divider */}
+                {clubData && opponents.length > 0 && <div className="h-px bg-slate-100 my-1" />}
+                {/* Rivals */}
+                {opponents.length === 0 && !clubData && (
+                  <p className="text-[10px] font-bold text-slate-400 text-center py-4">
+                    No hay rivales cargados.{" "}
+                    <Link href={`/dashboard/clubs/${clubId}/opponents`} className="text-primary underline">Cargar rivales →</Link>
+                  </p>
+                )}
+                {opponents.map((opp: any) => {
+                  const participant = createForm.participants.find(p => p.id === opp.id);
+                  const checked = !!participant;
+                  return (
+                    <div key={opp.id} className={cn(
+                      "flex items-center gap-2 p-2.5 rounded-xl transition-all",
+                      checked ? "bg-primary/10 border border-primary/30" : "border border-transparent hover:bg-slate-50"
+                    )}>
+                      <div
+                        className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer select-none"
+                        onClick={() => setCreateForm(prev => {
+                          const already = prev.participants.find(p => p.id === opp.id);
+                          return {
+                            ...prev,
+                            participants: already
+                              ? prev.participants.filter(p => p.id !== opp.id)
+                              : [...prev.participants, { id: opp.id, divLabel: "" }],
+                          };
+                        })}
+                      >
+                        <Checkbox checked={checked} className="pointer-events-none shrink-0" />
+                        <Avatar className="h-7 w-7 rounded-lg border bg-white shrink-0">
+                          <AvatarImage src={opp.logoUrl} className="object-contain p-0.5" />
+                          <AvatarFallback className="text-[9px] font-black text-slate-300">{opp.name?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-bold text-sm text-slate-700 truncate">{opp.name}</span>
+                      </div>
+                      {checked && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[9px] font-black uppercase text-slate-400">Div.</span>
+                          <Input
+                            value={participant?.divLabel || ""}
+                            onChange={e => {
+                              const val = e.target.value.toUpperCase().slice(0, 3);
+                              setCreateForm(prev => ({ ...prev, participants: prev.participants.map(p => p.id === opp.id ? { ...p, divLabel: val } : p) }));
+                            }}
+                            placeholder="A"
+                            className="h-8 w-14 border-2 text-center font-black text-sm p-0"
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
               {createForm.participants.length >= 2 && (() => {
                 const n = createForm.participants.length;
-                const rounds = (n % 2 === 0 ? n - 1 : n) * createForm.vueltas;
-                const matches = Math.floor(n * (n - 1) / 2) * createForm.vueltas;
+                const rounds = (n - 1) * createForm.vueltas;
                 return (
                   <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-around gap-2 mt-1">
                     <div className="text-center">
@@ -1044,7 +1045,7 @@ export default function TournamentsPage() {
                     </div>
                     <div className="h-8 w-px bg-slate-200" />
                     <div className="text-center">
-                      <p className="text-2xl font-black text-primary">{matches}</p>
+                      <p className="text-2xl font-black text-primary">{rounds}</p>
                       <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Partidos</p>
                     </div>
                     <div className="h-8 w-px bg-slate-200" />
