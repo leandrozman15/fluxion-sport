@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   Timer, 
@@ -25,10 +25,9 @@ import {
   UserPlus,
   ArrowLeft,
   Shield,
-  Pencil,
-  Eraser,
-  Trash2,
+  Maximize2,
 } from "lucide-react";
+import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-board";
 import { doc, setDoc, collection, deleteDoc } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -111,11 +110,7 @@ export default function MatchLiveTrackerPage() {
   const [medicalModal, setMedicalModal] = useState<{ isOpen: boolean, playerId: string, positionId: string } | null>(null);
 
   // Pizarra state
-  const [activeTab, setActiveTab] = useState<'campo' | 'pizarra'>('campo');
-  const [drawMode, setDrawMode] = useState<'pen' | 'eraser' | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [penColor, setPenColor] = useState('#3b82f6');
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showTacticalBoard, setShowTacticalBoard] = useState(false);
 
   const teamRef = useMemoFirebase(() => 
     doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId), 
@@ -134,6 +129,17 @@ export default function MatchLiveTrackerPage() {
     [db, clubId, divisionId, teamId]
   );
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
+
+  // Roster sorted for tactical board: currently assigned players come first
+  const boardRoster = useMemo(() => {
+    if (!roster) return [];
+    const assignedInOrder = positions
+      .filter(p => p.assignedPlayerId)
+      .map(p => roster.find((r: any) => r.playerId === p.assignedPlayerId))
+      .filter(Boolean);
+    const unassigned = roster.filter((r: any) => !positions.some(p => p.assignedPlayerId === r.playerId));
+    return [...assignedInOrder, ...unassigned];
+  }, [roster, positions]);
 
   // Sync Live Status to Index
   useEffect(() => {
@@ -273,57 +279,6 @@ export default function MatchLiveTrackerPage() {
     setPositions(prev => prev.map(p =>
       p.id === draggingPosId ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) } : p
     ));
-  };
-
-  const startCanvasDraw = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!drawMode || !canvasRef.current) return;
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    let cx: number, cy: number;
-    if ('touches' in e) {
-      cx = (e.touches[0].clientX - rect.left) * scaleX;
-      cy = (e.touches[0].clientY - rect.top) * scaleY;
-    } else {
-      cx = (e.clientX - rect.left) * scaleX;
-      cy = (e.clientY - rect.top) * scaleY;
-    }
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineWidth = drawMode === 'eraser' ? 20 : 3;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = penColor;
-    ctx.globalCompositeOperation = drawMode === 'eraser' ? 'destination-out' : 'source-over';
-  };
-
-  const drawOnCanvas = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawing || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    let cx: number, cy: number;
-    if ('touches' in e) {
-      cx = (e.touches[0].clientX - rect.left) * scaleX;
-      cy = (e.touches[0].clientY - rect.top) * scaleY;
-    } else {
-      cx = (e.clientX - rect.left) * scaleX;
-      cy = (e.clientY - rect.top) * scaleY;
-    }
-    ctx.lineTo(cx, cy);
-    ctx.stroke();
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   };
 
   const onDragStartPlayer = (e: React.DragEvent, playerId: string) => {
@@ -503,9 +458,9 @@ export default function MatchLiveTrackerPage() {
   if (rosterLoading || teamLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-500 pb-24 select-none" 
-         onMouseMove={activeTab === 'campo' ? handleMouseMove : undefined} 
-         onMouseUp={() => { setDragPosId(null); setIsDrawing(false); }}>
+<div className="space-y-4 animate-in fade-in duration-500 pb-24 select-none"
+           onMouseMove={handleMouseMove}
+           onMouseUp={() => setDragPosId(null)}>
       
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -602,92 +557,36 @@ export default function MatchLiveTrackerPage() {
         <div className="md:col-span-3 space-y-3">
           {/* Control bar */}
           <div className="flex flex-wrap items-center justify-between gap-2 bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl">
-            {/* Tab toggle */}
-            <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl">
-              <Button
-                size="sm"
-                variant={activeTab === 'campo' ? 'default' : 'ghost'}
-                className={cn("h-8 px-3 font-black text-[9px] uppercase tracking-widest gap-1.5 rounded-lg", activeTab === 'campo' ? "bg-white text-primary shadow" : "text-white/70 hover:text-white")}
-                onClick={() => setActiveTab('campo')}
-              >
-                <ShieldCheck className="h-3 w-3" /> Campo
-              </Button>
-              <Button
-                size="sm"
-                variant={activeTab === 'pizarra' ? 'default' : 'ghost'}
-                className={cn("h-8 px-3 font-black text-[9px] uppercase tracking-widest gap-1.5 rounded-lg", activeTab === 'pizarra' ? "bg-white text-primary shadow" : "text-white/70 hover:text-white")}
-                onClick={() => setActiveTab('pizarra')}
-              >
-                <Pencil className="h-3 w-3" /> Pizarra
-              </Button>
+            <div className="flex items-center gap-3">
+              <Tabs value={sport} onValueChange={(v: any) => {
+                setSport(v);
+                if (v === 'hockey' && playerCount > 11) setPlayerCount(11);
+              }}>
+                <TabsList className="h-8 bg-white/5 p-1">
+                  <TabsTrigger value="hockey" className="text-[9px] uppercase font-bold text-white data-[state=active]:bg-white data-[state=active]:text-primary px-2">🏑 Hockey</TabsTrigger>
+                  <TabsTrigger value="rugby" className="text-[9px] uppercase font-bold text-white data-[state=active]:bg-white data-[state=active]:text-primary px-2">🏉 Rugby</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-white text-primary font-black h-6 text-[10px]">{playerCount}</Badge>
+                <Slider className="w-20" value={[playerCount]} min={5} max={sport === 'rugby' ? 15 : 11} step={1} onValueChange={(v) => setPlayerCount(v[0])} />
+              </div>
             </div>
-
-            {/* Sport + count (campo mode) */}
-            {activeTab === 'campo' ? (
-              <div className="flex items-center gap-3">
-                <Tabs value={sport} onValueChange={(v: any) => {
-                  setSport(v);
-                  if (v === 'hockey' && playerCount > 11) setPlayerCount(11);
-                }}>
-                  <TabsList className="h-8 bg-white/5 p-1">
-                    <TabsTrigger value="hockey" className="text-[9px] uppercase font-bold text-white data-[state=active]:bg-white data-[state=active]:text-primary px-2">🏑 Hockey</TabsTrigger>
-                    <TabsTrigger value="rugby" className="text-[9px] uppercase font-bold text-white data-[state=active]:bg-white data-[state=active]:text-primary px-2">🏉 Rugby</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-white text-primary font-black h-6 text-[10px]">{playerCount}</Badge>
-                  <Slider className="w-20" value={[playerCount]} min={5} max={sport === 'rugby' ? 15 : 11} step={1} onValueChange={(v) => setPlayerCount(v[0])} />
-                </div>
-              </div>
-            ) : (
-              /* Draw tools (pizarra mode) */
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Button
-                  variant={drawMode === 'pen' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setDrawMode(drawMode === 'pen' ? null : 'pen')}
-                  className={cn("h-8 px-3 font-black text-[9px] uppercase gap-1.5 rounded-lg", drawMode === 'pen' ? "bg-white text-primary" : "text-white/70 hover:text-white")}
-                >
-                  <Pencil className="h-3 w-3" /> Dibujar
-                </Button>
-                <Button
-                  variant={drawMode === 'eraser' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setDrawMode(drawMode === 'eraser' ? null : 'eraser')}
-                  className={cn("h-8 px-3 font-black text-[9px] uppercase gap-1.5 rounded-lg", drawMode === 'eraser' ? "bg-white text-primary" : "text-white/70 hover:text-white")}
-                >
-                  <Eraser className="h-3 w-3" /> Borrar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearCanvas}
-                  className="h-8 px-3 font-black text-[9px] uppercase gap-1.5 rounded-lg text-red-300 hover:text-red-200"
-                >
-                  <Trash2 className="h-3 w-3" /> Limpiar
-                </Button>
-                <div className="flex items-center gap-1 px-1">
-                  {['#3b82f6', '#f97316', '#ef4444', '#facc15', '#ffffff'].map(color => (
-                    <button
-                      key={color}
-                      className={cn("h-5 w-5 rounded-full border-2 transition-all", penColor === color && drawMode === 'pen' ? "scale-125 border-white" : "border-transparent opacity-60 hover:opacity-100")}
-                      style={{ backgroundColor: color }}
-                      onClick={() => { setPenColor(color); setDrawMode('pen'); }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            <Button
+              size="sm"
+              onClick={() => setShowTacticalBoard(true)}
+              className="h-8 px-4 font-black text-[9px] uppercase tracking-widest gap-1.5 bg-white text-primary hover:bg-slate-50 shadow rounded-xl"
+            >
+              <Maximize2 className="h-3.5 w-3.5" /> Pizarra Táctica
+            </Button>
           </div>
 
           {/* Field */}
           <div
             ref={fieldRef}
             className="relative w-full aspect-[2/3] max-w-sm md:max-w-none mx-auto bg-[#244d1f] rounded-[2rem] border-[8px] border-white shadow-[0_20px_80px_rgba(0,0,0,0.4)] overflow-hidden touch-none"
-            onMouseDown={activeTab === 'pizarra' && drawMode ? startCanvasDraw : undefined}
-            onMouseMove={activeTab === 'pizarra' && drawMode ? drawOnCanvas : undefined}
-            onTouchMove={activeTab === 'campo' ? handleTouchMove : (activeTab === 'pizarra' && drawMode ? drawOnCanvas : undefined)}
-            onTouchEnd={() => { setDragPosId(null); setIsDrawing(false); }}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={() => setDragPosId(null)}
           >
             <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 100 150">
               {sport === 'hockey' ? (
@@ -708,17 +607,6 @@ export default function MatchLiveTrackerPage() {
               )}
             </svg>
 
-            {/* Drawing canvas */}
-            <canvas
-              ref={canvasRef}
-              width={500}
-              height={750}
-              className={cn(
-                "absolute inset-0 w-full h-full z-20",
-                activeTab === 'pizarra' && drawMode ? "pointer-events-auto cursor-crosshair" : "pointer-events-none"
-              )}
-            />
-
             {/* Player positions */}
             {positions.map((p) => {
               const stats = p.assignedPlayerId ? playerStats[p.assignedPlayerId] : null;
@@ -727,12 +615,11 @@ export default function MatchLiveTrackerPage() {
                   key={p.id}
                   className={cn(
                     "absolute -translate-x-1/2 -translate-y-1/2 transition-transform duration-75",
-                    draggingPosId === p.id ? "scale-125 z-50" : "z-10",
-                    activeTab === 'pizarra' ? "pointer-events-none opacity-30" : ""
+                    draggingPosId === p.id ? "scale-125 z-50" : "z-10"
                   )}
                   style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                  onMouseDown={activeTab === 'campo' ? () => setDragPosId(p.id) : undefined}
-                  onTouchStart={activeTab === 'campo' ? (e) => { e.stopPropagation(); setDragPosId(p.id); } : undefined}
+                  onMouseDown={() => setDragPosId(p.id)}
+                  onTouchStart={(e) => { e.stopPropagation(); setDragPosId(p.id); }}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => onDropOnSlot(e, p.id)}
                 >
@@ -882,6 +769,36 @@ export default function MatchLiveTrackerPage() {
           </Card>
         </div>
       </div>
+
+      {/* ── Tactical Board Overlay ─────────────────────────────────── */}
+      {showTacticalBoard && (
+        <div className="fixed inset-0 z-[60] bg-slate-950 overflow-y-auto animate-in fade-in duration-200">
+          <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-slate-950/90 backdrop-blur-md border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <span className="text-white font-black uppercase tracking-widest text-sm">Pizarra Táctica</span>
+              <Badge className="bg-white/10 text-white/50 border-none text-[9px] font-bold uppercase tracking-widest">Independiente del partido en vivo</Badge>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => setShowTacticalBoard(false)}
+              className="text-white hover:bg-white/10 font-black uppercase text-[9px] tracking-widest gap-2 h-9 rounded-xl"
+            >
+              <X className="h-4 w-4" /> Volver al Partido
+            </Button>
+          </div>
+          <div className="p-4">
+            <HockeyTacticalBoard
+              roster={boardRoster}
+              clubLogo={club?.logoUrl || ""}
+              initialPlayerCount={playerCount}
+              initialSport={sport}
+              teamId={teamId}
+              clubId={clubId}
+              divisionId={divisionId}
+            />
+          </div>
+        </div>
+      )}
 
       <Dialog open={!!medicalModal} onOpenChange={(open) => !open && setMedicalModal(null)}>
         <DialogContent className="bg-white border-none shadow-2xl">
