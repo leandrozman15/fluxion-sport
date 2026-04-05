@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import {
   Plus, Loader2, Trash2, ChevronLeft, ChevronRight,
-  Trophy, Shield, ExternalLink, Bus, Pencil,
-  Table as TableIcon, CalendarDays, MapPinned, Users, Calendar,
+  Trophy, Shield, Pencil,
+  Table as TableIcon, CalendarDays, Users, Calendar,
+  Ban, Clock, RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, getDocs, getDoc, deleteDoc, updateDoc } from "firebase/firestore";
@@ -25,15 +26,40 @@ import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-const MATCH_INITIAL = {
-  teamId: "", opponentId: "", date: "", type: "match_league",
-  title: "", departureTime: "", isHome: true, homeTeam: "", awayTeam: "",
-};
-
 const STANDING_INITIAL = {
   teamName: "", opponentId: "", teamId: "", isInternal: false,
   played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0,
 };
+
+function generateRoundRobin(
+  participants: { id: string; name: string; logoUrl?: string }[],
+  vueltas: 1 | 2
+) {
+  let teams: { id: string; name: string; logoUrl?: string }[] = [...participants];
+  if (teams.length % 2 !== 0) teams.push({ id: "__bye__", name: "Libre" });
+  const n = teams.length;
+  const roundsPerVuelta = n - 1;
+  const result: { round: number; home: typeof teams[0]; away: typeof teams[0] }[] = [];
+  const rotation = [...teams.slice(1)];
+  for (let r = 0; r < roundsPerVuelta; r++) {
+    const current = [teams[0], ...rotation];
+    for (let i = 0; i < n / 2; i++) {
+      const home = current[i];
+      const away = current[n - 1 - i];
+      if (home.id !== "__bye__" && away.id !== "__bye__") {
+        result.push({ round: r + 1, home, away });
+      }
+    }
+    rotation.unshift(rotation.pop()!);
+  }
+  if (vueltas === 2) {
+    const vuelta1 = result.slice();
+    for (const m of vuelta1) {
+      result.push({ round: m.round + roundsPerVuelta, home: m.away, away: m.home });
+    }
+  }
+  return result;
+}
 
 export default function TournamentsPage() {
   const { clubId } = useParams() as { clubId: string };
@@ -59,8 +85,9 @@ export default function TournamentsPage() {
   const [allMatches, setAllMatches] = useState<any[]>([]);
   const [standings, setStandings] = useState<any[]>([]);
 
-  const [matchDialog, setMatchDialog] = useState(false);
-  const [newMatch, setNewMatch] = useState({ ...MATCH_INITIAL });
+  const [matchEditDialog, setMatchEditDialog] = useState(false);
+  const [editingMatch, setEditingMatch] = useState<any>(null);
+  const [matchEditForm, setMatchEditForm] = useState({ date: "", status: "scheduled", notes: "" });
 
   const [standingDialog, setStandingDialog] = useState(false);
   const [editingStanding, setEditingStanding] = useState<any>(null);
@@ -102,25 +129,19 @@ export default function TournamentsPage() {
     setDetailLoading(true);
     async function loadDetail() {
       try {
-        const matchTypes = ["match", "match_league", "match_friendly"];
         const divTeamsSnap = await getDocs(
           collection(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams")
         );
         const divTeams = divTeamsSnap.docs.map(d => ({ ...d.data(), id: d.id }));
         setDivisionTeams(divTeams.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "")));
 
-        const teamMatches = await Promise.all(
-          divTeams.map(async (team: any) => {
-            const evSnap = await getDocs(
-              collection(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", team.id, "events")
-            );
-            return evSnap.docs
-              .map(d => ({ ...d.data(), id: d.id, teamId: team.id, teamName: (team as any).name || team.id }))
-              .filter((e: any) => matchTypes.includes(e.type) && e.tournamentId === selectedTournament.id);
-          })
+        const matchesSnap = await getDocs(
+          collection(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches")
         );
         setAllMatches(
-          teamMatches.flat().sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          matchesSnap.docs
+            .map(d => ({ ...d.data(), id: d.id }))
+            .sort((a: any, b: any) => (a.round - b.round) || (a.date || "").localeCompare(b.date || ""))
         );
         const stSnap = await getDocs(
           collection(db, "clubs", clubId, "tournaments", selectedTournament.id, "standings")
@@ -183,6 +204,24 @@ export default function TournamentsPage() {
           createdAt: new Date().toISOString(),
         });
       }));
+      // Generate round-robin fixture
+      const pairings = generateRoundRobin(resolvedParticipants, createForm.vueltas);
+      await Promise.all(pairings.map(async (pairing) => {
+        const matchId = doc(collection(db, "clubs", clubId, "tournaments", tid, "matches")).id;
+        await setDoc(doc(db, "clubs", clubId, "tournaments", tid, "matches", matchId), {
+          id: matchId,
+          round: pairing.round,
+          homeParticipantId: pairing.home.id,
+          awayParticipantId: pairing.away.id,
+          homeParticipantName: teamNames[pairing.home.id] || pairing.home.name,
+          awayParticipantName: teamNames[pairing.away.id] || pairing.away.name,
+          homeParticipantLogo: (pairing.home as any).logoUrl || "",
+          awayParticipantLogo: (pairing.away as any).logoUrl || "",
+          date: "",
+          status: "scheduled",
+          createdAt: new Date().toISOString(),
+        });
+      }));
       setTournaments(prev => [tournament, ...prev]);
       setCreateDialog(false);
       setCreateForm({ name: "", divisionId: "", participants: [], vueltas: 1 });
@@ -209,51 +248,41 @@ export default function TournamentsPage() {
     toast({ variant: "destructive", title: "Torneo eliminado", description: tname });
   };
 
-  const handleCreateMatch = async () => {
-    if (!newMatch.teamId || !newMatch.opponentId || !newMatch.date) {
-      toast({ variant: "destructive", title: "Faltan datos", description: "Completá equipo, rival y fecha." });
-      return;
-    }
-    const teamName = selectedTournament.teamNames?.[newMatch.teamId] || newMatch.teamId;
-    const isOwnClub = newMatch.opponentId === "__own_club__";
-    const selectedOpp = isOwnClub ? clubData : opponents.find(o => o.id === newMatch.opponentId);
-    if (!selectedOpp) return;
+  const handleOpenMatchEdit = (match: any) => {
+    setEditingMatch(match);
+    setMatchEditForm({ date: match.date || "", status: match.status || "scheduled", notes: match.notes || "" });
+    setMatchEditDialog(true);
+  };
+
+  const handleSaveMatchEdit = async () => {
+    if (!editingMatch || !db) return;
+    const updates: any = { date: matchEditForm.date, status: matchEditForm.status, notes: matchEditForm.notes };
     try {
-      const matchId = doc(collection(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", newMatch.teamId, "events")).id;
-      const data: any = {
-        ...newMatch,
-        id: matchId,
-        tournamentId: selectedTournament.id,
-        tournamentName: selectedTournament.name,
-        opponent: selectedOpp.name,
-        opponentId: isOwnClub ? clubId : selectedOpp.id,
-        opponentLogo: selectedOpp.logoUrl || "",
-        location: newMatch.isHome ? (clubData?.address || "Sede Propia") : (selectedOpp.city || selectedOpp.address || "Sede Rival"),
-        address: newMatch.isHome ? (clubData?.address || "") : (selectedOpp.address || ""),
-        title: newMatch.title || `vs ${selectedOpp.name}`,
-        homeTeam: newMatch.isHome ? (clubData?.name || teamName) : selectedOpp.name,
-        awayTeam: newMatch.isHome ? selectedOpp.name : (clubData?.name || teamName),
-        status: "scheduled",
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(doc(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", newMatch.teamId, "events", matchId), data);
-      setAllMatches(prev =>
-        [...prev, { ...data, teamName }].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      );
-      toast({ title: "Partido programado", description: `${data.homeTeam} vs ${data.awayTeam}` });
-      setMatchDialog(false);
-      setNewMatch({ ...MATCH_INITIAL });
+      await updateDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches", editingMatch.id), updates);
+      setAllMatches(prev => prev.map(m => m.id === editingMatch.id ? { ...m, ...updates } : m));
+      setMatchEditDialog(false);
+      setEditingMatch(null);
+      toast({ title: "Partido actualizado" });
     } catch (e) {
       console.error(e);
-      toast({ variant: "destructive", title: "Error al guardar" });
+      toast({ variant: "destructive", title: "Error al actualizar" });
     }
   };
 
-  const handleDeleteMatch = async (match: any) => {
+  const handleDeleteTournamentMatch = async (matchId: string) => {
     if (!confirm("¿Eliminar este partido del fixture?")) return;
-    await deleteDoc(doc(db, "clubs", clubId, "divisions", selectedTournament.divisionId, "teams", match.teamId, "events", match.id));
-    setAllMatches(prev => prev.filter(m => m.id !== match.id));
+    await deleteDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches", matchId));
+    setAllMatches(prev => prev.filter(m => m.id !== matchId));
     toast({ variant: "destructive", title: "Partido eliminado" });
+  };
+
+  const handleToggleSuspend = async (match: any) => {
+    const newStatus = match.status === "suspended" ? "scheduled" : "suspended";
+    try {
+      await updateDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches", match.id), { status: newStatus });
+      setAllMatches(prev => prev.map(m => m.id === match.id ? { ...m, status: newStatus } : m));
+      toast({ title: newStatus === "suspended" ? "Partido suspendido" : "Partido reactivado" });
+    } catch (e) { console.error(e); }
   };
 
   const handleOpenStandingEdit = (s: any) => {
@@ -353,13 +382,6 @@ export default function TournamentsPage() {
               <Button variant="outline" asChild className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
                 <Link href={"/dashboard/clubs/" + clubId + "/opponents"}><Shield className="h-4 w-4 mr-2" /> Rivales</Link>
               </Button>
-              <Button
-                className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-8 shadow-2xl"
-                onClick={() => { setNewMatch({ ...MATCH_INITIAL }); setMatchDialog(true); }}
-                disabled={!tournamentTeams.length}
-              >
-                <Plus className="h-5 w-5 mr-2" /> Nuevo Partido
-              </Button>
             </div>
           </div>
         </header>
@@ -390,78 +412,123 @@ export default function TournamentsPage() {
               {allMatches.length === 0 ? (
                 <div className="text-center py-32 border-2 border-dashed rounded-[2.5rem] bg-white/5 backdrop-blur-md">
                   <CalendarDays className="h-16 w-16 mx-auto text-white mb-6 opacity-20" />
-                  <p className="text-white font-black uppercase tracking-[0.3em] text-sm">Sin partidos programados</p>
-                  <p className="text-white/60 text-xs mt-2 font-bold">Usá &quot;Nuevo Partido&quot; para armar el fixture.</p>
+                  <p className="text-white font-black uppercase tracking-[0.3em] text-sm">Sin fixture generado</p>
+                  <p className="text-white/60 text-xs mt-2 font-bold">Creá un nuevo torneo para generar el fixture automáticamente.</p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {allMatches.map((match: any, idx: number) => {
-                    const date = new Date(match.date);
-                    const prev = allMatches[idx - 1];
-                    const newMonth = !prev || new Date(prev.date).getMonth() !== date.getMonth() || new Date(prev.date).getFullYear() !== date.getFullYear();
-                    return (
-                      <div key={match.id}>
-                        {newMonth && (
-                          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/50 px-1 pt-5 pb-2">
-                            {date.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
-                          </p>
-                        )}
-                        <div className="bg-white/95 backdrop-blur-md rounded-[1.5rem] shadow-xl overflow-hidden">
-                          <div className={cn("h-1.5 w-full", matchTypeColor(match.type))} />
-                          <div className="p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                              <div className="text-center bg-slate-50 rounded-2xl p-3 w-16 shrink-0 border border-slate-100">
-                                <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">{date.toLocaleDateString("es-AR", { month: "short" })}</p>
-                                <p className="text-2xl font-black text-slate-900 leading-none">{date.getDate()}</p>
-                                <p className="text-[9px] font-black text-primary">{date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}h</p>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                  <Badge className={cn("font-black text-[8px] tracking-widest px-2 py-0.5 border-none text-white", matchTypeColor(match.type))}>
-                                    {matchTypeLabel(match.type)}
-                                  </Badge>
-                                  <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-slate-200 text-slate-400">{match.teamName}</Badge>
-                                  {match.isHome
-                                    ? <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-green-200 text-green-600">Local</Badge>
-                                    : <Badge variant="outline" className="font-black text-[8px] px-2 py-0.5 border-slate-200 text-slate-500">Visitante</Badge>}
+              ) : (() => {
+                const matchesByRound: Record<number, any[]> = {};
+                allMatches.forEach((m: any) => {
+                  if (!matchesByRound[m.round]) matchesByRound[m.round] = [];
+                  matchesByRound[m.round].push(m);
+                });
+                const rounds = Object.keys(matchesByRound).map(Number).sort((a, b) => a - b);
+                const statusConfig: Record<string, { label: string; barColor: string; badgeClass: string }> = {
+                  scheduled: { label: "Programado", barColor: "bg-primary", badgeClass: "bg-emerald-100 text-emerald-700" },
+                  suspended: { label: "Suspendido", barColor: "bg-red-500", badgeClass: "bg-red-100 text-red-600" },
+                  rescheduled: { label: "Reprogramado", barColor: "bg-amber-500", badgeClass: "bg-amber-100 text-amber-700" },
+                  played: { label: "Jugado", barColor: "bg-slate-400", badgeClass: "bg-slate-100 text-slate-500" },
+                };
+                return (
+                  <div className="space-y-10">
+                    {rounds.map((round) => (
+                      <div key={round}>
+                        <div className="flex items-center gap-3 mb-4">
+                          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/70 shrink-0">Fecha {round}</span>
+                          <div className="flex-1 h-px bg-white/20" />
+                        </div>
+                        <div className="space-y-3">
+                          {matchesByRound[round].map((match: any) => {
+                            const sc = statusConfig[match.status || "scheduled"] || statusConfig.scheduled;
+                            const matchDate = match.date ? new Date(match.date) : null;
+                            return (
+                              <div key={match.id} className="bg-white/95 backdrop-blur-md rounded-[1.5rem] shadow-xl overflow-hidden">
+                                <div className={cn("h-1.5 w-full", sc.barColor)} />
+                                <div className="p-4 md:p-5 space-y-3">
+                                  {/* Teams row */}
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                      <Avatar className="h-10 w-10 rounded-xl border bg-white shrink-0 shadow-sm">
+                                        <AvatarImage src={match.homeParticipantLogo} className="object-contain p-0.5" />
+                                        <AvatarFallback className="text-[10px] font-black text-slate-300">{match.homeParticipantName?.[0]}</AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-black text-sm text-slate-900 truncate leading-tight">{match.homeParticipantName}</p>
+                                        <p className="text-[9px] font-black uppercase text-primary tracking-wide">Local</p>
+                                      </div>
+                                    </div>
+                                    <span className="font-black text-slate-300 text-base px-2 shrink-0">vs</span>
+                                    <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
+                                      <div className="flex-1 min-w-0 text-right">
+                                        <p className="font-black text-sm text-slate-900 truncate leading-tight">{match.awayParticipantName}</p>
+                                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-wide">Visitante</p>
+                                      </div>
+                                      <Avatar className="h-10 w-10 rounded-xl border bg-white shrink-0 shadow-sm">
+                                        <AvatarImage src={match.awayParticipantLogo} className="object-contain p-0.5" />
+                                        <AvatarFallback className="text-[10px] font-black text-slate-300">{match.awayParticipantName?.[0]}</AvatarFallback>
+                                      </Avatar>
+                                    </div>
+                                  </div>
+                                  {/* Date / status / actions row */}
+                                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Clock className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                                      {matchDate ? (
+                                        <span className="text-xs font-bold text-slate-600">
+                                          {matchDate.toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" })}
+                                          {" · "}{matchDate.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}h
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs font-bold text-slate-300">Sin fecha</span>
+                                      )}
+                                      <span className={cn("text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full", sc.badgeClass)}>
+                                        {sc.label}
+                                      </span>
+                                      {match.notes && (
+                                        <span className="text-[10px] text-slate-400 font-bold italic">· {match.notes}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <Button
+                                        variant="ghost" size="sm"
+                                        className="h-8 w-8 p-0 rounded-xl text-slate-300 hover:text-primary hover:bg-primary/5"
+                                        title="Editar fecha y estado"
+                                        onClick={() => handleOpenMatchEdit(match)}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost" size="sm"
+                                        title={match.status === "suspended" ? "Reactivar partido" : "Suspender partido"}
+                                        className={cn("h-8 w-8 p-0 rounded-xl",
+                                          match.status === "suspended"
+                                            ? "text-amber-500 hover:bg-amber-50"
+                                            : "text-slate-300 hover:text-red-500 hover:bg-red-50"
+                                        )}
+                                        onClick={() => handleToggleSuspend(match)}
+                                      >
+                                        {match.status === "suspended"
+                                          ? <RotateCcw className="h-3.5 w-3.5" />
+                                          : <Ban className="h-3.5 w-3.5" />}
+                                      </Button>
+                                      <Button
+                                        variant="ghost" size="sm"
+                                        className="h-8 w-8 p-0 rounded-xl text-slate-200 hover:text-destructive hover:bg-red-50"
+                                        onClick={() => handleDeleteTournamentMatch(match.id)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
                                 </div>
-                                <h3 className="font-black text-base md:text-lg text-slate-900 leading-tight truncate">{match.title || ("vs " + match.opponent)}</h3>
-                                {match.location && (
-                                  <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5 flex-wrap">
-                                    <MapPinned className="h-3 w-3 shrink-0" /> {match.location}
-                                    {match.address && (
-                                      <a href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(match.address)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-0.5 ml-1">
-                                        <ExternalLink className="h-2.5 w-2.5" /> Mapa
-                                      </a>
-                                    )}
-                                  </p>
-                                )}
                               </div>
-                              {match.scoreHome !== undefined && match.scoreAway !== undefined && (
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className="text-3xl font-black text-slate-900 tabular-nums">{match.scoreHome}</span>
-                                  <span className="text-slate-300 font-black text-xl">-</span>
-                                  <span className="text-3xl font-black text-slate-900 tabular-nums">{match.scoreAway}</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl text-slate-300 hover:text-destructive hover:bg-red-50" onClick={() => handleDeleteMatch(match)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                              <Button asChild variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl text-slate-300 hover:text-primary hover:bg-primary/5">
-                                <Link href={"/dashboard/clubs/" + clubId + "/divisions/" + selectedTournament.divisionId + "/teams/" + match.teamId + "/events/" + match.id}>
-                                  <ChevronRight className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                            </div>
-                          </div>
+                            );
+                          })}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
             </TabsContent>
 
             <TabsContent value="standings" className="animate-in fade-in duration-300">
@@ -555,98 +622,78 @@ export default function TournamentsPage() {
           </Tabs>
         )}
 
-        {/* MATCH DIALOG */}
-        <Dialog open={matchDialog} onOpenChange={setMatchDialog}>
+        {/* MATCH EDIT DIALOG */}
+        <Dialog open={matchEditDialog} onOpenChange={open => { if (!open) { setMatchEditDialog(false); setEditingMatch(null); } }}>
           <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black text-slate-900">Programar Encuentro</DialogTitle>
+              <DialogTitle className="text-xl font-black text-slate-900 leading-snug">
+                {editingMatch?.homeParticipantName} vs {editingMatch?.awayParticipantName}
+              </DialogTitle>
               <DialogDescription className="font-bold text-slate-500">
-                Partido para el torneo <span className="text-primary">{selectedTournament.name}</span>
+                Fecha {editingMatch?.round} · {selectedTournament.name}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-5 py-4 max-h-[65vh] overflow-y-auto pr-1">
+            <div className="space-y-5 py-4">
               <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Tipo de Partido</Label>
-                <Select value={newMatch.type} onValueChange={v => setNewMatch({ ...newMatch, type: v })}>
-                  <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="match_league" className="font-bold">Partido de Liga</SelectItem>
-                    <SelectItem value="match_friendly" className="font-bold">Amistoso</SelectItem>
-                    <SelectItem value="match" className="font-bold">Partido Oficial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Condición</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setNewMatch({ ...newMatch, isHome: true })}
-                    className={cn("h-12 rounded-xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
-                      newMatch.isHome ? "bg-primary text-white border-primary shadow-lg" : "border-slate-200 text-slate-400 hover:border-primary/40")}>
-                    Local
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">
+                  Fecha y Hora <span className="text-slate-300 normal-case font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  type="datetime-local"
+                  value={matchEditForm.date}
+                  onChange={e => setMatchEditForm({ ...matchEditForm, date: e.target.value })}
+                  className="h-12 border-2 font-bold"
+                />
+                {matchEditForm.date && (
+                  <button
+                    type="button"
+                    onClick={() => setMatchEditForm({ ...matchEditForm, date: "" })}
+                    className="text-[10px] text-slate-400 hover:text-destructive font-black uppercase underline"
+                  >
+                    Quitar fecha
                   </button>
-                  <button type="button" onClick={() => setNewMatch({ ...newMatch, isHome: false })}
-                    className={cn("h-12 rounded-xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
-                      !newMatch.isHome ? "bg-slate-800 text-white border-slate-800 shadow-lg" : "border-slate-200 text-slate-400 hover:border-slate-400")}>
-                    Visitante
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Equipo (del torneo)</Label>
-                <Select value={newMatch.teamId} onValueChange={v => setNewMatch({ ...newMatch, teamId: v })}>
-                  <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Seleccionar equipo..." /></SelectTrigger>
-                  <SelectContent>
-                    {tournamentTeams.map((t: any) => (
-                      <SelectItem key={t.id} value={t.id} className="font-bold">{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival</Label>
-                <Select value={newMatch.opponentId} onValueChange={v => setNewMatch({ ...newMatch, opponentId: v })}>
-                  <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir rival..." /></SelectTrigger>
-                  <SelectContent>
-                    {clubData && (
-                      <SelectItem value="__own_club__" className="font-bold">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={clubData.logoUrl} className="object-contain" /><AvatarFallback className="text-[8px]">H</AvatarFallback></Avatar>
-                          {clubData.name}
-                        </div>
-                      </SelectItem>
-                    )}
-                    {opponents.map(o => (
-                      <SelectItem key={o.id} value={o.id} className="font-bold">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={o.logoUrl} className="object-contain" /></Avatar>
-                          {o.name}{o.city ? (" · " + o.city) : ""}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {opponents.length === 0 && (
-                  <p className="text-[10px] text-destructive font-black uppercase">
-                    Debés cargar rivales primero.{" "}
-                    <Link href={"/dashboard/clubs/" + clubId + "/opponents"} className="underline">Ir a Rivales</Link>
-                  </p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Fecha y Hora</Label>
-                <Input type="datetime-local" value={newMatch.date} onChange={e => setNewMatch({ ...newMatch, date: e.target.value })} className="h-12 border-2 font-bold" />
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Estado del Partido</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: "scheduled", label: "Programado", active: "bg-emerald-500 text-white border-emerald-500 shadow-lg" },
+                    { value: "suspended", label: "Suspendido", active: "bg-red-500 text-white border-red-500 shadow-lg" },
+                    { value: "rescheduled", label: "Reprogramado", active: "bg-amber-500 text-white border-amber-500 shadow-lg" },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setMatchEditForm({ ...matchEditForm, status: opt.value })}
+                      className={cn(
+                        "h-12 rounded-xl border-2 font-black text-[9px] uppercase tracking-wider transition-all",
+                        matchEditForm.status === opt.value ? opt.active : "border-slate-200 text-slate-400 hover:border-slate-300"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                  <Bus className="h-3.5 w-3.5" /> Salida del Micro <span className="text-slate-300 normal-case font-medium">(opcional)</span>
-                </Label>
-                <Input type="time" value={newMatch.departureTime} onChange={e => setNewMatch({ ...newMatch, departureTime: e.target.value })} className="h-12 border-2 font-bold" />
-              </div>
+              {(matchEditForm.status === "rescheduled" || matchEditForm.status === "suspended") && (
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">
+                    Observaciones <span className="text-slate-300 normal-case font-normal">(opcional)</span>
+                  </Label>
+                  <Input
+                    value={matchEditForm.notes}
+                    onChange={e => setMatchEditForm({ ...matchEditForm, notes: e.target.value })}
+                    placeholder="Ej. Lluvia, campo en mal estado..."
+                    className="h-12 border-2 font-bold"
+                  />
+                </div>
+              )}
             </div>
             <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t gap-2">
-              <Button variant="ghost" onClick={() => setMatchDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
-              <Button onClick={handleCreateMatch} disabled={!newMatch.teamId || !newMatch.opponentId || !newMatch.date} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
-                Confirmar en Fixture
+              <Button variant="ghost" onClick={() => setMatchEditDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
+              <Button onClick={handleSaveMatchEdit} className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20">
+                Guardar
               </Button>
             </DialogFooter>
           </DialogContent>
