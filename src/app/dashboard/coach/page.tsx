@@ -481,23 +481,23 @@ export default function CoachDashboard() {
         </header>
 
         {/* WEEKLY COMMITMENTS */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60 px-1 drop-shadow-md">Compromisos de la Semana</h2>
-            <div className="flex items-center gap-1">
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10" onClick={() => setWeekStart(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d; })}>
-                <ChevronLeft className="h-4 w-4" />
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[9px] font-black uppercase tracking-[0.3em] text-white/60 drop-shadow-md">Semana</h2>
+            <div className="flex items-center gap-0.5">
+              <Button size="icon" variant="ghost" className="h-6 w-6 text-white/60 hover:text-white hover:bg-white/10" onClick={() => setWeekStart(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d; })}>
+                <ChevronLeft className="h-3 w-3" />
               </Button>
-              <span className="text-[9px] font-black text-white uppercase tracking-widest min-w-[160px] text-center">
-                {weekStart.getDate()} – {(() => { const end = new Date(weekStart); end.setDate(weekStart.getDate() + 6); return `${end.getDate()} ${end.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })}`; })()}
+              <span className="text-[8px] font-black text-white uppercase tracking-widest min-w-[120px] text-center">
+                {weekStart.getDate()} – {(() => { const end = new Date(weekStart); end.setDate(weekStart.getDate() + 6); return `${end.getDate()} ${end.toLocaleDateString('es-AR', { month: 'short' })}`; })()}
               </span>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10" onClick={() => setWeekStart(prev => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d; })}>
-                <ChevronRight className="h-4 w-4" />
+              <Button size="icon" variant="ghost" className="h-6 w-6 text-white/60 hover:text-white hover:bg-white/10" onClick={() => setWeekStart(prev => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d; })}>
+                <ChevronRight className="h-3 w-3" />
               </Button>
             </div>
           </div>
 
-          <Card className="border-none bg-white/95 backdrop-blur-md rounded-[2rem] shadow-2xl overflow-hidden">
+          <Card className="border-none bg-white/95 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden">
             <CardContent className="p-0">
               {[0,1,2,3,4,5,6].map(offset => {
                 const day = new Date(weekStart);
@@ -513,42 +513,30 @@ export default function CoachDashboard() {
                 const isEmpty = dayEvts.length === 0 && dayMatches.length === 0;
 
                 return (
-                  <div key={offset} className={cn("flex gap-3 md:gap-5 py-3 px-4 md:px-6 border-b last:border-0 transition-colors", isToday && "bg-primary/5")}>
-                    <div className="w-12 md:w-16 shrink-0 text-center pt-1">
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">{DAY_NAMES_SHORT[day.getDay()]}</p>
-                      <p className={cn("text-xl md:text-2xl font-black", isToday ? "text-primary" : isEmpty ? "text-slate-200" : "text-slate-900")}>{day.getDate()}</p>
+                  <div key={offset} className={cn("flex items-center gap-2 py-1 px-3 border-b last:border-0", isToday && "bg-primary/5")}>
+                    <div className="w-8 shrink-0 text-center">
+                      <p className="text-[7px] font-black uppercase text-slate-400 leading-none">{DAY_NAMES_SHORT[day.getDay()]}</p>
+                      <p className={cn("text-sm font-black leading-tight", isToday ? "text-primary" : isEmpty ? "text-slate-200" : "text-slate-700")}>{day.getDate()}</p>
                     </div>
-                    <div className="flex-1 space-y-2 py-1">
-                      {isEmpty && <p className="text-[10px] text-slate-300 font-bold py-1">—</p>}
+                    <div className="flex-1 flex flex-wrap gap-1 py-0.5 min-h-[24px] items-center">
+                      {isEmpty && <span className="text-[8px] text-slate-200">—</span>}
                       {dayEvts.map((ev: any) => (
-                        <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events/${ev.id}`} key={ev.id} className="block">
-                          <div className={cn("flex items-center gap-3 p-2.5 md:p-3 rounded-xl border transition-all hover:shadow-md",
-                            ev.type === 'training' ? "border-primary/20 bg-primary/5" : "border-accent/20 bg-accent/5")}>
-                            {ev.type === 'training' ? <Activity className="h-4 w-4 text-primary shrink-0" /> : <Trophy className="h-4 w-4 text-accent shrink-0" />}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-black text-slate-900 truncate">{ev.title}</p>
-                              <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold">
-                                <Clock className="h-3 w-3" />
-                                {new Date(ev.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
-                                {ev.duration > 0 && <span>· {ev.duration} min</span>}
-                                {ev.location && <><MapPin className="h-3 w-3 ml-1" /><span className="truncate">{ev.location}</span></>}
-                              </div>
-                            </div>
-                            {ev.callupsPublished && <Badge className="bg-green-100 text-green-700 text-[7px] font-black shrink-0 border-none">Convocados</Badge>}
-                          </div>
+                        <Link href={`/dashboard/clubs/${selectedTeam.clubId}/divisions/${selectedTeam.divisionId}/teams/${selectedTeam.id}/events/${ev.id}`} key={ev.id}>
+                          <Badge className={cn("text-[7px] font-bold px-1.5 h-5 gap-1 cursor-pointer hover:opacity-80 border-none",
+                            ev.type === 'training' ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent")}>
+                            {ev.type === 'training' ? <Activity className="h-2.5 w-2.5" /> : <Trophy className="h-2.5 w-2.5" />}
+                            <span className="truncate max-w-[100px]">{ev.title}</span>
+                            <span className="opacity-60">{new Date(ev.date).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            {ev.callupsPublished && <CheckCircle2 className="h-2.5 w-2.5 text-green-600" />}
+                          </Badge>
                         </Link>
                       ))}
                       {dayMatches.map((m: any) => (
-                        <div key={m.id} className="flex items-center gap-3 p-2.5 md:p-3 rounded-xl border border-amber-200 bg-amber-50">
-                          <Trophy className="h-4 w-4 text-amber-600 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-slate-900 truncate">{m.homeParticipantName} vs {m.awayParticipantName}</p>
-                            <p className="text-[9px] text-amber-600 font-bold">Fecha {m.round} · {m.tournamentName}</p>
-                          </div>
-                          <Button size="sm" onClick={() => handleCreateEventFromMatch(m)} className="h-7 px-3 text-[8px] font-black uppercase tracking-widest shrink-0 bg-accent hover:bg-accent/90">
-                            Convocar
-                          </Button>
-                        </div>
+                        <Badge key={m.id} className="text-[7px] font-bold px-1.5 h-5 gap-1 bg-amber-100 text-amber-700 border-none cursor-pointer hover:opacity-80" onClick={() => handleCreateEventFromMatch(m)}>
+                          <Trophy className="h-2.5 w-2.5" />
+                          <span className="truncate max-w-[90px]">{m.homeParticipantName} vs {m.awayParticipantName}</span>
+                          <Plus className="h-2.5 w-2.5" />
+                        </Badge>
                       ))}
                     </div>
                   </div>
@@ -557,9 +545,9 @@ export default function CoachDashboard() {
             </CardContent>
           </Card>
 
-          <Button variant="outline" onClick={handleOpenScheduleDialog}
-            className="w-full h-12 border-white/20 text-white bg-white/10 hover:bg-white/20 font-black uppercase text-[10px] tracking-widest gap-2 rounded-2xl backdrop-blur-md">
-            <Repeat className="h-4 w-4" /> Programar Entrenamientos Recurrentes
+          <Button variant="outline" onClick={handleOpenScheduleDialog} size="sm"
+            className="w-full h-8 border-white/20 text-white bg-white/10 hover:bg-white/20 font-black uppercase text-[8px] tracking-widest gap-1.5 rounded-xl backdrop-blur-md">
+            <Repeat className="h-3 w-3" /> Programar Entrenamientos
           </Button>
         </section>
 
