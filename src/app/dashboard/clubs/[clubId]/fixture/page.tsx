@@ -6,7 +6,7 @@ import {
   Plus, Loader2, Trash2, ChevronLeft, ChevronRight,
   Trophy, Shield, Pencil,
   Table as TableIcon, CalendarDays, Users, Calendar,
-  Ban, Clock, RotateCcw,
+  Ban, Clock, RotateCcw, Bus, MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, getDocs, getDoc, deleteDoc, updateDoc } from "firebase/firestore";
@@ -63,6 +63,17 @@ export default function TournamentsPage() {
   const [standingDialog, setStandingDialog] = useState(false);
   const [editingStanding, setEditingStanding] = useState<any>(null);
   const [standingForm, setStandingForm] = useState({ ...STANDING_INITIAL });
+
+  const [manualMatchDialog, setManualMatchDialog] = useState(false);
+  const [manualMatchForm, setManualMatchForm] = useState({
+    subcategoryId: "",
+    isHome: true, // true = our club is Local
+    rivalId: "",
+    rivalName: "",
+    date: "",
+    busDepartureTime: "",
+    notes: "",
+  });
 
   useEffect(() => {
     async function init() {
@@ -332,6 +343,50 @@ export default function TournamentsPage() {
     toast({ variant: "destructive", title: "Equipo eliminado de la tabla" });
   };
 
+  const handleCreateManualMatch = async () => {
+    if (!selectedTournament || !db) return;
+    const rivalDisplay = manualMatchForm.rivalId
+      ? (opponents.find(o => o.id === manualMatchForm.rivalId)?.name || manualMatchForm.rivalName)
+      : manualMatchForm.rivalName.trim();
+    if (!rivalDisplay) {
+      toast({ variant: "destructive", title: "Faltan datos", description: "Indicá el club rival." });
+      return;
+    }
+    try {
+      const matchId = doc(collection(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches")).id;
+      const rivalLogo = manualMatchForm.rivalId ? (opponents.find(o => o.id === manualMatchForm.rivalId)?.logoUrl || "") : "";
+      const ownName = clubData?.name || "Mi Club";
+      const ownLogo = clubData?.logoUrl || "";
+      const nextRound = allMatches.length > 0 ? Math.max(...allMatches.map(m => m.round || 0)) + 1 : 1;
+      const matchData: any = {
+        id: matchId,
+        round: nextRound,
+        homeParticipantId: manualMatchForm.isHome ? clubId : (manualMatchForm.rivalId || "manual"),
+        homeParticipantName: manualMatchForm.isHome ? ownName : rivalDisplay,
+        homeParticipantLogo: manualMatchForm.isHome ? ownLogo : rivalLogo,
+        awayParticipantId: manualMatchForm.isHome ? (manualMatchForm.rivalId || "manual") : clubId,
+        awayParticipantName: manualMatchForm.isHome ? rivalDisplay : ownName,
+        awayParticipantLogo: manualMatchForm.isHome ? rivalLogo : ownLogo,
+        date: manualMatchForm.date || "",
+        status: "scheduled",
+        notes: manualMatchForm.notes || "",
+        busDepartureTime: manualMatchForm.busDepartureTime || "",
+        subcategoryId: manualMatchForm.subcategoryId || "",
+        createdAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, "clubs", clubId, "tournaments", selectedTournament.id, "matches", matchId), matchData);
+      setAllMatches(prev =>
+        [...prev, matchData].sort((a, b) => (a.round - b.round) || (a.date || "").localeCompare(b.date || ""))
+      );
+      setManualMatchDialog(false);
+      setManualMatchForm({ subcategoryId: "", isHome: true, rivalId: "", rivalName: "", date: "", busDepartureTime: "", notes: "" });
+      toast({ title: "Partido creado", description: `Fecha ${nextRound}: ${matchData.homeParticipantName} vs ${matchData.awayParticipantName}` });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error al crear partido" });
+    }
+  };
+
   const matchTypeColor = (type: string) =>
     type === "match_league" ? "bg-amber-500" : type === "match_friendly" ? "bg-sky-500" : "bg-primary";
   const matchTypeLabel = (type: string) =>
@@ -371,6 +426,12 @@ export default function TournamentsPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => setManualMatchDialog(true)}
+                className="bg-white text-primary hover:bg-slate-50 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl"
+              >
+                <Plus className="h-4 w-4 mr-2" /> Crear Partido
+              </Button>
               <Button variant="outline" asChild className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12 font-black uppercase text-[10px] tracking-widest px-6 shadow-xl">
                 <Link href={"/dashboard/clubs/" + clubId + "/opponents"}><Shield className="h-4 w-4 mr-2" /> Rivales</Link>
               </Button>
@@ -533,6 +594,13 @@ export default function TournamentsPage() {
                                       <Ban className="h-3 w-3" />
                                     </button>
                                   </div>
+                                  {/* Bus departure time */}
+                                  {match.busDepartureTime && (
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                                      <Bus className="h-3.5 w-3.5 shrink-0" />
+                                      <span>Salida de micro: <strong>{match.busDepartureTime} hs</strong></span>
+                                    </div>
+                                  )}
                                   {/* Notes (visible when suspended/rescheduled) */}
                                   {(match.status === "suspended" || match.status === "rescheduled") && (
                                     <Input
@@ -756,6 +824,152 @@ export default function TournamentsPage() {
                 className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20"
               >
                 {editingStanding ? "Guardar Cambios" : "Agregar a Tabla"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* MANUAL MATCH DIALOG */}
+        <Dialog open={manualMatchDialog} onOpenChange={open => {
+          if (!open) {
+            setManualMatchDialog(false);
+            setManualMatchForm({ subcategoryId: "", isHome: true, rivalId: "", rivalName: "", date: "", busDepartureTime: "", notes: "" });
+          }
+        }}>
+          <DialogContent className="max-w-md bg-white border-none shadow-2xl rounded-[2rem]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black text-slate-900">Crear Partido</DialogTitle>
+              <DialogDescription className="font-bold text-slate-500">
+                Agregá un partido manual al fixture del torneo.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-5 py-4 max-h-[65vh] overflow-y-auto pr-1">
+              {/* Subdivisión */}
+              {divisionOptions.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Subdivisión / Categoría</Label>
+                  <Select value={manualMatchForm.subcategoryId} onValueChange={v => setManualMatchForm(prev => ({ ...prev, subcategoryId: v }))}>
+                    <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir subdivisión..." /></SelectTrigger>
+                    <SelectContent>
+                      {divisionOptions.map(opt => (
+                        <SelectItem key={opt.id} value={opt.id} className="font-bold">{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Local / Visitante */}
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Condición</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setManualMatchForm(prev => ({ ...prev, isHome: true }))}
+                    className={cn(
+                      "h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 font-black text-xs uppercase tracking-widest transition-all",
+                      manualMatchForm.isHome
+                        ? "bg-primary text-white border-primary shadow-lg"
+                        : "border-slate-200 text-slate-400 hover:border-primary/40"
+                    )}
+                  >
+                    <span>🏠 Local</span>
+                    <span className={cn("text-[9px] font-bold normal-case tracking-normal", manualMatchForm.isHome ? "text-white/70" : "text-slate-300")}>nuestro campo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setManualMatchForm(prev => ({ ...prev, isHome: false }))}
+                    className={cn(
+                      "h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 font-black text-xs uppercase tracking-widest transition-all",
+                      !manualMatchForm.isHome
+                        ? "bg-amber-500 text-white border-amber-500 shadow-lg"
+                        : "border-slate-200 text-slate-400 hover:border-amber-300"
+                    )}
+                  >
+                    <span>✈️ Visitante</span>
+                    <span className={cn("text-[9px] font-bold normal-case tracking-normal", !manualMatchForm.isHome ? "text-white/70" : "text-slate-300")}>campo rival</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Club rival */}
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Club Rival</Label>
+                <Select
+                  value={manualMatchForm.rivalId}
+                  onValueChange={v => {
+                    const opp = opponents.find(o => o.id === v);
+                    setManualMatchForm(prev => ({ ...prev, rivalId: v, rivalName: opp?.name || "" }));
+                  }}
+                >
+                  <SelectTrigger className="h-12 border-2 font-bold"><SelectValue placeholder="Elegir rival cargado..." /></SelectTrigger>
+                  <SelectContent>
+                    {opponents.map(o => (
+                      <SelectItem key={o.id} value={o.id} className="font-bold">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5 rounded-none"><AvatarImage src={o.logoUrl} className="object-contain" /></Avatar>
+                          {o.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                <div className="relative flex justify-center text-[10px] uppercase"><span className="bg-white px-2 text-slate-400 font-black">O nombre manual</span></div>
+              </div>
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Nombre del Rival</Label>
+                <Input
+                  value={manualMatchForm.rivalName}
+                  onChange={e => setManualMatchForm(prev => ({ ...prev, rivalName: e.target.value, rivalId: "" }))}
+                  placeholder="Ej. Lomas Athletic..."
+                  className="h-12 border-2 font-bold"
+                />
+              </div>
+
+              {/* Fecha y hora del partido */}
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Fecha y Hora del Partido</Label>
+                <Input
+                  type="datetime-local"
+                  value={manualMatchForm.date}
+                  onChange={e => setManualMatchForm(prev => ({ ...prev, date: e.target.value }))}
+                  className="h-12 border-2 font-bold"
+                />
+              </div>
+
+              {/* Hora salida de micro */}
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-1"><Bus className="h-3 w-3" /> Hora Salida de Micro</Label>
+                <Input
+                  type="time"
+                  value={manualMatchForm.busDepartureTime}
+                  onChange={e => setManualMatchForm(prev => ({ ...prev, busDepartureTime: e.target.value }))}
+                  className="h-12 border-2 font-bold"
+                />
+              </div>
+
+              {/* Notas */}
+              <div className="space-y-2">
+                <Label className="font-black text-xs uppercase tracking-widest text-slate-400">Observaciones</Label>
+                <Input
+                  value={manualMatchForm.notes}
+                  onChange={e => setManualMatchForm(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Ej. Llevar camiseta suplente..."
+                  className="h-12 border-2 font-bold"
+                />
+              </div>
+            </div>
+            <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 border-t gap-2">
+              <Button variant="ghost" onClick={() => setManualMatchDialog(false)} className="font-bold text-slate-500">Cancelar</Button>
+              <Button
+                onClick={handleCreateManualMatch}
+                disabled={!manualMatchForm.rivalId && !manualMatchForm.rivalName.trim()}
+                className="font-black uppercase text-xs tracking-widest h-12 px-10 shadow-lg shadow-primary/20"
+              >
+                <Plus className="h-4 w-4 mr-2" /> Crear Partido
               </Button>
             </DialogFooter>
           </DialogContent>
