@@ -250,7 +250,6 @@ export default function CoordinatorDashboard() {
     { title: "Gestor Fixture", href: club ? `/dashboard/clubs/${club.id}/fixture` : "#",              icon: CalendarDays },
     { title: "Categorías",     href: club ? `/dashboard/clubs/${club.id}/divisions` : "#",            icon: Layers },
     { title: "Staff Técnico",  href: club ? `/dashboard/clubs/${club.id}/coaches` : "#",              icon: UserRound },
-    { title: "Tesorería",      href: club ? `/dashboard/clubs/${club.id}/finances` : "#",             icon: CreditCard },
     { title: "Mi Carnet",      href: "/dashboard/player/id-card",                                     icon: ShieldCheck },
     { title: "Tablas/Fixture", href: "/dashboard/standings-fixture",                                   icon: TableIcon },
   ];
