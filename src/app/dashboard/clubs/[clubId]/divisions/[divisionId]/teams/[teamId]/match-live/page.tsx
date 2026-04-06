@@ -28,7 +28,7 @@ import {
   Maximize2,
 } from "lucide-react";
 import { HockeyTacticalBoard } from "@/components/dashboard/hockey-tactical-board";
-import { doc, setDoc, collection, deleteDoc } from "firebase/firestore";
+import { doc, collection } from "firebase/firestore";
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,42 +42,10 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-
-interface PositionSlot {
-  id: string;
-  x: number;
-  y: number;
-  label: string;
-  assignedPlayerId: string | null;
-}
-
-interface MatchPlayerStats {
-  playerId: string;
-  playerName: string;
-  playerPhoto: string;
-  timePlayed: number; 
-  goals: number;
-  trys: number;
-  conversions: number;
-  penalties: number;
-  yellowCards: number;
-  redCards: number;
-}
-
-interface SinBinPlayer {
-  playerId: string;
-  playerName: string;
-  returnTime: number; 
-}
-
-interface HIAPlayer {
-  playerId: string;
-  playerName: string;
-  replacedByPlayerId: string;
-  positionId: string;
-  startTime: number;
-  type: 'blood' | 'hia';
-}
+import { useOfflineMatch } from "@/hooks/use-offline-match";
+import { useSyncEngine } from "@/hooks/use-sync-engine";
+import { OfflineStatusIndicator } from "@/components/dashboard/offline-status-indicator";
+import type { SinBinEntry, HIAEntry } from "@/lib/offline-db";
 
 export default function MatchLiveTrackerPage() {
   const { clubId, divisionId, teamId } = useParams() as any;
@@ -86,25 +54,8 @@ export default function MatchLiveTrackerPage() {
   const router = useRouter();
   const fieldRef = useRef<HTMLDivElement>(null);
 
-  // Match States
-  const [seconds, setSeconds] = useState(0);
-  const [isActive, setIsActive] = useState(false);
-  const [homeScore, setHomeScore] = useState(0);
-  const [awayScore, setAwayScore] = useState(0);
-  const [opponentName, setOpponentName] = useState("Rival");
-  const [sport, setSport] = useState<'hockey' | 'rugby'>('hockey');
-  const [matchPhase, setMatchPhase] = useState<'en_curso' | 'entretiempo' | 'finalizado'>('en_curso');
-  
-  // Tactical States
-  const [playerCount, setPlayerCount] = useState(11);
-  const [positions, setPositions] = useState<PositionSlot[]>([]);
+  // Drag state (local only, no need to persist)
   const [draggingPosId, setDragPosId] = useState<string | null>(null);
-  
-  // Stats
-  const [playerStats, setPlayerStats] = useState<Record<string, MatchPlayerStats>>({});
-  const [matchEvents, setMatchEvents] = useState<any[]>([]);
-  const [sinBin, setSinBin] = useState<SinBinPlayer[]>([]);
-  const [hiaList, setHiaList] = useState<HIAPlayer[]>([]);
   
   // HIA Dialog State
   const [medicalModal, setMedicalModal] = useState<{ isOpen: boolean, playerId: string, positionId: string } | null>(null);
@@ -130,6 +81,42 @@ export default function MatchLiveTrackerPage() {
   );
   const { data: roster, isLoading: rosterLoading } = useCollection(rosterQuery);
 
+  // ─── Offline-First Hooks ──────────────────────────────
+  const offlineMatch = useOfflineMatch({
+    clubId,
+    divisionId,
+    teamId,
+    clubName: club?.name || "",
+    teamName: team?.name || "",
+    divisionName: division?.name || "",
+    sport: (team?.tacticalSport || team?.sport || "hockey") as "hockey" | "rugby",
+    roster: roster || [],
+  });
+
+  const syncEngine = useSyncEngine();
+
+  // Destructure for convenience
+  const {
+    matchId,
+    homeScore, setHomeScore,
+    awayScore, setAwayScore,
+    seconds,
+    isActive, setIsActive,
+    matchPhase, setMatchPhase,
+    opponentName, setOpponentName,
+    playerCount, setPlayerCount,
+    positions, setPositions,
+    playerStats, updatePlayerStats,
+    matchEvents,
+    sinBin, addSinBin, removeSinBin,
+    hiaList, addHIA, removeHIA,
+    sport, setSport,
+    storageWarning,
+    recordEvent,
+    getMatchState,
+    ready: offlineReady,
+  } = offlineMatch;
+
   // Roster sorted for tactical board: currently assigned players come first
   const boardRoster = useMemo(() => {
     if (!roster) return [];
@@ -141,67 +128,29 @@ export default function MatchLiveTrackerPage() {
     return [...assignedInOrder, ...unassigned];
   }, [roster, positions]);
 
-  // Sync Live Status to Index
+  // ─── Sync live index via queue when online ─────────────
+  const lastSyncRef = useRef(0);
   useEffect(() => {
-    if (!db || !team) return;
-    
-    const liveDocId = `${clubId}_${teamId}_live`;
-    const liveRef = doc(db, "live_matches_index", liveDocId);
+    if (!offlineReady || !matchId) return;
+    if (!isActive && seconds === 0) return;
 
-    const updateLiveIndex = () => {
-      const goalEvents = matchEvents
-        .filter(e => e.type === 'goal' || e.type === 'try')
-        .map(e => ({ playerName: e.playerName, minute: e.minute, type: e.type }))
-        .slice(0, 20);
-      setDoc(liveRef, {
-        id: liveDocId,
-        clubId,
-        clubName: club?.name || "",
-        clubLogo: club?.logoUrl || "",
-        teamId,
-        teamName: team.name,
-        divisionId,
-        divisionName: division?.name || "",
-        sport: team.tacticalSport || team.sport || "hockey",
-        homeScore,
-        awayScore,
-        opponentName,
-        goalEvents,
-        timeDisplay: formatTime(seconds),
-        matchPhase,
-        status: "live",
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    };
+    // Throttle: enqueue live sync at most every 10 seconds
+    const now = Date.now();
+    if (now - lastSyncRef.current < 10_000) return;
+    lastSyncRef.current = now;
 
-    if (isActive || seconds > 0) {
-      updateLiveIndex();
+    const state = getMatchState();
+    if (state) {
+      syncEngine.enqueueMatchSync(state);
     }
-  }, [isActive, seconds, homeScore, awayScore, opponentName, matchEvents, matchPhase, team, club, division, db, clubId, divisionId, teamId]);
+  }, [isActive, seconds, homeScore, awayScore, matchPhase, offlineReady, matchId]);
 
+  // ─── Generate positions when sport/playerCount changes ──
   useEffect(() => {
-    if (roster && Object.keys(playerStats).length === 0) {
-      const initialStats: Record<string, MatchPlayerStats> = {};
-      roster.forEach(p => {
-        initialStats[p.playerId] = {
-          playerId: p.playerId,
-          playerName: p.playerName,
-          playerPhoto: p.playerPhoto,
-          timePlayed: 0,
-          goals: 0,
-          trys: 0,
-          conversions: 0,
-          penalties: 0,
-          yellowCards: 0,
-          redCards: 0
-        };
-      });
-      setPlayerStats(initialStats);
-    }
-  }, [roster, playerStats]);
+    // Skip if match was restored from IndexedDB (positions already set)
+    if (positions.length > 0) return;
 
-  useEffect(() => {
-    const newPositions: PositionSlot[] = [];
+    const newPositions: import("@/lib/offline-db").PositionSlot[] = [];
     
     if (sport === 'hockey') {
       newPositions.push({ id: 'pos-gk', x: 50, y: 90, label: 'GK', assignedPlayerId: null });
@@ -231,28 +180,6 @@ export default function MatchLiveTrackerPage() {
     }
     setPositions(newPositions);
   }, [playerCount, sport]);
-
-  useEffect(() => {
-    let interval: any = null;
-    if (isActive) {
-      interval = setInterval(() => {
-        setSeconds(prev => prev + 1);
-        const activeIds = positions.map(p => p.assignedPlayerId).filter(id => id !== null);
-        setPlayerStats(prev => {
-          const updated = { ...prev };
-          activeIds.forEach(id => {
-            if (updated[id!]) {
-              updated[id!].timePlayed += 1;
-            }
-          });
-          return updated;
-        });
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [isActive, positions]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);

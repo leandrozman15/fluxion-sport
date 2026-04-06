@@ -26,6 +26,7 @@ import {
   Search,
   Bus,
   Pencil,
+  Shirt,
 } from "lucide-react";
 import Link from "next/link";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
@@ -51,6 +52,8 @@ export default function EventAttendancePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editDepartureOpen, setEditDepartureOpen] = useState(false);
   const [departureInput, setDepartureInput] = useState("");
+  const [editJerseyOpen, setEditJerseyOpen] = useState(false);
+  const [jerseyInput, setJerseyInput] = useState("");
 
   const eventRef = useMemoFirebase(() => doc(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events", eventId), [db, clubId, divisionId, teamId, eventId]);
   const { data: event, isLoading: eventLoading } = useDoc(eventRef);
@@ -164,6 +167,20 @@ export default function EventAttendancePage() {
     setEditDepartureOpen(false);
   };
 
+  const handleSaveJersey = async (value: string) => {
+    if (!eventRef) return;
+    await updateDoc(eventRef, { jersey: value });
+    // Update existing callups if already published
+    if (event?.callupsPublished && callups) {
+      callups.forEach(c => {
+        updateDocumentNonBlocking(doc(db, "match_callups", c.id), { eventJersey: value });
+      });
+    }
+    const labels: Record<string, string> = { titular: 'Camiseta Titular', suplente: 'Camiseta Suplente', ambas: 'Ambas camisetas' };
+    toast({ title: "Uniforme actualizado", description: value ? labels[value] || value : "Indicación de uniforme eliminada." });
+    setEditJerseyOpen(false);
+  };
+
   if (eventLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-white" /></div>;
 
   const isMatch = ['match', 'match_league', 'match_friendly'].includes(event?.type || '');
@@ -210,6 +227,56 @@ export default function EventAttendancePage() {
                   </a>
                 )}
               </span>
+              {/* Uniform / Jersey */}
+              <Dialog open={editJerseyOpen} onOpenChange={open => { setEditJerseyOpen(open); if (open) setJerseyInput(event?.jersey || ""); }}>
+                <DialogTrigger asChild>
+                  <button className="flex items-center gap-1.5 text-sm font-bold drop-shadow-md hover:text-accent transition-colors">
+                    <Shirt className="h-4 w-4 text-accent" />
+                    {event?.jersey
+                      ? <span>Uniforme: <strong>{event.jersey === 'titular' ? 'Titular' : event.jersey === 'suplente' ? 'Suplente' : 'Ambas'}</strong></span>
+                      : <span className="text-white/50">Indicar uniforme</span>}
+                    <Pencil className="h-3 w-3 opacity-50" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-xs bg-white border-none shadow-2xl rounded-[2rem]">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-2">
+                      <Shirt className="h-5 w-5 text-primary" /> Uniforme del Partido
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="py-4 space-y-3">
+                    <p className="text-[10px] text-slate-400 font-bold">Indicá qué camiseta deben llevar las jugadoras convocadas.</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      <Button
+                        variant={jerseyInput === 'titular' ? 'default' : 'outline'}
+                        onClick={() => setJerseyInput('titular')}
+                        className={cn("h-14 font-black uppercase text-xs tracking-widest rounded-2xl gap-3 justify-start px-6", jerseyInput === 'titular' ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg' : 'border-2 text-slate-700')}
+                      >
+                        🟢 Camiseta Titular
+                      </Button>
+                      <Button
+                        variant={jerseyInput === 'suplente' ? 'default' : 'outline'}
+                        onClick={() => setJerseyInput('suplente')}
+                        className={cn("h-14 font-black uppercase text-xs tracking-widest rounded-2xl gap-3 justify-start px-6", jerseyInput === 'suplente' ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg' : 'border-2 text-slate-700')}
+                      >
+                        🔵 Camiseta Suplente
+                      </Button>
+                      <Button
+                        variant={jerseyInput === 'ambas' ? 'default' : 'outline'}
+                        onClick={() => setJerseyInput('ambas')}
+                        className={cn("h-14 font-black uppercase text-xs tracking-widest rounded-2xl gap-3 justify-start px-6", jerseyInput === 'ambas' ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg' : 'border-2 text-slate-700')}
+                      >
+                        🟡 Llevar Ambas Camisetas
+                      </Button>
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="ghost" onClick={() => setEditJerseyOpen(false)} className="font-bold text-slate-500">Cancelar</Button>
+                    <Button onClick={() => handleSaveJersey(jerseyInput)} className="font-black uppercase text-[10px] tracking-widest h-12 px-8">Guardar</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               {/* Departure time */}
               <Dialog open={editDepartureOpen} onOpenChange={open => { setEditDepartureOpen(open); if (open) setDepartureInput(event?.departureTime || ""); }}>
                 <DialogTrigger asChild>

@@ -361,10 +361,29 @@ export default function ClubCoachesPage() {
                 </div>
               </div>
 
+              <div className="space-y-6 bg-slate-50 -mx-8 px-8 py-6 border-y">
+                <div className="flex items-center gap-3 border-b pb-2">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-primary">3. Acceso App Fluxion</h3>
+                    <p className="text-[10px] text-slate-500 font-bold mt-0.5">Email de acceso a la plataforma.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-slate-700">Email (Usuario de Acceso)</Label>
+                    <Input type="email" value={editingCoach?.email || ""} onChange={e => setEditingCoach({...editingCoach, email: e.target.value})} className="h-12 border-2 bg-white" />
+                  </div>
+                  <div className="space-y-2 flex items-end">
+                    <p className="text-[10px] text-slate-400 font-bold pb-3">La contraseña no se puede cambiar desde aquí. El usuario puede cambiarla desde su sesión.</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b pb-2">
                   <Phone className="h-5 w-5 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">3. Datos de Contacto</h3>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Datos de Contacto</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -381,7 +400,7 @@ export default function ClubCoachesPage() {
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b pb-2">
                   <Stethoscope className="h-5 w-5 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">4. Datos de Salud</h3>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">5. Datos de Salud</h3>
                 </div>
                 <div className="space-y-2 mb-6">
                   <Label className="font-bold text-slate-700">Grupo Sanguíneo</Label>
@@ -403,7 +422,8 @@ export default function ClubCoachesPage() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100 mx-6 mb-4">
+
+              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
                 <div>
                   <Label className="font-black text-xs uppercase text-blue-800">Estacionamiento incluido en cuota</Label>
                   <p className="text-[10px] text-blue-600 font-bold">La cuota mensual incluye el pago del estacionamiento</p>
@@ -412,7 +432,7 @@ export default function ClubCoachesPage() {
               </div>
 
               {/* Multi-Rol: También es Jugador/a */}
-              <div className="space-y-6 bg-green-50 p-6 mx-6 mb-4 rounded-2xl border border-green-100">
+              <div className="space-y-6 bg-green-50 -mx-8 px-8 py-6 border-y border-green-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-green-800 flex items-center gap-2">
