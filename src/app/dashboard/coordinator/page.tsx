@@ -124,23 +124,25 @@ export default function CoordinatorDashboard() {
         if (nextMatchCandidate) setNextMatch(nextMatchCandidate);
 
         // 5. Trips
-        const now = new Date().toISOString();
+        const nowLocal = new Date();
+        const localNowStr = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth()+1).padStart(2,'0')}-${String(nowLocal.getDate()).padStart(2,'0')}T${String(nowLocal.getHours()).padStart(2,'0')}:${String(nowLocal.getMinutes()).padStart(2,'0')}`;
         const tripsSnap = await getDocs(
           query(collection(firestore, "clubs", cData.id, "trips"), orderBy("date", "asc"))
         );
         const upcomingTrips = tripsSnap.docs
           .map(d => ({ ...d.data(), id: d.id }))
-          .filter((t: any) => t.date >= now);
+          .filter((t: any) => t.date >= localNowStr);
         setTrips(upcomingTrips);
 
         // 6. Injuries (active in last 30 days)
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysAgoStr = `${thirtyDaysAgo.getFullYear()}-${String(thirtyDaysAgo.getMonth()+1).padStart(2,'0')}-${String(thirtyDaysAgo.getDate()).padStart(2,'0')}T00:00`;
         const injuriesSnap = await getDocs(
           query(
             collection(firestore, "clubs", cData.id, "injuries"),
             where("status", "==", "active"),
-            where("date", ">=", thirtyDaysAgo.toISOString())
+            where("date", ">=", thirtyDaysAgoStr)
           )
         );
         const injuriesByTeam: Record<string, { count: number; details: string[] }> = {};

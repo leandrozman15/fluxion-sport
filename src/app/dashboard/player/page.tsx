@@ -83,9 +83,11 @@ export default function PlayerDashboardHub() {
           if (pData.clubId) {
             // Próximo evento
             if (pData.teamId && pData.divisionId) {
+              const nowLocal = new Date();
+              const localNowStr = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth()+1).padStart(2,'0')}-${String(nowLocal.getDate()).padStart(2,'0')}T${String(nowLocal.getHours()).padStart(2,'0')}:${String(nowLocal.getMinutes()).padStart(2,'0')}`;
               const eventsSnap = await getDocs(query(
                 collection(firestore, "clubs", pData.clubId, "divisions", pData.divisionId, "teams", pData.teamId, "events"),
-                where("date", ">=", new Date().toISOString()),
+                where("date", ">=", localNowStr),
                 orderBy("date", "asc"),
                 limit(1)
               ));

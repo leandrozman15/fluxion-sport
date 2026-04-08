@@ -183,7 +183,7 @@ export default function CoachDashboard() {
       setTodayEvent(null);
       setRank(null);
       try {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = localDateStr(new Date());
         const eventsSnap = await getDocs(query(
           collection(firestore, "clubs", selectedTeam.clubId, "divisions", selectedTeam.divisionId, "teams", selectedTeam.id, "events"),
           where("type", "==", "training")

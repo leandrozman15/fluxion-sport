@@ -63,7 +63,8 @@ export default function TeamDetailPage() {
     async function fetchTodayEvent() {
       if (!db) return;
       try {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         const eventsRef = collection(db, "clubs", clubId, "divisions", divisionId, "teams", teamId, "events");
         const q = query(eventsRef, where("type", "==", "training"));
         const snap = await getDocs(q);
